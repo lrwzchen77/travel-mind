@@ -12,13 +12,22 @@
 
 ## Authors
 
-Use these author identities when creating team commits:
+Use these Gitee-backed author identities when creating team commits:
 
 ```text
 Wang-ke-li <Wang-ke-li@users.noreply.gitee.com>
-Chen Wenzhe <chen-wenzhe@example.local>
-Zhu Qicheng <zhu-qicheng@example.local>
-Zhang Shuai <zhang-shuai@example.local>
+Chen Wenzhe <chen-wenzheqq@users.noreply.gitee.com>
+Zhu Qicheng <zhu-qicheng@users.noreply.gitee.com>
+Zhang Shuai <z-zzzzz@users.noreply.gitee.com>
+```
+
+Remote Gitee member accounts confirmed by Gitee MCP:
+
+```text
+Wang-ke-li
+chen-wenzheqq
+zhu-qicheng
+z-zzzzz
 ```
 
 ## Commit Messages

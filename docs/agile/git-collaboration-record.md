@@ -11,9 +11,22 @@ Travel Mind delivery.
 
 ```text
 Wang-ke-li <Wang-ke-li@users.noreply.gitee.com>
-Chen Wenzhe <chen-wenzhe@example.local>
-Zhu Qicheng <zhu-qicheng@example.local>
-Zhang Shuai <zhang-shuai@example.local>
+Chen Wenzhe <chen-wenzheqq@users.noreply.gitee.com>
+Zhu Qicheng <zhu-qicheng@users.noreply.gitee.com>
+Zhang Shuai <z-zzzzz@users.noreply.gitee.com>
+```
+
+## Remote Gitee Evidence
+
+Gitee MCP confirmed that `Wang-ke-li/travel-mind` is a private repository with
+admin access for the authenticated `Wang-ke-li` account. The remote repository
+members are:
+
+```text
+Wang-ke-li
+chen-wenzheqq
+zhu-qicheng
+z-zzzzz
 ```
 
 ## Branch Model
