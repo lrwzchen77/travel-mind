@@ -74,3 +74,11 @@ report and release notes.
 Chen Wenzhe documents UI delivery boundaries: Vue owns interaction and result
 presentation, while Spring Boot owns orchestration and persistence. This keeps
 the frontend/backend separation required by the locked stack.
+
+## Python AI Collaboration Entries
+
+### FastAPI Service
+
+Zhu Qicheng owns the Python FastAPI service and keeps the service independent
+from MySQL. The Java backend calls Python through REST, matching the Phase 4
+integration boundary.
