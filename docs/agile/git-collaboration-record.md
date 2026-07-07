@@ -106,3 +106,11 @@ negative warnings, and suitable traveler types.
 Zhu Qicheng records Python API tests for health, image detection, trip comfort
 evaluation, and content analysis. Tests verify stable response structures so
 Java integration can rely on predictable contracts.
+
+## Database And Delivery Entries
+
+### Delivery Audit
+
+Zhang Shuai records the database, CRUD, test, and delivery audit. The audit
+covers MySQL schema and seed scripts, CRUD validation, test case coverage,
+deployment instructions, and final release-note assembly.
