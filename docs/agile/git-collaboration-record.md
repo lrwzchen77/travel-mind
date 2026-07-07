@@ -50,3 +50,9 @@ Chen Wenzhe implements travel resource pages for city, attraction, hotel,
 restaurant, favorites, notes, history, and AI records. These screens call the
 Spring Boot CRUD APIs and keep frontend business logic inside Vue components
 and service modules.
+
+### Planning Flow
+
+Chen Wenzhe connects the trip planning form, task progress polling, trip
+result view, trip detail, copy, delete, and chat interactions. The UI presents
+structured itinerary data returned by the Java backend.
