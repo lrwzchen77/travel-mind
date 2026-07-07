@@ -62,3 +62,9 @@ structured itinerary data returned by the Java backend.
 Chen Wenzhe adds the AI Lab and result panels for image detection, trip comfort
 scoring, and travel text analysis. These views expose Java-Python REST results
 without making the frontend call the Python service directly.
+
+### Frontend Validation
+
+Chen Wenzhe maintains Vitest smoke coverage for core user flows and confirms
+the Vite production build. Frontend verification is recorded in the final test
+report and release notes.
