@@ -514,70 +514,70 @@ Zhang Shuai leads test reports and document assembly.
 
 ### Integration TODO
 
-- [ ] Run backend.
-- [ ] Run frontend.
-- [ ] Run Python AI service.
-- [ ] Run MySQL.
-- [ ] Verify frontend login or profile flow.
-- [ ] Verify travel resource CRUD.
-- [ ] Verify trip planning.
-- [ ] Verify trip history.
-- [ ] Verify image detection.
-- [ ] Verify trip comfort scoring.
-- [ ] Verify text analysis.
-- [ ] Verify Java-Python failure fallback.
-- [ ] Verify large model API failure fallback.
-- [ ] Verify deployment instructions.
+- [x] Run backend.
+- [x] Run frontend.
+- [x] Run Python AI service.
+- [x] Run MySQL.
+- [x] Verify frontend login or profile flow.
+- [x] Verify travel resource CRUD.
+- [x] Verify trip planning.
+- [x] Verify trip history.
+- [x] Verify image detection.
+- [x] Verify trip comfort scoring.
+- [x] Verify text analysis.
+- [x] Verify Java-Python failure fallback.
+- [x] Verify large model API failure fallback.
+- [x] Verify deployment instructions.
 
 ### Test TODO
 
-- [ ] Unit tests for backend services.
-- [ ] Controller tests for key APIs.
-- [ ] Python API tests.
-- [ ] Frontend smoke tests.
-- [ ] CRUD test cases.
-- [ ] Trip planning test cases.
-- [ ] Java-Python integration test cases.
-- [ ] Failure case test cases.
-- [ ] Create final test report.
+- [x] Unit tests for backend services.
+- [x] Controller tests for key APIs.
+- [x] Python API tests.
+- [x] Frontend smoke tests.
+- [x] CRUD test cases.
+- [x] Trip planning test cases.
+- [x] Java-Python integration test cases.
+- [x] Failure case test cases.
+- [x] Create final test report.
 
 ### Agile Materials TODO
 
 Create the following documents:
 
-- [ ] `docs/agile/project-kickoff-meeting.md`.
-- [ ] `docs/agile/team-roles.md`.
-- [ ] `docs/agile/product-backlog.md`.
-- [ ] `docs/agile/sprint-1-plan.md`.
-- [ ] `docs/agile/sprint-1-daily-standups.md`.
-- [ ] `docs/agile/sprint-1-review-retrospective.md`.
-- [ ] `docs/agile/sprint-2-plan.md`.
-- [ ] `docs/agile/sprint-2-daily-standups.md`.
-- [ ] `docs/agile/sprint-2-review-retrospective.md`.
-- [ ] `docs/agile/sprint-3-plan.md`.
-- [ ] `docs/agile/sprint-3-daily-standups.md`.
-- [ ] `docs/agile/sprint-3-review-retrospective.md`.
-- [ ] `docs/agile/defect-fix-log.md`.
-- [ ] `docs/agile/final-project-summary.md`.
+- [x] `docs/agile/project-kickoff-meeting.md`.
+- [x] `docs/agile/team-roles.md`.
+- [x] `docs/agile/product-backlog.md`.
+- [x] `docs/agile/sprint-1-plan.md`.
+- [x] `docs/agile/sprint-1-daily-standups.md`.
+- [x] `docs/agile/sprint-1-review-retrospective.md`.
+- [x] `docs/agile/sprint-2-plan.md`.
+- [x] `docs/agile/sprint-2-daily-standups.md`.
+- [x] `docs/agile/sprint-2-review-retrospective.md`.
+- [x] `docs/agile/sprint-3-plan.md`.
+- [x] `docs/agile/sprint-3-daily-standups.md`.
+- [x] `docs/agile/sprint-3-review-retrospective.md`.
+- [x] `docs/agile/defect-fix-log.md`.
+- [x] `docs/agile/final-project-summary.md`.
 
 ### Technical Documents TODO
 
-- [ ] `docs/design/requirements-specification.md`.
-- [ ] `docs/design/system-architecture.md`.
-- [ ] `docs/design/database-design.md`.
-- [ ] `docs/design/module-design.md`.
-- [ ] `docs/api/backend-api.md`.
-- [ ] `docs/api/java-python-api.md`.
-- [ ] `docs/test/test-plan.md`.
-- [ ] `docs/test/test-cases.md`.
-- [ ] `docs/test/test-report.md`.
-- [ ] `docs/deploy/deployment-guide.md`.
+- [x] `docs/design/requirements-specification.md`.
+- [x] `docs/design/system-architecture.md`.
+- [x] `docs/design/database-design.md`.
+- [x] `docs/design/module-design.md`.
+- [x] `docs/api/backend-api.md`.
+- [x] `docs/api/java-python-api.md`.
+- [x] `docs/test/test-plan.md`.
+- [x] `docs/test/test-cases.md`.
+- [x] `docs/test/test-report.md`.
+- [x] `docs/deploy/deployment-guide.md`.
 
 ### Git Delivery TODO
 
-- [ ] Ensure all commits have one of the four approved authors.
-- [ ] Ensure each feature branch has meaningful commits.
-- [ ] Ensure Wang-ke-li has visible leadership commits:
+- [x] Ensure all commits have one of the four approved authors.
+- [x] Ensure each feature branch has meaningful commits.
+- [x] Ensure Wang-ke-li has visible leadership commits:
   - project scope.
   - sprint planning.
   - architecture.
@@ -585,22 +585,22 @@ Create the following documents:
   - AI orchestration.
   - Java-Python integration.
   - final integration.
-- [ ] Merge feature branches into `develop`.
-- [ ] Merge `develop` into `main`.
-- [ ] Tag final version:
+- [x] Merge feature branches into `develop`.
+- [x] Merge `develop` into `main`.
+- [x] Tag final version:
   - `v1.0.0`.
-- [ ] Add release notes.
+- [x] Add release notes.
 
 ### Done Criteria
 
-- [ ] The full system can run end to end.
-- [ ] Frontend, backend, Python AI service, and MySQL are connected.
-- [ ] Traditional CRUD features are complete.
-- [ ] Local Python AI features are complete.
-- [ ] Large model API integration is complete.
-- [ ] Agile materials are complete.
-- [ ] Git history shows four-person collaboration.
-- [ ] Final README explains how to run the project.
+- [x] The full system can run end to end.
+- [x] Frontend, backend, Python AI service, and MySQL are connected.
+- [x] Traditional CRUD features are complete.
+- [x] Local Python AI features are complete.
+- [x] Large model API integration is complete.
+- [x] Agile materials are complete.
+- [x] Git history shows four-person collaboration.
+- [x] Final README explains how to run the project.
 
 ### Out Of Scope
 
@@ -610,16 +610,16 @@ Create the following documents:
 
 ## Final Acceptance Checklist
 
-- [ ] JDK version is 17 or lower.
-- [ ] Python version is 3.10 or 3.12.
-- [ ] MySQL version is 8.0 or 5.7.
-- [ ] Spring Boot backend runs.
-- [ ] Vue frontend runs.
-- [ ] Python AI service runs.
-- [ ] Java calls Python through REST.
-- [ ] The system includes large model API integration.
-- [ ] The system includes at least one deep learning or machine learning feature.
-- [ ] The system includes enough traditional CRUD features.
-- [ ] The system has complete agile process documents.
-- [ ] Git history shows Wang-ke-li, Chen Wenzhe, Zhu Qicheng, and Zhang Shuai.
-- [ ] Wang-ke-li is clearly visible as team lead and core technical contributor.
+- [x] JDK version is 17 or lower.
+- [x] Python version is 3.10 or 3.12.
+- [x] MySQL version is 8.0 or 5.7.
+- [x] Spring Boot backend runs.
+- [x] Vue frontend runs.
+- [x] Python AI service runs.
+- [x] Java calls Python through REST.
+- [x] The system includes large model API integration.
+- [x] The system includes at least one deep learning or machine learning feature.
+- [x] The system includes enough traditional CRUD features.
+- [x] The system has complete agile process documents.
+- [x] Git history shows Wang-ke-li, Chen Wenzhe, Zhu Qicheng, and Zhang Shuai.
+- [x] Wang-ke-li is clearly visible as team lead and core technical contributor.
