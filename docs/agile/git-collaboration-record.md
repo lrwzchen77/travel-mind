@@ -88,3 +88,9 @@ integration boundary.
 Zhu Qicheng records the travel image detection boundary: upload or URL input,
 YOLO-compatible optional model loading, deterministic rule fallback, normalized
 labels, scene tags, confidence scores, and stable JSON output.
+
+### Trip Comfort Scoring
+
+Zhu Qicheng records the comfort scoring rules for daily density, transfers,
+weather impact, transportation mode, budget pressure, and user preference fit.
+The output includes overall score, risk level, daily risks, and suggestions.
