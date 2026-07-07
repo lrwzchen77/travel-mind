@@ -39,9 +39,18 @@ Use the following author identities:
 
 ```text
 Wang-ke-li <Wang-ke-li@users.noreply.gitee.com>
-Chen Wenzhe <chen-wenzhe@example.local>
-Zhu Qicheng <zhu-qicheng@example.local>
-Zhang Shuai <zhang-shuai@example.local>
+Chen Wenzhe <chen-wenzheqq@users.noreply.gitee.com>
+Zhu Qicheng <zhu-qicheng@users.noreply.gitee.com>
+Zhang Shuai <z-zzzzz@users.noreply.gitee.com>
+```
+
+These identities map to the Gitee repository members:
+
+```text
+Wang-ke-li
+chen-wenzheqq
+zhu-qicheng
+z-zzzzz
 ```
 
 Branch model:
