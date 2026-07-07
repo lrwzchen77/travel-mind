@@ -144,7 +144,7 @@ public class TripAiPlannerService {
             cities = request.normalizedCities().stream().map(CityStay::city).toList();
         }
         String city = isBlank(plan.city())
-            ? (cities.isEmpty() ? request.primaryCity() : cities.getFirst())
+            ? (cities.isEmpty() ? request.primaryCity() : cities.get(0))
             : plan.city();
         List<DayPlan> days = plan.days() == null ? List.of() : plan.days();
         Budget budget = plan.budget() == null

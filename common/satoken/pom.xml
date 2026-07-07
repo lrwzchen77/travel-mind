@@ -29,16 +29,16 @@
         -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webmvc</artifactId>
+            <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
         <!--
-            Sa-Token Spring Boot 4 Starter：
+            Sa-Token Spring Boot 3 Starter：
             提供登录态管理、鉴权注解、StpUtil、拦截器等认证授权基础能力。
         -->
         <dependency>
             <groupId>cn.dev33</groupId>
-            <artifactId>sa-token-spring-boot4-starter</artifactId>
+            <artifactId>sa-token-spring-boot3-starter</artifactId>
         </dependency>
     </dependencies>
 

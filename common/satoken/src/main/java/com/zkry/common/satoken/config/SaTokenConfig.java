@@ -46,7 +46,18 @@ public class SaTokenConfig implements WebMvcConfigurer {
                 "/api/trip/**",
                 "/api/chat/**",
                 "/api/poi/**",
-                "/api/settings/**"
+                "/api/settings/**",
+                "/api/users/**",
+                "/api/user-preferences/**",
+                "/api/cities/**",
+                "/api/attractions/**",
+                "/api/hotels/**",
+                "/api/restaurants/**",
+                "/api/travel-tags/**",
+                "/api/favorites/**",
+                "/api/travel-notes/**",
+                "/api/ai/**",
+                "/api/ai-records/**"
             );
     }
 }
