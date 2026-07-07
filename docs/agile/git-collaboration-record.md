@@ -82,3 +82,9 @@ the frontend/backend separation required by the locked stack.
 Zhu Qicheng owns the Python FastAPI service and keeps the service independent
 from MySQL. The Java backend calls Python through REST, matching the Phase 4
 integration boundary.
+
+### Image Detection
+
+Zhu Qicheng records the travel image detection boundary: upload or URL input,
+YOLO-compatible optional model loading, deterministic rule fallback, normalized
+labels, scene tags, confidence scores, and stable JSON output.
