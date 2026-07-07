@@ -35,3 +35,11 @@ git shortlog -sne --all
 git log --all --decorate --graph --oneline
 git for-each-ref --format="%(refname:short) %(objectname:short) %(subject)" refs/heads refs/tags
 ```
+
+## Frontend Collaboration Entries
+
+### Vue Shell
+
+Chen Wenzhe owns the Vue 3 + Vite application shell, including routing,
+layout structure, API client conventions, and environment configuration.
+This matches the Phase 1 frontend initialization requirement.
