@@ -56,3 +56,9 @@ and service modules.
 Chen Wenzhe connects the trip planning form, task progress polling, trip
 result view, trip detail, copy, delete, and chat interactions. The UI presents
 structured itinerary data returned by the Java backend.
+
+### AI Result Views
+
+Chen Wenzhe adds the AI Lab and result panels for image detection, trip comfort
+scoring, and travel text analysis. These views expose Java-Python REST results
+without making the frontend call the Python service directly.
