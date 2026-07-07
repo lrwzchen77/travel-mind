@@ -68,3 +68,9 @@ without making the frontend call the Python service directly.
 Chen Wenzhe maintains Vitest smoke coverage for core user flows and confirms
 the Vite production build. Frontend verification is recorded in the final test
 report and release notes.
+
+### Frontend Delivery Notes
+
+Chen Wenzhe documents UI delivery boundaries: Vue owns interaction and result
+presentation, while Spring Boot owns orchestration and persistence. This keeps
+the frontend/backend separation required by the locked stack.
