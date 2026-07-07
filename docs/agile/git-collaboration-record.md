@@ -100,3 +100,9 @@ The output includes overall score, risk level, daily risks, and suggestions.
 Zhu Qicheng records the travel text analysis endpoint for notes, comments, and
 content snippets. The analysis extracts sentiment, keywords, positive highlights,
 negative warnings, and suitable traveler types.
+
+### Python Test Evidence
+
+Zhu Qicheng records Python API tests for health, image detection, trip comfort
+evaluation, and content analysis. Tests verify stable response structures so
+Java integration can rely on predictable contracts.
