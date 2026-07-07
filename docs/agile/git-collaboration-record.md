@@ -43,3 +43,10 @@ git for-each-ref --format="%(refname:short) %(objectname:short) %(subject)" refs
 Chen Wenzhe owns the Vue 3 + Vite application shell, including routing,
 layout structure, API client conventions, and environment configuration.
 This matches the Phase 1 frontend initialization requirement.
+
+### Resource Pages
+
+Chen Wenzhe implements travel resource pages for city, attraction, hotel,
+restaurant, favorites, notes, history, and AI records. These screens call the
+Spring Boot CRUD APIs and keep frontend business logic inside Vue components
+and service modules.
