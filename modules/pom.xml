@@ -20,6 +20,7 @@
         <module>demo</module>
         <module>identity</module>
         <module>trip</module>
+        <module>resources</module>
         <module>ai</module>
         <module>map</module>
         <module>content</module>

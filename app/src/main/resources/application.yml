@@ -1,10 +1,5 @@
 
 spring:
-  autoconfigure:
-    exclude:
-      # Spring AI Alibaba 2.0.0-M1.1 的 dashscope autoconfigure imports 中引用了这个缺失类。
-      # 先显式排除，保留 ChatClient/DashScope starter 的学习接入路径。
-      - com.alibaba.cloud.ai.autoconfigure.dashscope.DashScopeMultimodalEmbeddingAutoConfiguration
   application:
     name: travelmind
   profiles:
@@ -26,6 +21,9 @@ logging:
     path: ./logs
 
 travelmind:
+  python-ai:
+    base-url: ${PYTHON_AI_BASE_URL:http://localhost:19080}
+    timeout-ms: ${PYTHON_AI_TIMEOUT_MS:3000}
   map:
     amap:
       enabled: ${AMAP_ENABLED:true}

@@ -9,6 +9,7 @@
 - 总天数：{{travel_days}}
 - 交通方式：{{transportation}}
 - 住宿偏好：{{accommodation}}
+- 预算：{{budget}}
 - 偏好：{{preferences}}
 - 额外要求：{{free_text_input}}
 - 输出语言：{{language}}

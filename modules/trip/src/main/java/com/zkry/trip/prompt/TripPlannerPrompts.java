@@ -64,6 +64,7 @@ public final class TripPlannerPrompts {
             Map.entry("travel_days", String.valueOf(request.safeTravelDays())),
             Map.entry("transportation", request.safeTransportation()),
             Map.entry("accommodation", request.safeAccommodation()),
+            Map.entry("budget", request.safeBudget()),
             Map.entry("preferences", preferences),
             Map.entry("free_text_input", safe(request.free_text_input())),
             Map.entry("language", request.safeLanguage())

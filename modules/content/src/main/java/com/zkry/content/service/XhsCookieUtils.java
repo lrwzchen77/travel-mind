@@ -3,7 +3,7 @@ package com.zkry.content.service;
 import com.zkry.common.json.utils.JsonUtils;
 import java.util.ArrayList;
 import java.util.List;
-import tools.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.JsonNode;
 
 final class XhsCookieUtils {
 

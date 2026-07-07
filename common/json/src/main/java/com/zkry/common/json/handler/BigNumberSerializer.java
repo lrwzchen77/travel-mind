@@ -1,10 +1,10 @@
 package com.zkry.common.json.handler;
 
-import tools.jackson.core.JacksonException;
-import tools.jackson.core.JsonGenerator;
-import tools.jackson.databind.SerializationContext;
-import tools.jackson.databind.annotation.JacksonStdImpl;
-import tools.jackson.databind.ser.jdk.NumberSerializer;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.annotation.JacksonStdImpl;
+import com.fasterxml.jackson.databind.ser.std.NumberSerializer;
+import java.io.IOException;
 
 /**
  * 大数字序列化器。
@@ -53,10 +53,10 @@ public class BigNumberSerializer extends NumberSerializer {
      * <p>小数字保持原生 JSON number；大数字转 JSON string，保护前端精度。
      */
     @Override
-    public void serialize(Number value, JsonGenerator gen, SerializationContext ctxt) throws JacksonException {
+    public void serialize(Number value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
         long longValue = value.longValue();
         if (longValue > MIN_SAFE_INTEGER && longValue < MAX_SAFE_INTEGER) {
-            super.serialize(value, gen, ctxt);
+            super.serialize(value, gen, serializers);
             return;
         }
         gen.writeString(value.toString());
