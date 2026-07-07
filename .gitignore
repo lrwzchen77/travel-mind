@@ -5,6 +5,14 @@ logs/
 .env
 .env.local
 .env.*.local
+node_modules/
+frontend/dist/
+frontend/.vite/
+.venv/
+python-ai/.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
 runtime_settings.json
 app/runtime_settings.json
 **/runtime_settings.json
