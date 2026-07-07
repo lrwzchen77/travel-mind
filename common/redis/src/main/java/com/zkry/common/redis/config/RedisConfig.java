@@ -2,6 +2,8 @@ package com.zkry.common.redis.config;
 
 import com.zkry.common.json.config.JacksonConfig;
 import com.zkry.common.redis.util.RedisUtils;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import java.util.TimeZone;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
@@ -9,10 +11,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
+import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializer;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Spring Data Redis 基础配置。
@@ -50,7 +50,7 @@ public class RedisConfig {
     @ConditionalOnMissingBean(name = "redisTemplate")
     public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
         RedisSerializer<String> stringSerializer = RedisSerializer.string();
-        GenericJacksonJsonRedisSerializer jsonSerializer = redisJsonSerializer();
+        GenericJackson2JsonRedisSerializer jsonSerializer = redisJsonSerializer();
 
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
@@ -85,14 +85,14 @@ public class RedisConfig {
     /**
      * Redis 专用 JSON 序列化器。
      *
-     * <p>Spring Data Redis 4 的 GenericJacksonJsonRedisSerializer 使用 Jackson 3，
+     * <p>Spring Data Redis 的 GenericJackson2JsonRedisSerializer 使用 Jackson，
      * 可以直接复用 common-json 里的 JavaTimeModule 配置。
      */
-    private GenericJacksonJsonRedisSerializer redisJsonSerializer() {
+    private GenericJackson2JsonRedisSerializer redisJsonSerializer() {
         ObjectMapper objectMapper = JsonMapper.builder()
             .addModule(JacksonConfig.buildCommonJsonModule())
             .defaultTimeZone(TimeZone.getDefault())
             .build();
-        return new GenericJacksonJsonRedisSerializer(objectMapper);
+        return new GenericJackson2JsonRedisSerializer(objectMapper);
     }
 }

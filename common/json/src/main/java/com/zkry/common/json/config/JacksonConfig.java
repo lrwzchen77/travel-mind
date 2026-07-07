@@ -2,6 +2,14 @@ package com.zkry.common.json.config;
 
 import com.zkry.common.json.handler.BigNumberSerializer;
 import com.zkry.common.json.utils.SpringContextHolder;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateDeserializer;
+import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer;
+import com.fasterxml.jackson.datatype.jsr310.deser.LocalTimeDeserializer;
+import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateSerializer;
+import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
+import com.fasterxml.jackson.datatype.jsr310.ser.LocalTimeSerializer;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.time.LocalDate;
@@ -9,17 +17,9 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.TimeZone;
-import org.springframework.boot.jackson.autoconfigure.JsonMapperBuilderCustomizer;
+import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import tools.jackson.databind.ext.javatime.deser.LocalDateDeserializer;
-import tools.jackson.databind.ext.javatime.deser.LocalDateTimeDeserializer;
-import tools.jackson.databind.ext.javatime.deser.LocalTimeDeserializer;
-import tools.jackson.databind.ext.javatime.ser.LocalDateSerializer;
-import tools.jackson.databind.ext.javatime.ser.LocalDateTimeSerializer;
-import tools.jackson.databind.ext.javatime.ser.LocalTimeSerializer;
-import tools.jackson.databind.module.SimpleModule;
-import tools.jackson.databind.ser.std.ToStringSerializer;
 
 /**
  * Jackson 全局 JSON 配置。
@@ -131,7 +131,7 @@ public class JacksonConfig {
      * 如果未来要统一成固定时区，例如 Asia/Shanghai，也可以在这里集中调整。
      */
     @Bean
-    public JsonMapperBuilderCustomizer commonJsonMapperBuilderCustomizer() {
-        return builder -> builder.defaultTimeZone(TimeZone.getDefault());
+    public Jackson2ObjectMapperBuilderCustomizer commonJsonMapperBuilderCustomizer() {
+        return builder -> builder.timeZone(TimeZone.getDefault());
     }
 }

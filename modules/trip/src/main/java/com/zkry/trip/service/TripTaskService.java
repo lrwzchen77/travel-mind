@@ -41,15 +41,27 @@ public class TripTaskService {
     private final TripAiPlannerService tripAiPlannerService;
     private final TripResearchService tripResearchService;
     private final TravelMindRuntimeSettingsService runtimeSettingsService;
+    private final DemoTripPlannerService demoTripPlannerService;
+    private final TripPlanPersistenceService tripPlanPersistenceService;
+    private final TripPlanReviewer tripPlanReviewer;
+    private final TravelAiApplicationService travelAiApplicationService;
 
     public TripTaskService(
         TripAiPlannerService tripAiPlannerService,
         TripResearchService tripResearchService,
-        TravelMindRuntimeSettingsService runtimeSettingsService
+        TravelMindRuntimeSettingsService runtimeSettingsService,
+        DemoTripPlannerService demoTripPlannerService,
+        TripPlanPersistenceService tripPlanPersistenceService,
+        TripPlanReviewer tripPlanReviewer,
+        TravelAiApplicationService travelAiApplicationService
     ) {
         this.tripAiPlannerService = tripAiPlannerService;
         this.tripResearchService = tripResearchService;
         this.runtimeSettingsService = runtimeSettingsService;
+        this.demoTripPlannerService = demoTripPlannerService;
+        this.tripPlanPersistenceService = tripPlanPersistenceService;
+        this.tripPlanReviewer = tripPlanReviewer;
+        this.travelAiApplicationService = travelAiApplicationService;
     }
 
     /**
@@ -60,7 +72,6 @@ public class TripTaskService {
      */
     public SubmitTripPlanResponse submit(TripRequest request) {
         validateTripRequest(request);
-        validateRuntimeSettings();
         String taskId = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
         TripTaskState state = new TripTaskState(taskId, request);
         tasks.put(taskId, state);
@@ -141,45 +152,86 @@ public class TripTaskService {
             pause();
             update(taskId, TripTaskStatus.PROCESSING, TripTaskStage.INITIALIZING, 10, TripTaskMessages.INITIALIZING, null, null);
             pause();
-            update(taskId, TripTaskStatus.PROCESSING, TripTaskStage.TRAVEL_RESEARCH, 24, TripTaskMessages.TRAVEL_RESEARCH, null, null);
-            TripResearchService.ResearchContext researchContext = tripResearchService.research(taskId, request);
-            ContentPlanningContext contentContext = researchContext.contentContext();
-            MapPlanningContext mapContext = researchContext.mapContext();
-            log.info("[TripTask] 资料研究阶段完成 taskId={} mapRealData={} mapCities={} contentRealData={} contentCities={} summary={}",
-                taskId,
-                mapContext.realData(),
-                mapContext.safeCities().size(),
-                contentContext.realData(),
-                contentContext.safeCities().size(),
-                researchContext.researchResult().safeSummary());
-            if (!mapContext.realData()) {
-                throw new BizException("高德地图上下文采集失败：" + mapContext.message());
+            TripPlanResponse response;
+            if (runtimeSettingsComplete()) {
+                response = runRealPlanner(taskId, request);
+            } else {
+                log.info("[TripTask] 外部配置不完整，启用 MySQL Demo Planner taskId={} missing={}", taskId, missingRuntimeSettings());
+                pause();
+                update(taskId, TripTaskStatus.PROCESSING, TripTaskStage.TRAVEL_RESEARCH, 24,
+                    "外部配置不完整，正在读取本地 MySQL 旅行资源库...", null, null);
+                pause();
+                update(taskId, TripTaskStatus.PROCESSING, TripTaskStage.PLANNING, 85,
+                    "正在使用本地资源库生成结构化演示行程...", null, null);
+                response = demoTripPlannerService.plan(taskId, request);
             }
-            if (!contentContext.realData()) {
-                throw new BizException("小红书内容采集失败：" + contentContext.message());
+            TripPlanReviewer.ReviewOutcome review = tripPlanReviewer.review(response.data(), request);
+            if (!review.passed()) {
+                throw new BizException("行程结构校验未通过：" + String.join("；", review.issues()));
             }
-            pause();
-            update(taskId, TripTaskStatus.PROCESSING, TripTaskStage.WEATHER_SEARCH, 46, mapStageMessage(mapContext, "天气"), null, null);
-            pause();
-            update(taskId, TripTaskStatus.PROCESSING, TripTaskStage.HOTEL_SEARCH, 64, mapStageMessage(mapContext, "酒店和餐饮"), null, null);
-            pause();
-            update(taskId, TripTaskStatus.PROCESSING, TripTaskStage.PLANNING, 85, TripTaskMessages.PLANNING, null, null);
-            TripPlanResponse response = tripAiPlannerService.plan(taskId, request, mapContext, contentContext)
-                .orElseThrow(() -> new BizException("Spring AI Alibaba 未能生成可解析的行程 JSON，请检查 AI Key、模型名和提示词约束。"));
+            long savedPlanId = tripPlanPersistenceService.save(1001L, response, request);
+            evaluateComfort(savedPlanId, response, request);
+            TripPlanResponse savedResponse = new TripPlanResponse(
+                response.success(),
+                response.message(),
+                String.valueOf(savedPlanId),
+                response.data(),
+                response.graph_data()
+            );
             log.info("[TripTask] 规划结果生成 taskId={} days={} graphNodes={}",
                 taskId,
-                response.data() == null || response.data().days() == null ? 0 : response.data().days().size(),
-                response.graph_data() == null || response.graph_data().nodes() == null ? 0 : response.graph_data().nodes().size());
+                savedResponse.data() == null || savedResponse.data().days() == null ? 0 : savedResponse.data().days().size(),
+                savedResponse.graph_data() == null || savedResponse.graph_data().nodes() == null ? 0 : savedResponse.graph_data().nodes().size());
             pause();
             update(taskId, TripTaskStatus.PROCESSING, TripTaskStage.GRAPH_BUILDING, 95, TripTaskMessages.GRAPH_BUILDING, null, null);
             pause();
-            update(taskId, TripTaskStatus.COMPLETED, TripTaskStage.COMPLETED, 100, TripTaskMessages.COMPLETED, response, null);
-            log.info("[TripTask] 任务执行完成 taskId={} elapsedMs={}", taskId, System.currentTimeMillis() - startedAt);
+            update(taskId, TripTaskStatus.COMPLETED, TripTaskStage.COMPLETED, 100, TripTaskMessages.COMPLETED, savedResponse, null);
+            log.info("[TripTask] 任务执行完成 taskId={} savedPlanId={} elapsedMs={}", taskId, savedPlanId,
+                System.currentTimeMillis() - startedAt);
         } catch (Exception ex) {
             log.error("[TripTask] 任务执行失败 taskId={} elapsedMs={} reason={}",
                 taskId, System.currentTimeMillis() - startedAt, ex.getMessage(), ex);
             update(taskId, TripTaskStatus.FAILED, TripTaskStage.FAILED, 100, TripTaskMessages.FAILED, null, ex.getMessage());
         }
+    }
+
+    private void evaluateComfort(long savedPlanId, TripPlanResponse response, TripRequest request) {
+        try {
+            travelAiApplicationService.evaluateSavedTrip(1001L, savedPlanId, response.data(), request);
+        } catch (Exception ex) {
+            log.warn("[TripTask] Python AI 舒适度评分失败但不阻断行程 taskPlanId={} reason={}", savedPlanId, ex.getMessage());
+        }
+    }
+
+    private TripPlanResponse runRealPlanner(String taskId, TripRequest request) {
+        update(taskId, TripTaskStatus.PROCESSING, TripTaskStage.TRAVEL_RESEARCH, 24, TripTaskMessages.TRAVEL_RESEARCH, null, null);
+        TripResearchService.ResearchContext researchContext = tripResearchService.research(taskId, request);
+        ContentPlanningContext contentContext = researchContext.contentContext();
+        MapPlanningContext mapContext = researchContext.mapContext();
+        log.info("[TripTask] 资料研究阶段完成 taskId={} mapRealData={} mapCities={} contentRealData={} contentCities={} summary={}",
+            taskId,
+            mapContext.realData(),
+            mapContext.safeCities().size(),
+            contentContext.realData(),
+            contentContext.safeCities().size(),
+            researchContext.researchResult().safeSummary());
+        if (!mapContext.realData()) {
+            throw new BizException("高德地图上下文采集失败：" + mapContext.message());
+        }
+        if (!contentContext.realData()) {
+            throw new BizException("小红书内容采集失败：" + contentContext.message());
+        }
+        pause();
+        update(taskId, TripTaskStatus.PROCESSING, TripTaskStage.WEATHER_SEARCH, 46, mapStageMessage(mapContext, "天气"), null, null);
+        pause();
+        update(taskId, TripTaskStatus.PROCESSING, TripTaskStage.HOTEL_SEARCH, 64, mapStageMessage(mapContext, "酒店和餐饮"), null, null);
+        pause();
+        update(taskId, TripTaskStatus.PROCESSING, TripTaskStage.PLANNING, 85, TripTaskMessages.PLANNING, null, null);
+        return tripAiPlannerService.plan(taskId, request, mapContext, contentContext)
+            .orElseGet(() -> {
+                log.warn("[TripTask] 真实 Planner 未生成可解析结果，降级到 MySQL Demo Planner taskId={}", taskId);
+                return demoTripPlannerService.plan(taskId, request);
+            });
     }
 
     private void validateTripRequest(TripRequest request) {
@@ -194,13 +246,11 @@ public class TripTaskService {
         }
     }
 
-    /**
-     * 校验 Vue 设置页或 application.yml 提供的运行时配置。
-     *
-     * <p>现在项目不再用模拟数据兜底，缺少 Cookie、地图 Key 或模型配置时会直接失败，
-     * 这样日志和前端错误都能明确告诉你缺哪一项。
-     */
-    private void validateRuntimeSettings() {
+    private boolean runtimeSettingsComplete() {
+        return missingRuntimeSettings().isEmpty();
+    }
+
+    private List<String> missingRuntimeSettings() {
         List<String> missing = new ArrayList<>();
         if (!runtimeSettingsService.hasText(TravelMindSettingKeys.XHS_COOKIE)) {
             missing.add("小红书 Cookie");
@@ -214,11 +264,7 @@ public class TripTaskService {
         if (!runtimeSettingsService.hasText(TravelMindSettingKeys.OPENAI_MODEL)) {
             missing.add("AI 模型名称");
         }
-        if (!missing.isEmpty()) {
-            String message = "缺少运行时配置：" + String.join("、", missing) + "。请先在 Vue 设置页保存后再生成行程。";
-            log.warn("[TripTask] 运行时配置校验失败 missing={}", missing);
-            throw new BizException(message);
-        }
+        return missing;
     }
 
     private String mapStageMessage(MapPlanningContext mapContext, String subject) {
@@ -318,6 +364,7 @@ public class TripTaskService {
             payload.put("travel_days", request.travel_days());
             payload.put("transportation", request.transportation());
             payload.put("accommodation", request.accommodation());
+            payload.put("budget", request.budget());
             payload.put("preferences", request.preferences());
             payload.put("free_text_input", request.free_text_input());
             payload.put("language", request.language());

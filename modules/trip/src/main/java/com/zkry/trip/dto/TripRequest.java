@@ -10,6 +10,7 @@ public record TripRequest(
     Integer travel_days,
     String transportation,
     String accommodation,
+    String budget,
     List<String> preferences,
     String free_text_input,
     String language
@@ -36,7 +37,7 @@ public record TripRequest(
 
     public String primaryCity() {
         List<CityStay> normalized = normalizedCities();
-        return normalized.isEmpty() ? "" : normalized.getFirst().city();
+        return normalized.isEmpty() ? "" : normalized.get(0).city();
     }
 
     public List<String> safePreferences() {
@@ -53,6 +54,10 @@ public record TripRequest(
 
     public String safeAccommodation() {
         return isBlank(accommodation) ? "舒适型酒店" : accommodation;
+    }
+
+    public String safeBudget() {
+        return isBlank(budget) ? "未填写" : budget;
     }
 
     private boolean isBlank(String value) {

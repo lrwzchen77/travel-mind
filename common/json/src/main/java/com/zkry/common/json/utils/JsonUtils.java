@@ -1,16 +1,17 @@
 package com.zkry.common.json.utils;
 
 import com.zkry.common.json.config.JacksonConfig;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
-import tools.jackson.core.JacksonException;
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.JavaType;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.json.JsonMapper;
 
 /**
  * JSON 工具类。
@@ -67,7 +68,7 @@ public final class JsonUtils {
         }
         try {
             return getObjectMapper().writeValueAsString(object);
-        } catch (JacksonException ex) {
+        } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Failed to serialize object to JSON", ex);
         }
     }
@@ -83,7 +84,7 @@ public final class JsonUtils {
         }
         try {
             return getObjectMapper().readValue(text, clazz);
-        } catch (JacksonException ex) {
+        } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Failed to parse JSON string", ex);
         }
     }
@@ -99,7 +100,7 @@ public final class JsonUtils {
         }
         try {
             return getObjectMapper().readValue(text, typeReference);
-        } catch (JacksonException ex) {
+        } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Failed to parse JSON string", ex);
         }
     }
@@ -115,7 +116,7 @@ public final class JsonUtils {
         }
         try {
             return getObjectMapper().readValue(bytes, clazz);
-        } catch (JacksonException ex) {
+        } catch (IOException ex) {
             throw new IllegalStateException("Failed to parse JSON bytes", ex);
         }
     }
@@ -133,7 +134,7 @@ public final class JsonUtils {
             // 使用 JavaType 明确告诉 Jackson 集合元素类型，避免 List 内部元素被反序列化成 Map。
             JavaType javaType = getObjectMapper().getTypeFactory().constructCollectionType(List.class, clazz);
             return getObjectMapper().readValue(text, javaType);
-        } catch (JacksonException ex) {
+        } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Failed to parse JSON array", ex);
         }
     }
@@ -162,7 +163,7 @@ public final class JsonUtils {
         }
         try {
             return getObjectMapper().readTree(text);
-        } catch (JacksonException ex) {
+        } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Failed to parse JSON tree", ex);
         }
     }
