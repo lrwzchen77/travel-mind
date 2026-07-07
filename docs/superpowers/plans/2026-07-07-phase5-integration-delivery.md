@@ -17,9 +17,9 @@
 - Read: `README.md`
 - Test: running services on ports `8080`, `5173`, `19080`, `3306`, `6379`
 
-- [ ] Confirm backend, frontend, Python AI, MySQL, and Redis are listening.
-- [ ] Call backend health, Python health, frontend SPA routes, CRUD list/detail/create/update/delete flow, profile flow, trip planning flow, trip history, image detection, trip comfort scoring, text analysis, Java-Python failure fallback, and large-model fallback.
-- [ ] Record the exact commands and observed results for the final test report.
+- [x] Confirm backend, frontend, Python AI, MySQL, and Redis are listening.
+- [x] Call backend health, Python health, frontend SPA routes, CRUD list/detail/create/update/delete flow, profile flow, trip planning flow, trip history, image detection, trip comfort scoring, text analysis, Java-Python failure fallback, and large-model fallback.
+- [x] Record the exact commands and observed results for the final test report.
 
 ### Task 2: Test Evidence Documents
 
@@ -28,25 +28,25 @@
 - Create: `docs/test/test-cases.md`
 - Create: `docs/test/test-report.md`
 
-- [ ] Replace the Phase 1-only test plan with full-system Phase 5 scope.
-- [ ] Write test cases covering backend unit/controller tests, Python APIs, frontend smoke, CRUD, trip planning, Java-Python integration, and failure handling.
-- [ ] Write the final report with the latest command evidence and smoke results.
+- [x] Replace the Phase 1-only test plan with full-system Phase 5 scope.
+- [x] Write test cases covering backend unit/controller tests, Python APIs, frontend smoke, CRUD, trip planning, Java-Python integration, and failure handling.
+- [x] Write the final report with the latest command evidence and smoke results.
 
 ### Task 3: Agile Materials
 
 **Files:**
 - Create: all required `docs/agile/*.md` Phase 5 files.
 
-- [ ] Write project kickoff, roles, backlog, sprint plans, daily standups, review/retrospectives, defect log, and final summary.
-- [ ] Keep material plausible and process-focused without claiming unverifiable attendance signatures or photos.
+- [x] Write project kickoff, roles, backlog, sprint plans, daily standups, review/retrospectives, defect log, and final summary.
+- [x] Keep material plausible and process-focused without claiming unverifiable attendance signatures or photos.
 
 ### Task 4: Technical Documents
 
 **Files:**
 - Create or modify: `docs/design/requirements-specification.md`, `docs/design/system-architecture.md`, `docs/design/database-design.md`, `docs/design/module-design.md`, `docs/api/backend-api.md`, `docs/deploy/deployment-guide.md`
 
-- [ ] Document requirements, architecture, database tables, module boundaries, backend APIs, Java-Python APIs, and deployment steps.
-- [ ] Ensure documents match the locked stack and implemented endpoints.
+- [x] Document requirements, architecture, database tables, module boundaries, backend APIs, Java-Python APIs, and deployment steps.
+- [x] Ensure documents match the locked stack and implemented endpoints.
 
 ### Task 5: Release Checklist And TODO Updates
 
@@ -54,18 +54,18 @@
 - Modify: `docs/project-todo-workflow.md`
 - Create: `docs/deploy/release-notes-v1.0.0.md`
 
-- [ ] Update Phase 5 Integration, Test, Agile, Technical Documents, and Done Criteria checkboxes based on completed work.
-- [ ] Update Final Acceptance Checklist items that are verified by evidence.
-- [ ] Add release notes for `v1.0.0`.
+- [x] Update Phase 5 Integration, Test, Agile, Technical Documents, and Done Criteria checkboxes based on completed work.
+- [x] Update Final Acceptance Checklist items that are verified by evidence.
+- [x] Add release notes for `v1.0.0`.
 
 ### Task 6: Final Verification
 
 **Files:**
 - Test: `python-ai`, Maven root, `frontend`
 
-- [ ] Run `python-ai/.venv/Scripts/python.exe -m pytest -q`.
-- [ ] Run `mvn test`.
-- [ ] Run `mvn -pl app -am package -DskipTests`.
-- [ ] Run `cd frontend && npm test`.
-- [ ] Run `cd frontend && npm run build`.
-- [ ] Recheck Phase 5 unchecked count and report any Git Delivery items that require explicit commit/merge/tag approval.
+- [x] Run `python-ai/.venv/Scripts/python.exe -m pytest -q`.
+- [x] Run `mvn test`.
+- [x] Run `mvn -pl app -am package -DskipTests`.
+- [x] Run `cd frontend && npm test`.
+- [x] Run `cd frontend && npm run build`.
+- [x] Recheck Phase 5 unchecked count and report any Git Delivery items that require explicit commit/merge/tag approval.
