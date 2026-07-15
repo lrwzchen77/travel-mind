@@ -15,7 +15,7 @@
     <version>${revision}</version>
 
     <name>Travel Mind</name>
-    <description>Java implementation of Travel Mind powered by Spring Boot 3 and Spring AI Alibaba</description>
+    <description>Java implementation of Travel Mind powered by Spring Boot 3, Spring AI and DeepSeek</description>
 
     <properties>
         <revision>0.0.1-SNAPSHOT</revision>
@@ -80,7 +80,24 @@
             </dependency>
             <dependency>
                 <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
                 <artifactId>spring-ai-model</artifactId>
+                <version>${spring-ai.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-openai</artifactId>
+                <version>${spring-ai.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-client-chat</artifactId>
                 <version>${spring-ai.version}</version>
             </dependency>
         </dependencies>

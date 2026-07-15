@@ -43,7 +43,7 @@ public class SettingsController {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("success", true);
         body.put("message", message);
-        body.put("data", runtimeSettingsService.snapshot());
+        body.put("data", runtimeSettingsService.publicSnapshot());
         return body;
     }
 }

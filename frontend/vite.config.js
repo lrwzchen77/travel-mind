@@ -7,10 +7,23 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:18080',
+        target: 'http://localhost:8080',
         changeOrigin: true,
       },
     },
+  },
+  optimizeDeps: {
+    include: ['maplibre-gl'],
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          maplibre: ['maplibre-gl'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1200,
   },
   test: {
     environment: 'jsdom',

@@ -1,5 +1,7 @@
 # TravelRisk-YOLO Dataset Acquisition And Training Plan
 
+> Status: completed on 2026-07-13. See `dataset-report.md`, `training-report.md`, and `evidence/travel-risk-yolo-metrics.json` for the final 946-image dataset and evaluation results.
+
 ## Purpose
 
 This plan records the dataset acquisition and model training direction for the Travel Mind short-semester project. The goal is to add a self-trained deep learning component rather than relying only on a pre-trained model or rule fallback.

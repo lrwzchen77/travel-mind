@@ -1,7 +1,8 @@
 import { http } from './http.js';
 
 function unwrap(response) {
-  return response.data?.data ?? response.data;
+  const body = response.data;
+  return body && Object.prototype.hasOwnProperty.call(body, 'code') ? body.data : body;
 }
 
 export function createTripApi(client = http) {

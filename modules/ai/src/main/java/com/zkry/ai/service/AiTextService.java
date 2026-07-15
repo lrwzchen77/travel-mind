@@ -1,8 +1,5 @@
 package com.zkry.ai.service;
 
-import com.alibaba.cloud.ai.dashscope.api.DashScopeApi;
-import com.alibaba.cloud.ai.dashscope.chat.DashScopeChatModel;
-import com.alibaba.cloud.ai.dashscope.chat.DashScopeChatOptions;
 import com.zkry.common.core.config.TravelMindRuntimeSettingsService;
 import com.zkry.common.core.config.TravelMindSettingKeys;
 import java.util.Optional;
@@ -10,12 +7,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.openai.OpenAiChatModel;
+import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.stereotype.Service;
 
+/**
+ * 文本 LLM 调用。当前默认对接 DeepSeek（OpenAI 兼容接口）。
+ */
 @Service
 public class AiTextService {
 
     private static final Logger log = LoggerFactory.getLogger(AiTextService.class);
+    private static final String DEFAULT_BASE_URL = "https://api.deepseek.com";
+    private static final String DEFAULT_MODEL = "deepseek-v4-flash";
 
     private final TravelMindRuntimeSettingsService runtimeSettingsService;
 
@@ -30,20 +35,17 @@ public class AiTextService {
     }
 
     /**
-     * 统一封装 Spring AI Alibaba 文本生成调用。
-     *
-     * <p>业务层只关心“有没有生成出文本”，失败原因在这里记录日志并返回 Optional.empty()。
-     * 日志只记录长度和耗时，不打印完整 prompt，避免把用户输入或密钥相关上下文写进控制台。
+     * 统一封装文本生成。业务层只关心是否生成出文本；失败返回 empty。
      */
     public Optional<String> generate(String systemPrompt, String userPrompt) {
         Optional<ChatModel> chatModel = chatModel();
         if (chatModel.isEmpty()) {
-            log.info("[AI] AI Key 未配置，跳过 LLM 调用 systemPromptLength={} userPromptLength={}",
+            log.info("[AI] API Key 未配置，跳过 LLM 调用 systemPromptLength={} userPromptLength={}",
                 length(systemPrompt), length(userPrompt));
             return Optional.empty();
         }
         long startedAt = System.currentTimeMillis();
-        log.info("[AI] 开始调用 Spring AI Alibaba systemPromptLength={} userPromptLength={} modelClass={}",
+        log.info("[AI] 开始调用 LLM systemPromptLength={} userPromptLength={} modelClass={}",
             length(systemPrompt), length(userPrompt), chatModel.get().getClass().getSimpleName());
         try {
             String content = ChatClient.create(chatModel.get())
@@ -53,14 +55,14 @@ public class AiTextService {
                 .call()
                 .content();
             if (content == null || content.isBlank()) {
-                log.warn("[AI] Spring AI Alibaba 返回空内容 elapsedMs={}", System.currentTimeMillis() - startedAt);
+                log.warn("[AI] LLM 返回空内容 elapsedMs={}", System.currentTimeMillis() - startedAt);
                 return Optional.empty();
             }
-            log.info("[AI] Spring AI Alibaba 调用成功 responseLength={} elapsedMs={}",
+            log.info("[AI] LLM 调用成功 responseLength={} elapsedMs={}",
                 content.length(), System.currentTimeMillis() - startedAt);
             return Optional.of(content.trim());
         } catch (Exception ex) {
-            log.warn("[AI] Spring AI Alibaba 调用失败 elapsedMs={} reason={}",
+            log.warn("[AI] LLM 调用失败 elapsedMs={} reason={}",
                 System.currentTimeMillis() - startedAt, ex.getMessage());
             return Optional.empty();
         }
@@ -71,24 +73,37 @@ public class AiTextService {
         if (apiKey.isEmpty()) {
             return Optional.empty();
         }
-        String model = runtimeSettingsService.stringValue(TravelMindSettingKeys.OPENAI_MODEL).orElse("qwen-plus");
-        String baseUrl = runtimeSettingsService.stringValue(TravelMindSettingKeys.OPENAI_BASE_URL).orElse("");
+        String model = runtimeSettingsService.stringValue(TravelMindSettingKeys.OPENAI_MODEL).orElse(DEFAULT_MODEL);
+        String baseUrl = runtimeSettingsService.stringValue(TravelMindSettingKeys.OPENAI_BASE_URL)
+            .orElse(DEFAULT_BASE_URL);
         try {
-            DashScopeApi.Builder apiBuilder = DashScopeApi.builder().apiKey(apiKey.get());
-            if (!baseUrl.isBlank()) {
-                apiBuilder.baseUrl(baseUrl);
-            }
-            DashScopeChatOptions options = DashScopeChatOptions.builder()
+            OpenAiApi openAiApi = OpenAiApi.builder()
+                .apiKey(apiKey.get())
+                .baseUrl(normalizeBaseUrl(baseUrl))
+                .build();
+            OpenAiChatOptions options = OpenAiChatOptions.builder()
                 .model(model)
                 .build();
-            return Optional.of(DashScopeChatModel.builder()
-                .dashScopeApi(apiBuilder.build())
+            return Optional.of(OpenAiChatModel.builder()
+                .openAiApi(openAiApi)
                 .defaultOptions(options)
                 .build());
         } catch (Exception ex) {
-            log.warn("[AI] 运行时 DashScope ChatModel 创建失败 reason={}", ex.getMessage());
+            log.warn("[AI] OpenAI 兼容 ChatModel 创建失败 reason={}", ex.getMessage());
             return Optional.empty();
         }
+    }
+
+    private String normalizeBaseUrl(String baseUrl) {
+        if (baseUrl == null || baseUrl.isBlank()) {
+            return DEFAULT_BASE_URL;
+        }
+        String trimmed = baseUrl.trim();
+        // 去掉末尾斜杠，避免 //v1
+        while (trimmed.endsWith("/")) {
+            trimmed = trimmed.substring(0, trimmed.length() - 1);
+        }
+        return trimmed;
     }
 
     private int length(String value) {

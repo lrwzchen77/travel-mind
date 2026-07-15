@@ -10,7 +10,7 @@
     </parent>
 
     <artifactId>ai</artifactId>
-    <description>Travel Mind AI 与 Spring AI Alibaba 集成模块</description>
+    <description>Travel Mind AI：DeepSeek（OpenAI 兼容）+ Spring AI Alibaba Agent</description>
 
     <dependencies>
         <dependency>
@@ -18,10 +18,18 @@
             <artifactId>core</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- DeepSeek 等 OpenAI 兼容 Chat API（手动构建 ChatModel，不依赖 starter 自动配置） -->
         <dependency>
-            <groupId>com.alibaba.cloud.ai</groupId>
-            <artifactId>spring-ai-alibaba-starter-dashscope</artifactId>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-openai</artifactId>
+            <version>${spring-ai.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-client-chat</artifactId>
+            <version>${spring-ai.version}</version>
+        </dependency>
+        <!-- ReactAgent 框架仍使用 Spring AI Alibaba -->
         <dependency>
             <groupId>com.alibaba.cloud.ai</groupId>
             <artifactId>spring-ai-alibaba-agent-framework</artifactId>

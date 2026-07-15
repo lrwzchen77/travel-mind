@@ -6,6 +6,8 @@ import cn.dev33.satoken.exception.NotRoleException;
 import com.zkry.common.core.domain.R;
 import com.zkry.common.core.exception.CommonErrorCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  * <p>这样前端可以很明确地处理登录过期、跳转登录页、展示无权限提示等场景。
  */
 @RestControllerAdvice
+@Order(Ordered.HIGHEST_PRECEDENCE)
 public class SaTokenExceptionHandler {
 
     /**

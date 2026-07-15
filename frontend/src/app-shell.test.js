@@ -4,20 +4,21 @@ import { routes } from './router/index.js';
 import { createHttpClient } from './api/http.js';
 
 describe('application shell contracts', () => {
-  it('exposes the expected Phase 1 navigation entries', () => {
+  it('exposes the expected navigation entries in consumer order', () => {
     expect(navigationItems.map((item) => item.path)).toEqual([
       '/',
       '/planning',
-      '/profile',
+      '/map',
+      '/trip-history',
       '/cities',
+      '/ai-lab',
       '/attractions',
       '/hotels',
       '/restaurants',
-      '/trip-history',
       '/favorites',
       '/travel-notes',
-      '/ai-lab',
       '/ai-records',
+      '/profile',
     ]);
   });
 
@@ -30,8 +31,8 @@ describe('application shell contracts', () => {
   });
 
   it('creates an API client with the configured base URL', () => {
-    const client = createHttpClient({ baseURL: 'http://localhost:18080/api' });
-    expect(client.defaults.baseURL).toBe('http://localhost:18080/api');
+    const client = createHttpClient({ baseURL: 'http://localhost:8080/api' });
+    expect(client.defaults.baseURL).toBe('http://localhost:8080/api');
     expect(client.defaults.timeout).toBe(10000);
   });
 });

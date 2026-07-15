@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const defaultBaseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:18080/api';
+const defaultBaseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 
 export function createHttpClient(options = {}) {
   return axios.create({

@@ -397,7 +397,7 @@ Output:
 TODO:
 
 - [x] Add image upload handling.
-- [x] Integrate YOLO-compatible optional model boundary with rule fallback.
+- [x] Integrate the self-trained TravelRisk-YOLO model with rule fallback.
 - [x] Normalize detection labels into travel tags.
 - [x] Return stable JSON.
 - [x] Add sample images for tests.
@@ -438,7 +438,7 @@ TODO:
 
 - [x] Define scoring features.
 - [x] Implement initial rule-based scoring.
-- [x] Keep optional machine learning model disabled because no training data is documented.
+- [x] Document and evaluate the self-trained YOLO dataset and model under `docs/ai`.
 - [x] Return daily and overall scores.
 - [x] Add Java API to call trip evaluation.
 - [x] Store evaluation result.

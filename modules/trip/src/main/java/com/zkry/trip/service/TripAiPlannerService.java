@@ -16,9 +16,11 @@ import com.zkry.trip.dto.DayPlan;
 import com.zkry.trip.dto.TripPlan;
 import com.zkry.trip.dto.TripPlanResponse;
 import com.zkry.trip.dto.TripRequest;
+import com.zkry.trip.dto.WeatherInfo;
 import com.zkry.trip.prompt.TripPlannerPrompts;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,7 +97,7 @@ public class TripAiPlannerService {
             return Optional.empty();
         }
 
-        TripPlan normalized = normalize(parsedPlan.get(), request);
+        TripPlan normalized = normalize(parsedPlan.get(), request, mapContext);
         if (!reviewPlan(planId, request, normalized)) {
             return Optional.empty();
         }
@@ -138,7 +140,7 @@ public class TripAiPlannerService {
         return result.passed();
     }
 
-    private TripPlan normalize(TripPlan plan, TripRequest request) {
+    private TripPlan normalize(TripPlan plan, TripRequest request, MapPlanningContext mapContext) {
         List<String> cities = plan.cities();
         if (cities == null || cities.isEmpty()) {
             cities = request.normalizedCities().stream().map(CityStay::city).toList();
@@ -156,10 +158,45 @@ public class TripAiPlannerService {
             isBlank(plan.start_date()) ? request.start_date() : plan.start_date(),
             isBlank(plan.end_date()) ? request.end_date() : plan.end_date(),
             days,
-            plan.weather_info() == null ? List.of() : plan.weather_info(),
+            normalizeWeather(plan.weather_info(), days, mapContext),
             isBlank(plan.overall_suggestions()) ? "AI 已生成行程，建议根据实际营业时间二次确认。" : plan.overall_suggestions(),
             budget
         );
+    }
+
+    private List<WeatherInfo> normalizeWeather(
+        List<WeatherInfo> weather,
+        List<DayPlan> days,
+        MapPlanningContext mapContext
+    ) {
+        if (weather != null && !weather.isEmpty()) {
+            return weather;
+        }
+        return days.stream().map(day -> mapContext.findCity(day.city())
+            .flatMap(city -> city.safeWeatherForecasts().stream()
+                .filter(forecast -> Objects.equals(day.date(), forecast.date()))
+                .findFirst())
+            .map(forecast -> new WeatherInfo(
+                day.date(),
+                day.city(),
+                forecast.dayWeather(),
+                forecast.nightWeather(),
+                forecast.dayTemp(),
+                forecast.nightTemp(),
+                forecast.windDirection(),
+                forecast.windPower()
+            ))
+            .orElseGet(() -> new WeatherInfo(
+                day.date(),
+                day.city(),
+                "待临近出发确认",
+                "待临近出发确认",
+                null,
+                null,
+                "",
+                ""
+            )))
+            .toList();
     }
 
     private boolean isBlank(String value) {

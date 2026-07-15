@@ -112,7 +112,7 @@ public class DemoTripPlannerService {
 
     private List<Map<String, Object>> queryAttractions(Long cityId, String cityName) {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-            "SELECT * FROM tm_attraction WHERE deleted = 0 AND (:cityId = 0 OR city_id = :cityId) "
+            "SELECT * FROM tm_attraction WHERE deleted = 0 AND city_id = :cityId "
                 + "ORDER BY rating DESC, id ASC LIMIT 12",
             Map.of("cityId", cityId == null ? 0L : cityId));
         if (!rows.isEmpty()) {
@@ -124,7 +124,7 @@ public class DemoTripPlannerService {
 
     private List<Map<String, Object>> queryHotels(Long cityId, String cityName) {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-            "SELECT * FROM tm_hotel WHERE deleted = 0 AND (:cityId = 0 OR city_id = :cityId) "
+            "SELECT * FROM tm_hotel WHERE deleted = 0 AND city_id = :cityId "
                 + "ORDER BY rating DESC, id ASC LIMIT 6",
             Map.of("cityId", cityId == null ? 0L : cityId));
         if (!rows.isEmpty()) {
@@ -136,7 +136,7 @@ public class DemoTripPlannerService {
 
     private List<Map<String, Object>> queryRestaurants(Long cityId, String cityName) {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-            "SELECT * FROM tm_restaurant WHERE deleted = 0 AND (:cityId = 0 OR city_id = :cityId) "
+            "SELECT * FROM tm_restaurant WHERE deleted = 0 AND city_id = :cityId "
                 + "ORDER BY rating DESC, id ASC LIMIT 8",
             Map.of("cityId", cityId == null ? 0L : cityId));
         if (!rows.isEmpty()) {
@@ -148,7 +148,7 @@ public class DemoTripPlannerService {
 
     private List<Map<String, Object>> queryNotes(Long cityId) {
         return jdbcTemplate.queryForList(
-            "SELECT * FROM tm_travel_note WHERE deleted = 0 AND (:cityId = 0 OR city_id = :cityId) "
+            "SELECT * FROM tm_travel_note WHERE deleted = 0 AND city_id = :cityId "
                 + "ORDER BY update_time DESC LIMIT 5",
             Map.of("cityId", cityId == null ? 0L : cityId));
     }

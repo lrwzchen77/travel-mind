@@ -12,18 +12,17 @@
 
 ## Database
 
-Run MySQL and Redis, then initialize the database:
+Start MySQL 8.0 and Redis 7. On a fresh volume, Compose runs the SQL scripts automatically:
 
 ```bash
-docker start travel-mind-mysql travel-mind-redis
-docker exec -i travel-mind-mysql mysql -uroot < sql/001_create_database.sql
-docker exec -i travel-mind-mysql mysql -uroot travelmind < sql/002_phase2_crud_schema.sql
-docker exec -i travel-mind-mysql mysql -uroot travelmind < sql/003_phase2_seed_data.sql
+docker compose up -d --wait
+docker exec travel-mind-mysql mysql -uroot -Nse "SELECT VERSION()"
+docker exec travel-mind-redis redis-cli ping
 ```
 
 ## Backend
 
-Configure environment values from `.env.example`, then package and run:
+Copy `.env.example` to the ignored `.env` file, configure credentials, then package and run. Spring Boot imports `.env` automatically:
 
 ```bash
 mvn -pl app -am package -DskipTests
@@ -45,7 +44,7 @@ cd python-ai
 .venv/Scripts/python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 19080
 ```
 
-Set `TRAVEL_MIND_YOLO_MODEL` only when an optional local YOLO model and `ultralytics` are installed. Without it, deterministic rule fallback is used.
+The bundled self-trained model is configured as `python-ai/models/travel-risk-yolo-best.pt`. Without it, deterministic rule fallback is used.
 
 ## Frontend
 

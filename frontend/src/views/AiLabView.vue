@@ -10,7 +10,7 @@ const content = ref(null);
 
 const visionForm = reactive({
   image_url: 'https://example.com/west-lake-night-food.jpg',
-  city: 'Hangzhou',
+  city: '杭州',
   resource_type: 'attraction',
 });
 const tripText = ref(JSON.stringify({
@@ -18,7 +18,7 @@ const tripText = ref(JSON.stringify({
   budget: 3000,
   preferences: ['轻松', '美食'],
   days: [
-    { date: '2026-08-01', city: 'Hangzhou', attractions: ['西湖', '灵隐寺', '河坊街'], weather: '晴' },
+    { date: '2026-08-01', city: '杭州', attractions: ['西湖', '灵隐寺', '河坊街'], weather: '晴' },
   ],
 }, null, 2));
 const contentForm = reactive({
@@ -56,7 +56,7 @@ async function run(name, action) {
   try {
     await action();
   } catch (err) {
-    error.value = err?.message || 'Request failed';
+    error.value = err?.message || '这次没跑通，稍后再试';
   } finally {
     loading.value = '';
   }
@@ -64,41 +64,74 @@ async function run(name, action) {
 </script>
 
 <template>
-  <section class="page-header">
-    <h1>AI Lab</h1>
+  <section class="page-intro">
+    <p class="eyebrow">AI 灵感</p>
+    <h1>旅行灵感小工具</h1>
+    <p>不是冷冰冰的实验室——是帮你认场景、估舒适度、读懂游记的小助手。</p>
   </section>
 
   <p v-if="error" class="error-line">{{ error }}</p>
 
-  <section class="crud-layout">
-    <form class="editor-panel" @submit.prevent="runVision">
-      <h2>Vision Detection</h2>
-      <input v-model="visionForm.image_url" placeholder="Image URL" />
-      <input v-model="visionForm.city" placeholder="City" />
-      <input v-model="visionForm.resource_type" placeholder="Resource type" />
-      <div class="actions">
-        <button type="submit">{{ loading === 'vision' ? 'Running' : 'Run' }}</button>
+  <section class="ai-tools">
+    <form class="tool-card field-stack" style="--reveal-delay: 0ms" @submit.prevent="runVision">
+      <div class="tool-icon">📷</div>
+      <h2>认一认这张图</h2>
+      <p class="tool-desc">丢一张旅行照片链接，看看场景更像景点、美食还是夜游。</p>
+      <div>
+        <label class="field-label">图片链接</label>
+        <input v-model="visionForm.image_url" placeholder="https://…" />
       </div>
+      <div class="field-row">
+        <div>
+          <label class="field-label">城市</label>
+          <input v-model="visionForm.city" />
+        </div>
+        <div>
+          <label class="field-label">类型提示</label>
+          <input v-model="visionForm.resource_type" placeholder="attraction" />
+        </div>
+      </div>
+      <button type="submit" class="btn-coral" :disabled="loading === 'vision'">
+        {{ loading === 'vision' ? '识别中…' : '开始识别' }}
+      </button>
       <pre v-if="vision">{{ JSON.stringify(visionData, null, 2) }}</pre>
     </form>
 
-    <form class="editor-panel" @submit.prevent="runTrip">
-      <h2>Trip Comfort</h2>
-      <textarea v-model="tripText" rows="12" spellcheck="false"></textarea>
-      <div class="actions">
-        <button type="submit">{{ loading === 'trip' ? 'Running' : 'Run' }}</button>
+    <form class="tool-card field-stack" @submit.prevent="runTrip">
+      <div class="tool-icon">🧭</div>
+      <h2>这趟会不会太累</h2>
+      <p class="tool-desc">贴一段行程结构，估舒适度与风险，适合出门前自查。</p>
+      <div>
+        <label class="field-label">行程内容</label>
+        <textarea v-model="tripText" class="code-area" rows="10" spellcheck="false" />
       </div>
+      <button type="submit" class="btn-coral" :disabled="loading === 'trip'">
+        {{ loading === 'trip' ? '评估中…' : '帮我估一下' }}
+      </button>
       <pre v-if="trip">{{ JSON.stringify(tripData, null, 2) }}</pre>
     </form>
 
-    <form class="editor-panel" @submit.prevent="runContent">
-      <h2>Text Analysis</h2>
-      <textarea v-model="contentForm.text" rows="5" spellcheck="false"></textarea>
-      <input v-model="contentForm.city" placeholder="City" />
-      <input v-model="contentForm.attraction_name" placeholder="Attraction" />
-      <div class="actions">
-        <button type="submit">{{ loading === 'content' ? 'Running' : 'Run' }}</button>
+    <form class="tool-card field-stack" @submit.prevent="runContent">
+      <div class="tool-icon">✍️</div>
+      <h2>读懂这段游记</h2>
+      <p class="tool-desc">粘贴中文游记或评价，提炼亮点与槽点，规划时更有数。</p>
+      <div>
+        <label class="field-label">游记原文</label>
+        <textarea v-model="contentForm.text" rows="5" spellcheck="false" />
       </div>
+      <div class="field-row">
+        <div>
+          <label class="field-label">城市</label>
+          <input v-model="contentForm.city" />
+        </div>
+        <div>
+          <label class="field-label">景点</label>
+          <input v-model="contentForm.attraction_name" />
+        </div>
+      </div>
+      <button type="submit" class="btn-coral" :disabled="loading === 'content'">
+        {{ loading === 'content' ? '分析中…' : '开始分析' }}
+      </button>
       <pre v-if="content">{{ JSON.stringify(contentData, null, 2) }}</pre>
     </form>
   </section>

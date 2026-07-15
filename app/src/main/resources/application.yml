@@ -2,15 +2,20 @@
 spring:
   application:
     name: travelmind
+  config:
+    import: optional:file:.env[.properties]
   profiles:
     active: dev
   ai:
-    dashscope:
-      enabled: ${AI_DASHSCOPE_ENABLED:false}
-      api-key: ${AI_DASHSCOPE_API_KEY:}
+    # DeepSeek 走 OpenAI 兼容协议（不启 starter 自动装配 ChatModel，由 AiTextService 运行时创建）
+    model:
+      chat: none
+    openai:
+      api-key: ${AI_OPENAI_API_KEY:${AI_DASHSCOPE_API_KEY:}}
+      base-url: ${AI_OPENAI_BASE_URL:https://api.deepseek.com}
       chat:
         options:
-          model: ${AI_DASHSCOPE_CHAT_MODEL:qwen-plus}
+          model: ${AI_OPENAI_MODEL:deepseek-v4-flash}
   data:
     redis:
       timeout: 10s

@@ -22,6 +22,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
@@ -45,6 +46,7 @@ public class TripTaskService {
     private final TripPlanPersistenceService tripPlanPersistenceService;
     private final TripPlanReviewer tripPlanReviewer;
     private final TravelAiApplicationService travelAiApplicationService;
+    private final boolean xhsEnabled;
 
     public TripTaskService(
         TripAiPlannerService tripAiPlannerService,
@@ -53,7 +55,8 @@ public class TripTaskService {
         DemoTripPlannerService demoTripPlannerService,
         TripPlanPersistenceService tripPlanPersistenceService,
         TripPlanReviewer tripPlanReviewer,
-        TravelAiApplicationService travelAiApplicationService
+        TravelAiApplicationService travelAiApplicationService,
+        @Value("${travelmind.content.xhs.enabled:false}") boolean xhsEnabled
     ) {
         this.tripAiPlannerService = tripAiPlannerService;
         this.tripResearchService = tripResearchService;
@@ -62,6 +65,7 @@ public class TripTaskService {
         this.tripPlanPersistenceService = tripPlanPersistenceService;
         this.tripPlanReviewer = tripPlanReviewer;
         this.travelAiApplicationService = travelAiApplicationService;
+        this.xhsEnabled = xhsEnabled;
     }
 
     /**
@@ -218,7 +222,7 @@ public class TripTaskService {
         if (!mapContext.realData()) {
             throw new BizException("高德地图上下文采集失败：" + mapContext.message());
         }
-        if (!contentContext.realData()) {
+        if (xhsEnabled && !contentContext.realData()) {
             throw new BizException("小红书内容采集失败：" + contentContext.message());
         }
         pause();
@@ -252,7 +256,7 @@ public class TripTaskService {
 
     private List<String> missingRuntimeSettings() {
         List<String> missing = new ArrayList<>();
-        if (!runtimeSettingsService.hasText(TravelMindSettingKeys.XHS_COOKIE)) {
+        if (xhsEnabled && !runtimeSettingsService.hasText(TravelMindSettingKeys.XHS_COOKIE)) {
             missing.add("小红书 Cookie");
         }
         if (!runtimeSettingsService.hasText(TravelMindSettingKeys.AMAP_WEB_KEY)) {

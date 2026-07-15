@@ -2,6 +2,18 @@ import { describe, expect, it, vi } from 'vitest';
 import { createTripApi } from './trip.js';
 
 describe('trip API client', () => {
+  it('preserves the business data field in a trip detail response', async () => {
+    const detail = {
+      success: true,
+      plan_id: '9001',
+      data: { city: 'Hangzhou', days: [{ date: '2026-08-01' }] },
+      graph_data: { nodes: [{ id: 'city-Hangzhou' }], edges: [] },
+    };
+    const http = { get: vi.fn().mockResolvedValue({ data: detail }) };
+
+    await expect(createTripApi(http).detail(9001)).resolves.toEqual(detail);
+  });
+
   it('calls planning, status, detail, copy, delete, chat, and history endpoints', async () => {
     const http = {
       get: vi.fn().mockResolvedValue({ data: { data: {} } }),

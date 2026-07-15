@@ -1,6 +1,8 @@
 import httpx
 import pytest
+from pathlib import Path
 
+import app.main as main
 from app.main import app
 
 
@@ -92,3 +94,30 @@ async def test_content_analyze_extracts_sentiment_keywords_and_warnings():
     assert data["positive_highlights"]
     assert data["negative_warnings"]
     assert "family" in data["suitable_traveler_types"]
+
+
+@pytest.mark.anyio
+async def test_trained_yolo_model_returns_non_rule_result(monkeypatch):
+    weights = Path(__file__).resolve().parents[1] / "models" / "travel-risk-yolo-best.pt"
+    image = Path(__file__).resolve().parent / "fixtures" / "crowded_scene.jpg"
+    monkeypatch.setenv("TRAVEL_MIND_YOLO_MODEL", str(weights))
+    main._YOLO_MODEL = None
+    main._YOLO_MODEL_PATH = None
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.post(
+            "/api/vision/detect",
+            json={
+                "image_path": str(image),
+                "city": "Hangzhou",
+                "resource_type": "attraction",
+            },
+        )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["model_mode"] == "trained_yolo"
+    assert data["labels"][0]["name"] == "crowded_scene"
+    assert data["labels"][0]["confidence"] >= 0.9
+    assert data["risk_hints"]

@@ -41,6 +41,7 @@ public class TripResearchService {
     private final AiStructuredOutputService structuredOutputService;
     private final PromptResourceService promptResourceService;
     private final TravelMindRuntimeSettingsService runtimeSettingsService;
+    private final boolean xhsEnabled;
 
     @Value("${travelmind.content.xhs.mode:service}")
     private String xhsMode;
@@ -51,7 +52,8 @@ public class TripResearchService {
         XhsTravelTools xhsTravelTools,
         AiStructuredOutputService structuredOutputService,
         PromptResourceService promptResourceService,
-        TravelMindRuntimeSettingsService runtimeSettingsService
+        TravelMindRuntimeSettingsService runtimeSettingsService,
+        @Value("${travelmind.content.xhs.enabled:false}") boolean xhsEnabled
     ) {
         this.travelContentService = travelContentService;
         this.amapTravelTools = amapTravelTools;
@@ -59,6 +61,7 @@ public class TripResearchService {
         this.structuredOutputService = structuredOutputService;
         this.promptResourceService = promptResourceService;
         this.runtimeSettingsService = runtimeSettingsService;
+        this.xhsEnabled = xhsEnabled;
     }
 
     /**
@@ -72,23 +75,26 @@ public class TripResearchService {
     public ResearchContext research(String taskId, TripRequest request) {
         XhsMode mode = XhsMode.from(runtimeSettingsService.stringValue(TravelMindSettingKeys.XHS_MODE).orElse(xhsMode));
         long startedAt = System.currentTimeMillis();
-        log.info("[Research] 开始旅行资料研究 taskId={} xhsMode={} useService={} useTool={} cities={} preferences={} freeTextLength={}",
+        log.info("[Research] 开始旅行资料研究 taskId={} xhsEnabled={} xhsMode={} useService={} useTool={} cities={} preferences={} freeTextLength={}",
             taskId,
+            xhsEnabled,
             mode.value(),
-            mode.useService(),
-            mode.useTool(),
+            xhsEnabled && mode.useService(),
+            xhsEnabled && mode.useTool(),
             request.normalizedCities().stream().map(city -> city.city() + ":" + city.safeDays()).toList(),
             request.safePreferences(),
             request.free_text_input() == null ? 0 : request.free_text_input().length());
 
-        ContentPlanningContext serviceContent = mode.useService()
+        ContentPlanningContext serviceContent = xhsEnabled && mode.useService()
             ? collectContentByService(request)
             : TravelResearchMessages.xhsServiceDisabled();
 
         TravelResearchResult agentResult = collectByAgent(taskId, request, mode)
             .orElseGet(TravelResearchMessages::agentResultMissing);
 
-        ContentPlanningContext mergedContent = mergeContent(serviceContent, agentResult.safeContentContext(), mode);
+        ContentPlanningContext mergedContent = xhsEnabled
+            ? mergeContent(serviceContent, agentResult.safeContentContext(), mode)
+            : TravelResearchMessages.xhsServiceDisabled();
         MapPlanningContext mapContext = agentResult.safeMapContext();
 
         log.info("[Research] 旅行资料研究完成 taskId={} xhsMode={} mapRealData={} mapCities={} contentRealData={} contentCities={} toolCalls={}",
@@ -116,11 +122,11 @@ public class TripResearchService {
      */
     private Optional<TravelResearchResult> collectByAgent(String taskId, TripRequest request, XhsMode mode) {
         Map<String, String> variables = new LinkedHashMap<>(TripPlannerPrompts.requestVariables(request));
-        variables.put(TravelMindPromptVariable.XHS_MODE, mode.value());
+        variables.put(TravelMindPromptVariable.XHS_MODE, xhsEnabled ? mode.value() : "disabled");
         variables.put(TravelMindPromptVariable.FORMAT, structuredOutputService.format(TravelResearchResult.class));
         String userPrompt = promptResourceService.render(TravelMindPrompt.RESEARCH_USER, variables);
 
-        Object[] tools = mode.useTool()
+        Object[] tools = xhsEnabled && mode.useTool()
             ? new Object[] {amapTravelTools, xhsTravelTools}
             : new Object[] {amapTravelTools};
         log.info("[Research] 调用 TravelResearchAgent taskId={} agent={} xhsMode={} toolCount={} tools={}",

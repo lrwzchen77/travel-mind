@@ -23,7 +23,11 @@ logs/
 *.log
 .codegraph
 .cursor
+.browser-pilot/
 .github
+
+# Local failed image-download artifact (contains HTML, not JPEG data).
+python-ai/west-lake-night-food.jpg
 ### STS ###
 .apt_generated
 .classpath

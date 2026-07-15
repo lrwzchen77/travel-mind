@@ -6,7 +6,7 @@ Travel Mind is a full-stack intelligent travel planning system with Java trip pl
 
 - Backend: Java 17, Spring Boot 3, Maven multi-module, MyBatis-Plus, Redis, Sa-Token.
 - Frontend: Vue 3 + Vite.
-- Python AI: FastAPI, Python 3.10 target, Python 3.12 allowed.
+- Python AI: FastAPI, Python 3.10/3.12, self-trained TravelRisk-YOLO.
 - Database: MySQL 8.0 with Redis 7.
 
 ## Project Structure
@@ -26,6 +26,8 @@ mvn -pl app -am spring-boot:run
 ```
 
 Health check: `GET http://localhost:8080/health`.
+
+The backend automatically imports the ignored root `.env` file. Process environment variables still take precedence.
 
 ## Frontend
 
@@ -50,7 +52,7 @@ python -m venv .venv
 
 Health check: `GET http://localhost:19080/health`.
 
-Phase 4 AI endpoints:
+AI endpoints:
 
 - `POST http://localhost:19080/api/vision/detect`
 - `POST http://localhost:19080/api/trip/evaluate`
@@ -58,9 +60,11 @@ Phase 4 AI endpoints:
 
 Java exposes matching frontend endpoints under `/api/ai/*` and stores results in `tm_ai_analysis_record`.
 
+The bundled model is `python-ai/models/travel-risk-yolo-best.pt`. Its dataset, training report, and metrics are under `docs/ai`.
+
 ## Configuration
 
-Copy `.env.example` and set local values for MySQL, Redis, map/content providers, large-model access, and the Python AI base URL. Frontend settings are documented in `frontend/.env.example`.
+Copy `.env.example` to `.env` and set local values for MySQL, Redis, map/content providers, large-model access, and the Python AI base URL. Java and Python both load this file. Frontend settings are documented in `frontend/.env.example`.
 
 ## Delivery Documents
 

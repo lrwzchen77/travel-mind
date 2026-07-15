@@ -1,11 +1,35 @@
 import os
 import re
+import tempfile
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+load_dotenv(PROJECT_ROOT / ".env", override=False)
+
 app = FastAPI(title="Travel Mind Python AI")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Lazy-loaded YOLO handle (classify or detect weights)
+_YOLO_MODEL = None
+_YOLO_MODEL_PATH: str | None = None
+
+# TravelRisk six-class risk copy (classify head names)
+_CLASS_RISK_HINTS: dict[str, str] = {
+    "crowded_scene": "画面偏拥挤，出行请预留排队时间并注意随身物品。",
+    "low_light_scene": "低光/夜景场景，注意照明与返程交通安全。",
+}
 
 
 def ok(data: dict[str, Any]) -> dict[str, Any]:
@@ -53,9 +77,10 @@ async def vision_detect(request: Request):
     payload = await _read_vision_payload(request)
     image_url = str(payload.get("image_url") or "")
     filename = str(payload.get("filename") or "")
+    image_path = str(payload.get("image_path") or "")
     city = str(payload.get("city") or "Unknown city")
     resource_type = str(payload.get("resource_type") or "travel_scene")
-    source_text = f"{image_url} {filename} {resource_type}".lower()
+    source_text = f"{image_url} {filename} {image_path} {resource_type}".lower()
 
     scene_tags = ["travel_scene"]
     risks: list[str] = []
@@ -71,16 +96,28 @@ async def vision_detect(request: Request):
     if resource_type and resource_type not in scene_tags:
         scene_tags.append(resource_type)
 
-    yolo = _try_yolo_detection(image_url)
+    # Prefer local path / upload temp file / then URL
+    yolo_source = image_path or image_url
+    yolo = _try_yolo_detection(yolo_source)
     if yolo is not None:
+        labels = yolo["labels"]
+        for tag in yolo.get("scene_tags") or []:
+            scene_tags.append(tag)
+        for hint in yolo.get("risk_hints") or []:
+            risks.append(hint)
+        top_name = labels[0]["name"] if labels else "unknown"
+        top_conf = labels[0]["confidence"] if labels else 0.0
         return ok(
             {
-                "model_mode": "yolo",
-                "labels": yolo,
+                "model_mode": yolo.get("model_mode", "trained_yolo"),
+                "labels": labels,
                 "scene_tags": _unique(scene_tags),
-                "summary": f"{city} 图片已通过 YOLO 模型识别，可用于补充旅行资源画像。",
-                "risk_hints": risks,
-                "source": "upload" if filename else "image_url",
+                "summary": (
+                    f"{city} 图片已通过自训 YOLO 分类识别为 {top_name}"
+                    f"（置信度 {top_conf}），可用于补充旅行资源画像。"
+                ),
+                "risk_hints": _unique(risks),
+                "source": "upload" if filename else ("local_path" if image_path else "image_url"),
             }
         )
 
@@ -192,10 +229,23 @@ async def _read_vision_payload(request: Request) -> dict[str, Any]:
     content_type = request.headers.get("content-type", "")
     if "multipart/form-data" in content_type:
         form = await request.form()
-        payload = {key: value for key, value in form.items() if key != "file"}
+        payload: dict[str, Any] = {key: value for key, value in form.items() if key != "file"}
         file = form.get("file")
         if file is not None:
-            payload["filename"] = getattr(file, "filename", "")
+            payload["filename"] = getattr(file, "filename", "") or "upload.jpg"
+            try:
+                raw = await file.read()  # type: ignore[misc]
+            except Exception:
+                raw = b""
+            if raw:
+                suffix = Path(str(payload["filename"])).suffix or ".jpg"
+                tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+                try:
+                    tmp.write(raw)
+                    tmp.flush()
+                    payload["image_path"] = tmp.name
+                finally:
+                    tmp.close()
         return payload
     if "application/json" in content_type:
         return await request.json()
@@ -222,28 +272,108 @@ def _trip_suggestions(risk_level: str, daily_risks: list[dict[str, Any]]) -> lis
     return suggestions
 
 
-def _try_yolo_detection(image_url: str) -> list[dict[str, Any]] | None:
-    model_path = os.getenv("TRAVEL_MIND_YOLO_MODEL", "").strip()
-    if not model_path or not image_url:
-        return None
-    try:
-        from ultralytics import YOLO  # type: ignore
+def _get_yolo_model(model_path: str):
+    """Load YOLO once per process; reload if env path changes."""
+    global _YOLO_MODEL, _YOLO_MODEL_PATH
+    if _YOLO_MODEL is not None and _YOLO_MODEL_PATH == model_path:
+        return _YOLO_MODEL
+    from ultralytics import YOLO  # type: ignore
 
-        model = YOLO(model_path)
-        results = model(image_url, verbose=False)
+    _YOLO_MODEL = YOLO(model_path)
+    _YOLO_MODEL_PATH = model_path
+    return _YOLO_MODEL
+
+
+def _try_yolo_detection(image_source: str) -> dict[str, Any] | None:
+    """
+    Run TRAVEL_MIND_YOLO_MODEL on image_source (http(s) URL or local path).
+
+    Priority: classification probs (TravelRisk yolov8n-cls) → detection boxes.
+    On any failure return None so the caller falls back to rule mode (no 500).
+    """
+    model_path = os.getenv("TRAVEL_MIND_YOLO_MODEL", "").strip()
+    if not model_path or not image_source:
+        return None
+    path_obj = _resolve_project_path(model_path)
+    if not path_obj.is_file():
+        return None
+    # Local path must exist; remote URL allowed as-is
+    if not image_source.startswith(("http://", "https://")):
+        if not Path(image_source).is_file():
+            return None
+    try:
+        model = _get_yolo_model(str(path_obj))
+        results = model.predict(source=image_source, verbose=False)
         labels: list[dict[str, Any]] = []
         for result in results:
-            names = getattr(result, "names", {})
+            names = getattr(result, "names", {}) or {}
+            # --- classify path (TravelRisk yolov8n-cls) ---
+            probs = getattr(result, "probs", None)
+            if probs is not None:
+                top1 = int(probs.top1)
+                conf = float(probs.top1conf)
+                name = str(names.get(top1, top1))
+                labels.append({"name": name, "confidence": round(conf, 4)})
+                # optional top-k for richer labels
+                try:
+                    data = probs.data.detach().cpu().numpy().tolist()
+                    ranked = sorted(
+                        [
+                            {
+                                "name": str(names.get(i, i)),
+                                "confidence": round(float(c), 4),
+                            }
+                            for i, c in enumerate(data)
+                        ],
+                        key=lambda x: -x["confidence"],
+                    )
+                    # keep top1 first, then other top classes with conf>=0.05
+                    extras = [x for x in ranked[1:4] if x["confidence"] >= 0.05]
+                    labels.extend(extras)
+                except Exception:
+                    pass
+                continue
+            # --- detect path (legacy boxes) ---
             boxes = getattr(result, "boxes", None)
             if boxes is None:
                 continue
             for box in boxes:
                 cls_id = int(box.cls[0])
                 confidence = float(box.conf[0])
-                labels.append({"name": str(names.get(cls_id, cls_id)), "confidence": round(confidence, 4)})
-        return labels or None
+                labels.append(
+                    {
+                        "name": str(names.get(cls_id, cls_id)),
+                        "confidence": round(confidence, 4),
+                    }
+                )
+        if not labels:
+            return None
+        top = labels[0]["name"]
+        scene_tags = [top]
+        risk_hints: list[str] = []
+        if top in _CLASS_RISK_HINTS:
+            risk_hints.append(_CLASS_RISK_HINTS[top])
+        # also scan other high-conf labels for risk classes
+        for item in labels[1:]:
+            n = item["name"]
+            if n in _CLASS_RISK_HINTS and item["confidence"] >= 0.15:
+                risk_hints.append(_CLASS_RISK_HINTS[n])
+                scene_tags.append(n)
+        return {
+            "model_mode": "trained_yolo",
+            "labels": labels,
+            "scene_tags": scene_tags,
+            "risk_hints": _unique(risk_hints),
+        }
     except Exception:
         return None
+
+
+def _resolve_project_path(value: str) -> Path:
+    path = Path(value).expanduser()
+    if path.is_absolute() or path.exists():
+        return path
+    return PROJECT_ROOT / path
 
 
 def _join_tags(tags: list[str]) -> str:
