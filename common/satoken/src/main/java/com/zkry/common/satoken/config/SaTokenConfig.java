@@ -1,6 +1,7 @@
 package com.zkry.common.satoken.config;
 
 import cn.dev33.satoken.interceptor.SaInterceptor;
+import cn.dev33.satoken.context.SaHolder;
 import cn.dev33.satoken.stp.StpUtil;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
@@ -34,7 +35,9 @@ public class SaTokenConfig implements WebMvcConfigurer {
      */
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(new SaInterceptor(handle -> StpUtil.checkLogin()))
+        registry.addInterceptor(new SaInterceptor(handle -> {
+            if (!isPreflight()) StpUtil.checkLogin();
+        }))
             .addPathPatterns("/api/**")
             .excludePathPatterns(
                 "/api/user/auth/login",
@@ -44,12 +47,20 @@ public class SaTokenConfig implements WebMvcConfigurer {
                 "/health"
             );
 
-        registry.addInterceptor(new SaInterceptor(handle -> StpUtil.checkRole("admin")))
+        registry.addInterceptor(new SaInterceptor(handle -> {
+            if (!isPreflight()) StpUtil.checkRole("admin");
+        }))
             .addPathPatterns("/api/admin/**")
             .excludePathPatterns("/api/admin/auth/login");
 
-        registry.addInterceptor(new SaInterceptor(handle -> StpUtil.checkRole("user")))
+        registry.addInterceptor(new SaInterceptor(handle -> {
+            if (!isPreflight()) StpUtil.checkRole("user");
+        }))
             .addPathPatterns("/api/user/**")
             .excludePathPatterns("/api/user/auth/login");
+    }
+
+    private static boolean isPreflight() {
+        return "OPTIONS".equalsIgnoreCase(SaHolder.getRequest().getMethod());
     }
 }
