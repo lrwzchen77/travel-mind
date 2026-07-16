@@ -2,8 +2,12 @@ package com.zkry.common.satoken.config;
 
 import cn.dev33.satoken.interceptor.SaInterceptor;
 import cn.dev33.satoken.context.SaHolder;
+import cn.dev33.satoken.jwt.StpLogicJwtForStateless;
+import cn.dev33.satoken.stp.StpLogic;
 import cn.dev33.satoken.stp.StpUtil;
 import jakarta.servlet.DispatcherType;
+import java.nio.charset.StandardCharsets;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -29,6 +33,18 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  */
 @Configuration
 public class SaTokenConfig implements WebMvcConfigurer {
+
+    @Bean
+    public StpLogic jwtStpLogic(cn.dev33.satoken.config.SaTokenConfig config) {
+        String secret = config.getJwtSecretKey();
+        if (secret == null || secret.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalStateException("JWT_SECRET must contain at least 32 bytes");
+        }
+        if (config.getTimeout() <= 0) {
+            throw new IllegalStateException("JWT_TTL_SECONDS must be greater than zero");
+        }
+        return new StpLogicJwtForStateless();
+    }
 
     /**
      * 注册 Sa-Token 登录校验拦截器。

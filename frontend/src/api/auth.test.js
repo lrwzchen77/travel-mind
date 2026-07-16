@@ -15,4 +15,13 @@ describe('authentication API', () => {
     expect(authSession.token()).toBe('token-1');
     expect(authSession.hasRole('admin')).toBe(true);
   });
+
+  it('always discards the local JWT when logout finishes', async () => {
+    authSession.save({ tokenValue: 'jwt', user: { roles: ['user'] } });
+    const http = { post: vi.fn().mockRejectedValue(new Error('offline')) };
+
+    await expect(createAuthApi(http).logout('user')).rejects.toThrow('offline');
+
+    expect(authSession.isLoggedIn()).toBe(false);
+  });
 });

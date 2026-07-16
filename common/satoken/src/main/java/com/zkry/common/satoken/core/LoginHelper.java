@@ -1,6 +1,11 @@
 package com.zkry.common.satoken.core;
 
 import cn.dev33.satoken.stp.StpUtil;
+import cn.dev33.satoken.stp.parameter.SaLoginParameter;
+import java.time.Instant;
+import java.util.Arrays;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 登录态工具类。
@@ -21,13 +26,10 @@ import cn.dev33.satoken.stp.StpUtil;
  */
 public final class LoginHelper {
 
-    /**
-     * Sa-Token Session 中保存登录用户快照的 key。
-     *
-     * <p>这里保存的是 LoginUser，不是完整用户实体。
-     * 这样可以避免认证模块依赖具体业务表结构，也避免把密码、手机号等敏感字段放进会话。
-     */
-    private static final String LOGIN_USER_KEY = "loginUser";
+    /** JWT 只携带最小认证快照，不放密码、手机号等敏感字段。 */
+    private static final String NAME = "name";
+    private static final String ROLES = "roles";
+    private static final String PERMISSIONS = "permissions";
 
     /**
      * 工具类不允许实例化。
@@ -36,20 +38,25 @@ public final class LoginHelper {
     }
 
     /**
-     * 使用用户 ID 作为登录标识，并把完整登录用户快照写入会话。
+     * 使用用户 ID 作为登录标识，并把最小登录用户快照写入 JWT。
      *
      * <p>Sa-Token 的 loginId 只需要一个唯一标识，这里选用 userId。
-     * 角色、权限、用户名等展示和鉴权辅助信息放在 LoginUser 快照里，避免每次请求都查数据库。
+     * 角色、权限、用户名等展示和鉴权辅助信息放在 JWT claims，避免每次请求都查数据库。
      *
      * @param loginUser 当前登录用户快照
      */
     public static void login(LoginUser loginUser) {
-        StpUtil.login(loginUser.userId());
-        StpUtil.getSession().set(LOGIN_USER_KEY, loginUser);
+        long timeout = StpUtil.getStpLogic().getConfigOrGlobal().getTimeout();
+        SaLoginParameter parameter = SaLoginParameter.create()
+            .setExtra(NAME, loginUser.username())
+            .setExtra(ROLES, String.join(",", loginUser.roles()))
+            .setExtra(PERMISSIONS, String.join(",", loginUser.permissions()))
+            .setExtra("exp", Instant.now().getEpochSecond() + timeout);
+        StpUtil.login(loginUser.userId(), parameter);
     }
 
     /**
-     * 当前会话退出登录。
+     * 当前请求退出登录。无状态 JWT 不做服务端吊销，客户端必须同时丢弃 token。
      *
      * <p>普通用户端“退出登录”按钮、管理端退出登录都可以调用这个方法。
      */
@@ -77,16 +84,23 @@ public final class LoginHelper {
     }
 
     /**
-     * 只有会话存在但未写入 LoginUser 快照时才会返回 null。
-     *
-     * <p>正常通过 {@link #login(LoginUser)} 登录时，会话里一定会写入 LoginUser。
-     * 返回 null 通常说明登录流程没有使用 LoginHelper，或者会话数据被手动清理过。
+     * 未登录时返回 null；有效 JWT 直接还原最小用户快照。
      */
     public static LoginUser getLoginUser() {
-        Object value = StpUtil.getSession().get(LOGIN_USER_KEY);
-        if (value instanceof LoginUser loginUser) {
-            return loginUser;
-        }
-        return null;
+        if (!StpUtil.isLogin()) return null;
+        return new LoginUser(
+            getUserId(),
+            String.valueOf(StpUtil.getExtra(NAME)),
+            claimSet(ROLES),
+            claimSet(PERMISSIONS)
+        );
+    }
+
+    private static Set<String> claimSet(String name) {
+        Object value = StpUtil.getExtra(name);
+        if (value == null || value.toString().isBlank()) return Set.of();
+        return Arrays.stream(value.toString().split(","))
+            .filter(item -> !item.isBlank())
+            .collect(Collectors.toUnmodifiableSet());
     }
 }

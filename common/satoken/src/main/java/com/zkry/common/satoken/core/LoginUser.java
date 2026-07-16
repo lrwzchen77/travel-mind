@@ -5,7 +5,7 @@ import java.io.Serializable;
 import java.util.Set;
 
 /**
- * 存储在 Sa-Token 会话中的最小登录用户快照。
+ * 存储在 Sa-Token JWT 中的最小登录用户快照。
  *
  * <p>这个 record 不是数据库实体，也不应该和用户表一一绑定。
  * 它只保存“每次请求经常需要用到”的认证上下文信息，例如用户 ID、用户名、角色、权限。
@@ -14,11 +14,11 @@ import java.util.Set;
  *
  * <p>1. 认证模块不需要依赖 identity/user 模块里的 domain，模块边界更干净。
  *
- * <p>2. 避免把密码、盐值、手机号、邮箱等敏感字段放入 Sa-Token Session。
+ * <p>2. 避免把密码、盐值、手机号、邮箱等敏感字段放入 JWT。
  *
- * <p>3. 高频接口可以直接从会话里拿角色和权限，减少不必要的数据库查询。
+ * <p>3. 高频接口可以直接从 JWT 拿角色和权限，减少不必要的数据库查询。
  *
- * <p>如果用户角色或权限发生变化，业务模块需要主动刷新登录会话，或者要求用户重新登录。
+ * <p>如果用户角色或权限发生变化，需要让用户重新登录获取新 JWT。
  */
 public record LoginUser(
     /**
@@ -53,8 +53,7 @@ public record LoginUser(
     /**
      * 序列化版本号。
      *
-     * <p>LoginUser 会被放入 Sa-Token Session，后续如果接入 Redis 等持久化会话存储，
-     * 保留 serialVersionUID 可以减少序列化兼容性问题。
+     * <p>保留 serialVersionUID，避免作为通用认证快照传递时出现序列化兼容问题。
      */
     @Serial
     private static final long serialVersionUID = 1L;

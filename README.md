@@ -47,6 +47,8 @@ Vite runs on `http://localhost:5173` by default.
 
 The dev profile creates BCrypt-backed demo accounts on first startup. Override their passwords with `TRAVELMIND_DEMO_PASSWORD` and `TRAVELMIND_ADMIN_PASSWORD` before startup.
 
+Login returns a signed JWT in the existing `tokenValue` field. Clients send it unchanged in the `Authorization` header (or the WebSocket query parameter of the same name). Set `JWT_SECRET` to a random 32+ byte value outside local development; the production profile has no fallback. `JWT_TTL_SECONDS` defaults to 30 days. Logout discards the JWT on the client: there is intentionally no refresh-token or server-side blacklist flow.
+
 ## Python AI
 
 ```bash

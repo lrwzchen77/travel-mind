@@ -12,3 +12,7 @@ spring:
       password: ${REDIS_PASSWORD:}
       ssl:
         enabled: ${REDIS_SSL_ENABLED:false}
+
+sa-token:
+  # 无默认值：生产环境缺失 JWT_SECRET 时应用启动失败。
+  jwt-secret-key: ${JWT_SECRET}

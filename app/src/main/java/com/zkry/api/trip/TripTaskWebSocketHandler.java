@@ -1,7 +1,6 @@
 package com.zkry.api.trip;
 
 import com.zkry.common.json.utils.JsonUtils;
-import com.zkry.common.satoken.core.LoginHelper;
 import com.zkry.trip.dto.TripTaskEvent;
 import com.zkry.trip.service.TripTaskNotFoundException;
 import com.zkry.trip.service.TripTaskStage;
@@ -22,6 +21,8 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 @Component
 public class TripTaskWebSocketHandler extends TextWebSocketHandler {
 
+    public static final String USER_ID_ATTRIBUTE = "authenticatedUserId";
+
     private static final Logger log = LoggerFactory.getLogger(TripTaskWebSocketHandler.class);
 
     private static final String WS_PREFIX = "/api/user/trip/ws/";
@@ -35,11 +36,11 @@ public class TripTaskWebSocketHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         String taskId = resolveTaskId(session.getUri());
-        long userId = LoginHelper.getUserId();
-        log.info("[TripWS] WebSocket 连接建立 sessionId={} uri={} taskId={}",
-            session.getId(), session.getUri(), taskId == null ? "-" : taskId);
+        long userId = ((Number) session.getAttributes().get(USER_ID_ATTRIBUTE)).longValue();
+        log.info("[TripWS] WebSocket 连接建立 sessionId={} path={} taskId={}",
+            session.getId(), session.getUri() == null ? "-" : session.getUri().getPath(), taskId == null ? "-" : taskId);
         if (taskId == null || taskId.isBlank()) {
-            log.warn("[TripWS] WebSocket 缺少 taskId sessionId={} uri={}", session.getId(), session.getUri());
+            log.warn("[TripWS] WebSocket 缺少 taskId sessionId={}", session.getId());
             send(session, failedEvent("", "任务ID缺失"));
             session.close(CloseStatus.BAD_DATA);
             return;

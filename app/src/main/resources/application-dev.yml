@@ -12,3 +12,7 @@ spring:
       password: ${REDIS_PASSWORD:}
       ssl:
         enabled: false
+
+sa-token:
+  # 仅用于本地开发；共享或生产环境必须通过 JWT_SECRET 覆盖。
+  jwt-secret-key: ${JWT_SECRET:travelmind-dev-only-jwt-secret-change-me}
