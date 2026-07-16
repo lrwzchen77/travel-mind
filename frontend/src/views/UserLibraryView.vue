@@ -19,7 +19,6 @@ const pageCopy = computed(() => {
   const map = {
     favorites: {
       eyebrow: '我的收藏',
-      lead: '路上心动过的地方，都收在这里，规划时随时翻出来。',
       emptyTitle: '收藏夹还是空的',
       emptyHint: '在发现页点「收藏」，下一程灵感就不会丢。',
       emptyCta: { to: '/cities', label: '去发现城市' },
@@ -27,7 +26,6 @@ const pageCopy = computed(() => {
     },
     'travel-notes': {
       eyebrow: '旅行笔记',
-      lead: '写下路过的味道、天气和心情——比相册更私密的旅行日记。',
       emptyTitle: '还没有写下第一篇',
       emptyHint: '旅途中的一句吐槽、一顿好饭，都值得记下来。',
       emptyCta: null,
@@ -35,7 +33,6 @@ const pageCopy = computed(() => {
     },
     'ai-records': {
       eyebrow: '分析足迹',
-      lead: '你用 AI 读过的游记和认过的图，会留在这里方便回看。',
       emptyTitle: '还没有分析记录',
       emptyHint: '去 AI 灵感里贴一段游记，提炼下一站线索。',
       emptyCta: { to: '/ai-lab', label: '试试 AI 灵感' },
@@ -44,7 +41,6 @@ const pageCopy = computed(() => {
   };
   return map[resourceKey.value] || {
     eyebrow: '我的旅行',
-    lead: '只展示属于当前账号的内容。',
     emptyTitle: '这里还是空的',
     emptyHint: '旅行中的灵感会慢慢积累在这里。',
     emptyCta: { to: '/planning', label: '开始规划' },
@@ -137,15 +133,11 @@ onMounted(load);
   <section class="page-intro">
     <p class="eyebrow">{{ pageCopy.eyebrow }}</p>
     <h1>{{ pageTitle }}</h1>
-    <p>{{ pageCopy.lead }}</p>
   </section>
 
   <div class="section-head">
     <div>
       <h2>{{ loading ? '正在打开…' : pageCopy.count(items.length) }}</h2>
-      <p v-if="resourceKey === 'favorites'">收藏只属于你，不会出现在别人的列表里</p>
-      <p v-else-if="resourceKey === 'travel-notes'">想分享再公开，默认只有你看得到</p>
-      <p v-else>方便回看，不需要懂模型参数</p>
     </div>
     <button
       v-if="canCreate"
@@ -166,7 +158,6 @@ onMounted(load);
     @submit.prevent="create"
   >
     <h2 style="margin: 0; font-family: var(--font-display); font-size: 20px;">新的一篇</h2>
-    <p class="panel-hint" style="margin-bottom: 4px;">标题随便起，内容写当下的感受就好。</p>
     <div>
       <label class="field-label" for="note-title">标题</label>
       <input id="note-title" v-model="form.title" placeholder="例如：西湖边的那碗面" required />

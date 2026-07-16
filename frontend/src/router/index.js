@@ -15,6 +15,11 @@ import TripHistoryView from '../views/TripHistoryView.vue';
 import UserProfileView from '../views/UserProfileView.vue';
 import UserLibraryView from '../views/UserLibraryView.vue';
 import LoginView from '../views/LoginView.vue';
+import CommunityView from '../views/CommunityView.vue';
+import MyPostsView from '../views/MyPostsView.vue';
+import InspirationDetailView from '../views/InspirationDetailView.vue';
+import InspirationBagView from '../views/InspirationBagView.vue';
+import AssistantView from '../views/AssistantView.vue';
 import AdminDashboardView from '../views/admin/AdminDashboardView.vue';
 import AdminSettingsView from '../views/admin/AdminSettingsView.vue';
 
@@ -27,15 +32,15 @@ const fieldLabels = {
 };
 
 const discoveryRoutes = [
-  ['cities', '发现城市', '翻一翻下一站灵感，点进去就能开始规划。', ['name', 'province', 'description', 'popularity']],
-  ['attractions', '去哪玩', '挑几个真正想走进日程的地方，别只收藏不出发。', ['name', 'category', 'rating', 'price', 'tags']],
-  ['hotels', '住哪里', '按感觉和价位挑落脚点，规划时会参考你的选择。', ['name', 'category', 'rating', 'price_range', 'tags']],
-  ['restaurants', '吃什么', '一顿值得专程去吃的本地味道，先收藏再说。', ['name', 'cuisine', 'rating', 'average_cost', 'tags']],
-].map(([resourceKey, title, description, fields]) => ({
+  ['cities', '发现城市', ['name', 'province', 'description', 'popularity']],
+  ['attractions', '去哪玩', ['name', 'category', 'rating', 'price', 'tags']],
+  ['hotels', '住哪里', ['name', 'category', 'rating', 'price_range', 'tags']],
+  ['restaurants', '吃什么', ['name', 'cuisine', 'rating', 'average_cost', 'tags']],
+].map(([resourceKey, title, fields]) => ({
   path: resourceKey,
   name: resourceKey,
   component: DiscoveryListView,
-  meta: { resourceKey, title, description, fields, public: true },
+  meta: { resourceKey, title, fields, public: true },
 }));
 
 const adminResources = [
@@ -55,7 +60,6 @@ const adminResources = [
   meta: {
     resourceKey,
     title,
-    description: '运营数据维护与状态治理',
     fields,
     fieldLabels,
     admin: true,
@@ -70,8 +74,13 @@ export const routes = [
     component: AppLayout,
     children: [
       { path: '', name: 'dashboard', component: DashboardView, meta: { public: true } },
-      { path: 'planning', name: 'planning', component: PlanningView, meta: { requiresAuth: true } },
+      { path: 'planning', name: 'planning', component: PlanningView, meta: { public: true } },
       { path: 'map', name: 'explore-map', component: ExploreMapView, meta: { public: true } },
+      { path: 'inspirations', name: 'inspirations', component: CommunityView, meta: { public: true } },
+      { path: 'inspirations/:id', name: 'inspiration-detail', component: InspirationDetailView, meta: { public: true } },
+      { path: 'my-posts', name: 'my-posts', component: MyPostsView, meta: { requiresAuth: true } },
+      { path: 'inspiration-bag', name: 'inspiration-bag', component: InspirationBagView, meta: { requiresAuth: true } },
+      { path: 'assistant', name: 'assistant', component: AssistantView, meta: { requiresAuth: true } },
       ...discoveryRoutes,
       { path: 'city/:city', name: 'city-detail', component: CityDetailView, meta: { public: true } },
       { path: 'trip-history', name: 'trip-history', component: TripHistoryView, meta: { requiresAuth: true } },

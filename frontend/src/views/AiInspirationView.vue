@@ -10,6 +10,11 @@ const error = ref('');
 const data = computed(() => result.value?.data || result.value || {});
 const highlights = computed(() => data.value.highlights || data.value.key_points || data.value.tags || []);
 const cautions = computed(() => data.value.cautions || data.value.risks || data.value.negative_points || []);
+const planningNote = computed(() => [
+  data.value.summary ? `内容摘要：${data.value.summary}` : '',
+  highlights.value.length ? `值得安排：${highlights.value.map(String).join('、')}` : '',
+  cautions.value.length ? `注意事项：${cautions.value.map(String).join('、')}` : '',
+].filter(Boolean).join('；').slice(0, 400));
 
 const samples = [
   {
@@ -49,7 +54,6 @@ async function analyze() {
   <section class="page-intro">
     <p class="eyebrow">AI 灵感</p>
     <h1>把别人的游记，变成你的出发线索</h1>
-    <p>粘贴一段真实体验，快速看清「为什么值得去」和「需要提前留意什么」。</p>
     <RouterLink class="text-link inspiration-history-link" to="/ai-records">
       查看最近灵感 →
     </RouterLink>
@@ -121,7 +125,7 @@ async function analyze() {
         <RouterLink
           class="btn-link btn-coral"
           style="margin-top: 8px;"
-          :to="{ path: '/planning', query: { city: form.city } }"
+          :to="{ path: '/planning', query: { city: form.city, note: planningNote } }"
         >
           带着线索去规划 →
         </RouterLink>
@@ -131,7 +135,6 @@ async function analyze() {
         <div class="inspiration-empty">
           <span class="inspiration-empty-icon" aria-hidden="true">✦</span>
           <strong>旅行线索会出现在这里</strong>
-          <p>不用看模型术语，只看亮点和提醒。读完就能一键带进规划。</p>
         </div>
       </template>
     </section>

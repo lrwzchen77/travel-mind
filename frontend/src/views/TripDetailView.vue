@@ -1,9 +1,10 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter, RouterLink } from 'vue-router';
 import { tripApi } from '../api/trip.js';
 import { aiApi } from '../api/ai.js';
 import TravelMap3D from '../components/map/AsyncTravelMap3D.vue';
+import { currentTripDayIndex, tripCalendar } from '../utils/tripDeparture.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -13,10 +14,39 @@ const chatText = ref('第二天会不会太赶？');
 const replies = ref([]);
 const comfort = ref(null);
 const busy = ref('');
+const departureMode = ref(false);
+const checklist = ref({});
+const expenses = ref({ budget: 0, actual: 0, remaining: 0, items: [] });
+const expenseForm = reactive({ category: 'food', title: '', amount: '', spent_on: '' });
+const expenseError = ref('');
 
 const plan = computed(() => detail.value?.data || {});
 const days = computed(() => plan.value.days || []);
 const budget = computed(() => plan.value.budget || {});
+const expenseItems = computed(() => expenses.value.items || []);
+const expenseOverBudget = computed(() => Number(expenses.value.remaining || 0) < 0);
+const departureDayIndex = computed(() => currentTripDayIndex(days.value));
+const departureDay = computed(() => days.value[departureDayIndex.value] || null);
+const departureStops = computed(() => {
+  const day = departureDay.value;
+  if (!day) return [];
+  return [
+    ...(day.attractions || []).map((item) => ({ ...item, type: '景点' })),
+    ...(day.meals || []).map((item) => ({ ...item, type: '餐饮' })),
+    ...(day.hotel?.name ? [{ ...day.hotel, type: '住宿' }] : []),
+  ];
+});
+const departureChecks = computed(() => {
+  const day = departureDay.value;
+  if (!day) return [];
+  return [
+    { id: 'route', label: '确认当天出发时间与路线' },
+    ...(day.hotel?.name ? [{ id: 'hotel', label: `确认入住：${day.hotel.name}` }] : []),
+    ...(day.attractions?.length ? [{ id: 'tickets', label: '确认景点预约、门票与开放时间' }] : []),
+    { id: 'power', label: '带好手机、充电宝和证件' },
+  ];
+});
+const inspirationSources = computed(() => plan.value.inspiration_sources || []);
 const comfortJson = computed(() => {
   const value = comfort.value?.result_json;
   if (!value) return {};
@@ -61,9 +91,76 @@ async function load() {
   error.value = '';
   try {
     detail.value = await tripApi.detail(route.params.id);
-    comfort.value = await aiApi.tripComfort(route.params.id);
+    try {
+      checklist.value = JSON.parse(localStorage.getItem(`travel-mind-trip-checks-${route.params.id}`) || '{}');
+    } catch {
+      checklist.value = {};
+    }
+    const [comfortResult, expenseResult] = await Promise.allSettled([
+      aiApi.tripComfort(route.params.id),
+      tripApi.expenses(route.params.id),
+    ]);
+    if (comfortResult.status === 'fulfilled') comfort.value = comfortResult.value;
+    if (expenseResult.status === 'fulfilled') expenses.value = expenseResult.value;
+    else expenseError.value = '实际花费暂时不可用，稍后可以再试。';
   } catch (err) {
     error.value = err?.response?.data?.msg || err?.message || '打不开这趟行程';
+  }
+}
+
+function mapLink(stop) {
+  return `https://uri.amap.com/search?keyword=${encodeURIComponent([stop.name, stop.address || stop.city || plan.value.city].filter(Boolean).join(' '))}`;
+}
+
+function toggleCheck(id) {
+  checklist.value = { ...checklist.value, [id]: !checklist.value[id] };
+  try {
+    localStorage.setItem(`travel-mind-trip-checks-${route.params.id}`, JSON.stringify(checklist.value));
+  } catch {
+    // 本机存储不可用时，当前页面仍可正常勾选。
+  }
+}
+
+function exportCalendar() {
+  const url = URL.createObjectURL(new Blob([tripCalendar(plan.value)], { type: 'text/calendar;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${plan.value.city || '旅行'}行程.ics`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function replanWith(reply) {
+  router.push({ path: '/planning', query: { city: plan.value.city, assistant: reply.slice(0, 500) } });
+}
+
+function money(value) {
+  return Number(value || 0).toFixed(2);
+}
+
+async function addExpense() {
+  busy.value = 'expense';
+  expenseError.value = '';
+  try {
+    expenses.value = await tripApi.addExpense(route.params.id, { ...expenseForm });
+    Object.assign(expenseForm, { category: 'food', title: '', amount: '', spent_on: '' });
+  } catch (err) {
+    expenseError.value = err?.message || '这笔花费没有记下来。';
+  } finally {
+    busy.value = '';
+  }
+}
+
+async function removeExpense(expenseId) {
+  if (!window.confirm('删掉这笔花费？')) return;
+  busy.value = `expense-${expenseId}`;
+  try {
+    await tripApi.removeExpense(route.params.id, expenseId);
+    expenses.value = await tripApi.expenses(route.params.id);
+  } catch (err) {
+    expenseError.value = err?.message || '删除花费失败。';
+  } finally {
+    busy.value = '';
   }
 }
 
@@ -96,7 +193,7 @@ async function chat() {
   if (!chatText.value.trim()) return;
   busy.value = 'chat';
   try {
-    const response = await tripApi.chat(route.params.id, chatText.value, replies.value);
+    const response = await tripApi.chat(route.params.id, chatText.value, [...replies.value]);
     replies.value.push({ message: chatText.value, reply: response.reply });
     chatText.value = '';
   } catch (err) {
@@ -127,6 +224,9 @@ onMounted(load);
       <p v-else-if="!detail" class="lead">正在打开这趟行程…</p>
     </div>
     <div v-if="detail" class="trip-hero-actions">
+      <button type="button" class="btn-ghost" @click="departureMode = !departureMode">
+        {{ departureMode ? '收起出发模式' : '进入出发模式' }}
+      </button>
       <button type="button" class="btn-ghost" :disabled="busy === 'copy'" @click="copyPlan">
         {{ busy === 'copy' ? '复制中…' : '复制一程' }}
       </button>
@@ -143,7 +243,6 @@ onMounted(load);
     <article class="trip-summary-card">
       <span>预算大约</span>
       <strong>¥{{ budget.total || 0 }}</strong>
-      <p>估算仅供参考，以实际消费为准</p>
     </article>
     <article class="trip-summary-card">
       <span>走起来累不累</span>
@@ -153,8 +252,70 @@ onMounted(load);
     <article class="trip-summary-card">
       <span>安排了多少</span>
       <strong>{{ stopCount }} 处停靠</strong>
-      <p>{{ days.length || 0 }} 天 · 像翻攻略一样往下看</p>
+      <p>{{ days.length || 0 }} 天</p>
     </article>
+  </section>
+
+  <section v-if="detail" class="trip-expense glass-panel">
+    <div class="trip-expense-head">
+      <div><p class="eyebrow">实际花费</p><h2>预算花到哪了</h2></div>
+      <strong :class="{ 'is-over': expenseOverBudget }">剩余 ¥{{ money(expenses.remaining) }}</strong>
+    </div>
+    <div class="trip-expense-numbers">
+      <span>计划预算 <b>¥{{ money(expenses.budget || budget.total) }}</b></span>
+      <span>已经花了 <b>¥{{ money(expenses.actual) }}</b></span>
+    </div>
+    <p v-if="expenseError" class="error-line">{{ expenseError }}</p>
+    <form class="trip-expense-form" @submit.prevent="addExpense">
+      <select v-model="expenseForm.category" aria-label="花费分类"><option value="transport">交通</option><option value="stay">住宿</option><option value="food">餐饮</option><option value="ticket">门票</option><option value="shopping">购物</option><option value="other">其他</option></select>
+      <input v-model.trim="expenseForm.title" required maxlength="128" placeholder="例如：西湖边午餐" />
+      <input v-model="expenseForm.amount" required type="number" min="0.01" max="1000000" step="0.01" inputmode="decimal" placeholder="金额" />
+      <input v-model="expenseForm.spent_on" type="date" aria-label="消费日期" />
+      <button type="submit" class="btn-coral" :disabled="busy === 'expense'">{{ busy === 'expense' ? '记账中…' : '记一笔' }}</button>
+    </form>
+    <div v-if="expenseItems.length" class="trip-expense-list">
+      <article v-for="item in expenseItems" :key="item.id"><span>{{ { transport: '交通', stay: '住宿', food: '餐饮', ticket: '门票', shopping: '购物', other: '其他' }[item.category] || '其他' }}</span><strong>{{ item.title }}</strong><time>{{ item.spent_on || '今天' }}</time><b>¥{{ money(item.amount) }}</b><button type="button" :disabled="busy === `expense-${item.id}`" @click="removeExpense(item.id)">删除</button></article>
+    </div>
+    <p v-else class="trip-expense-empty">还没有实际支出，先记下第一笔，预算才会开始帮你把关。</p>
+  </section>
+
+  <section v-if="detail && departureMode && departureDay" class="trip-departure glass-panel">
+    <div class="trip-departure-head">
+      <div>
+        <p class="eyebrow">出发模式</p>
+        <h2>Day {{ departureDayIndex + 1 }} · {{ departureDay.date || '今天的安排' }}</h2>
+        <p>{{ departureDay.description || departureDay.city || plan.city }}</p>
+      </div>
+      <button type="button" class="btn-ghost" @click="exportCalendar">导入手机日历</button>
+    </div>
+    <div class="trip-departure-grid">
+      <div>
+        <h3>现在去哪</h3>
+        <a v-for="stop in departureStops" :key="`${stop.type}-${stop.name}`" class="trip-departure-stop" :href="mapLink(stop)" target="_blank" rel="noreferrer">
+          <span>{{ stop.type }}</span><strong>{{ stop.name }}</strong><small>{{ stop.address || departureDay.city || plan.city }} · 去导航 →</small>
+        </a>
+        <p v-if="!departureStops.length" class="trip-departure-empty">今天还没有具体停靠点，可以先问 AI 调整。</p>
+      </div>
+      <div>
+        <h3>出门前确认</h3>
+        <label v-for="item in departureChecks" :key="item.id" class="trip-departure-check" :class="{ 'is-done': checklist[item.id] }">
+          <input type="checkbox" :checked="checklist[item.id]" @change="toggleCheck(item.id)" />
+          <span>{{ item.label }}</span>
+        </label>
+      </div>
+    </div>
+  </section>
+
+  <section v-if="inspirationSources.length" class="trip-source-section glass-panel">
+    <p class="eyebrow">本次引用的社区分享</p>
+    <h2>AI 参考了这些真实体验</h2>
+    <div class="trip-source-list">
+      <article v-for="source in inspirationSources" :key="source.post_id">
+        <span>{{ source.intent === 'must' ? '必须安排' : source.intent === 'priority' ? '优先参考' : '体验参考' }}</span>
+        <div><h3>{{ source.title }}</h3><p>{{ source.excerpt }}</p></div>
+        <RouterLink :to="`/inspirations/${source.post_id}`">原帖 →</RouterLink>
+      </article>
+    </div>
   </section>
 
   <section
@@ -166,7 +327,6 @@ onMounted(load);
       <div>
         <p class="eyebrow">出发前检查</p>
         <h2 id="trip-check-title">哪些地方值得提前调整</h2>
-        <p>根据每天的安排密度、城市换乘和天气条件检查。</p>
       </div>
       <span class="trip-check-score">{{ comfortLabel }}</span>
     </div>
@@ -188,7 +348,6 @@ onMounted(load);
         </article>
         <div v-if="!dailyRisks.length" class="trip-check-clear">
           <strong>每天的节奏都比较稳妥</strong>
-          <p>继续保留交通和用餐缓冲即可。</p>
         </div>
       </div>
 
@@ -203,7 +362,6 @@ onMounted(load);
     <div class="planner-map-head">
       <div>
         <h2>目的地三维视野</h2>
-        <p class="panel-hint" style="margin: 0;">{{ plan.city }} · 旋转看看这座城的天际线</p>
       </div>
       <RouterLink
         class="text-link"
@@ -224,7 +382,6 @@ onMounted(load);
   <div class="section-head" v-if="days.length">
     <div>
       <h2>逐日路线</h2>
-      <p>一天一张故事卡</p>
     </div>
   </div>
 
@@ -264,7 +421,6 @@ onMounted(load);
 
   <section v-if="detail" class="glass-panel trip-chat-panel">
     <h2>问问这趟行程</h2>
-    <p class="panel-hint">预算紧不紧、某天累不累、要不要改动——像问朋友一样直接说。</p>
     <div class="trip-quick-questions">
       <button type="button" :disabled="busy === 'chat'" @click="askAbout('哪一天最赶？请按优先级告诉我怎么减少景点。')">哪天最赶</button>
       <button type="button" :disabled="busy === 'chat'" @click="askAbout('想少走路，请帮我调整每天的游玩顺序。')">少走一点</button>
@@ -290,6 +446,7 @@ onMounted(load);
         <div class="chat-bubble">
           <h3>Travel Mind</h3>
           <p>{{ item.reply }}</p>
+          <button type="button" class="text-action text-action--primary" @click="replanWith(item.reply)">按这条建议重新规划 →</button>
         </div>
       </template>
     </div>

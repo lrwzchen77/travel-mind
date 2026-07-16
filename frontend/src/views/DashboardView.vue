@@ -55,9 +55,6 @@ onUnmounted(() => {
             <em>{{ rotatingCities[cityIndex] }}</em>
           </span>
         </h1>
-        <p class="lead">
-          把心血来潮，变成一份说走就走的行程。选好城市和节奏，景点、吃住与预算自动排好——像朋友帮你做攻略。
-        </p>
         <div class="hero-actions">
           <RouterLink class="btn-link btn-coral btn-glow" to="/planning">
             开始规划我的行程
@@ -89,7 +86,6 @@ onUnmounted(() => {
     <div class="section-head" data-reveal>
       <div>
         <h2>立体地图 · 下一站</h2>
-        <p>真实三维街景视角，点城市飞过去，再决定去哪玩</p>
       </div>
       <RouterLink class="text-link" to="/map">
         全屏探索 <span aria-hidden="true">→</span>
@@ -108,7 +104,6 @@ onUnmounted(() => {
       <div class="home-map-cta">
         <div>
           <strong>当前镜头：{{ mapCity }}</strong>
-          <p>拖动旋转查看天际线，继续比较不同目的地</p>
         </div>
         <div class="actions">
           <RouterLink class="btn-link btn-coral" :to="{ path: '/planning', query: { city: mapCity } }">
@@ -122,7 +117,6 @@ onUnmounted(() => {
     <div class="section-head" data-reveal>
       <div>
         <h2>人气目的地</h2>
-        <p>悬停看细节，点击直接带进规划</p>
       </div>
       <RouterLink class="text-link" to="/cities">
         全部发现 <span aria-hidden="true">→</span>
@@ -162,37 +156,10 @@ onUnmounted(() => {
       </RouterLink>
     </div>
 
-    <div class="section-head" data-reveal>
-      <div>
-        <h2>三步出门</h2>
-        <p>从灵感到日程，像聊天一样简单</p>
-      </div>
-    </div>
-
-    <div class="steps steps--luxe">
-      <article
-        v-for="(step, i) in [
-          { n: '01', t: '说清你想怎么玩', d: '城市、天数、预算、想吃想逛的标签——像聊天一样填就好。' },
-          { n: '02', t: '等一份专属日程', d: '自动排程，景点、餐饮、住宿连成一天天的路线故事。' },
-          { n: '03', t: '保存、微调、再出发', d: '在「我的行程」回看，也能用 AI 估舒适度或聊聊预算。' },
-        ]"
-        :key="step.n"
-        class="step-card"
-        data-reveal
-        :style="{ '--reveal-delay': `${i * 100}ms` }"
-      >
-        <div class="step-num">{{ step.n }}</div>
-        <h3>{{ step.t }}</h3>
-        <p>{{ step.d }}</p>
-        <div class="step-line" aria-hidden="true" />
-      </article>
-    </div>
-
     <section class="cta-banner" data-reveal>
       <div class="cta-banner-bg" aria-hidden="true" />
       <div class="cta-banner-copy">
         <h2>还在犹豫去哪？</h2>
-        <p>用 AI 认一张图、读一段游记，或估估行程累不累——灵感来了再规划也不迟。</p>
       </div>
       <div class="actions">
         <RouterLink class="btn-link btn-coral btn-glow" to="/ai-lab">试试 AI 灵感</RouterLink>

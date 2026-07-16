@@ -33,9 +33,6 @@ function pick(city) {
     <section class="page-intro explore-intro">
       <p class="eyebrow">立体地图</p>
       <h1>在真实三维空间里选下一站</h1>
-      <p>
-        倾斜、旋转、飞入城市天际线。点选目的地后，可一键带进行程规划——旅行站，当然要有一张会飞的地图。
-      </p>
     </section>
 
     <div class="map-stage">
@@ -59,14 +56,12 @@ function pick(city) {
           <button type="button" class="btn-coral" @click="planHere">去规划这程</button>
           <RouterLink class="btn-link btn-ghost" to="/cities">发现更多城市</RouterLink>
         </div>
-        <p class="map-side-hint">拖动旋转 · 滚轮缩放 · 点「环绕」慢慢巡航</p>
       </aside>
     </div>
 
     <div class="section-head" style="margin-top: 28px;">
       <div>
         <h2>热门飞航</h2>
-        <p>点一张，镜头立刻起飞</p>
       </div>
     </div>
 

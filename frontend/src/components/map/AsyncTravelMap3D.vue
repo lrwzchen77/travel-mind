@@ -78,7 +78,6 @@ defineExpose({
       :style="{ height: $attrs.height || '440px', minHeight: '240px' }"
     >
       <div class="map-spinner" />
-      <p>下滑查看立体地图…</p>
     </div>
   </div>
 </template>

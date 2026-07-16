@@ -47,7 +47,6 @@ onMounted(load);
   <section class="page-intro">
     <p class="eyebrow">我的行程</p>
     <h1>走过的，和还想去的</h1>
-    <p>每一程都像一张旅行明信片。点进去可以继续微调、问问预算，或复制一程再出发。</p>
   </section>
 
   <p v-if="error" class="error-line">{{ error }}</p>
@@ -55,7 +54,6 @@ onMounted(load);
   <div class="section-head">
     <div>
       <h2>{{ loading ? '正在翻开行程册…' : (total ? `${total} 份行程` : '行程册空着') }}</h2>
-      <p>从最近一次开始看</p>
     </div>
     <RouterLink
       class="btn-link btn-coral"

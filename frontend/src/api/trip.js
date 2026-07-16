@@ -28,6 +28,15 @@ export function createTripApi(client = http) {
     chat(id, message, history = []) {
       return client.post(`/user/trip/${id}/chat`, { message, history }).then(unwrap);
     },
+    expenses(id) {
+      return client.get(`/user/trip/${id}/expenses`).then(unwrap);
+    },
+    addExpense(id, payload) {
+      return client.post(`/user/trip/${id}/expenses`, payload).then(unwrap);
+    },
+    removeExpense(id, expenseId) {
+      return client.delete(`/user/trip/${id}/expenses/${expenseId}`).then(unwrap);
+    },
   };
 }
 

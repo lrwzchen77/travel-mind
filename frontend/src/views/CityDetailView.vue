@@ -131,7 +131,6 @@ onMounted(load);
             <span>{{ String(index + 1).padStart(2, '0') }}</span>
             <div>
               <h3>{{ poi.name }}</h3>
-              <p>围绕这里安排邻近体验，减少来回折返。</p>
             </div>
             <RouterLink :to="poiPlanningLink(poi)">围绕它规划 →</RouterLink>
           </article>
@@ -151,12 +150,10 @@ onMounted(load);
     <aside class="city-detail-aside">
       <p class="eyebrow">下一步</p>
       <h2>不必一次看完所有攻略</h2>
-      <p>先带着喜欢的玩法生成一版，再根据每天的距离和节奏调整。</p>
       <RouterLink class="btn-link btn-coral" :to="planningLink">按这些偏好规划</RouterLink>
       <RouterLink class="btn-link btn-ghost" :to="{ path: '/map', query: { city: cityName } }">在立体地图中查看</RouterLink>
       <div v-if="insight" class="city-model-note">
         <strong>本地模型读图</strong>
-        <p>当前封面识别为“{{ insight.label }}”，置信度 {{ insight.confidenceText }}。这是图片场景判断，不代表实时情况。</p>
       </div>
     </aside>
   </div>

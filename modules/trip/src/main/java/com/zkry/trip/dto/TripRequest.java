@@ -13,8 +13,18 @@ public record TripRequest(
     String budget,
     List<String> preferences,
     String free_text_input,
-    String language
+    String language,
+    List<Long> inspiration_ids,
+    List<InspirationSource> inspiration_sources
 ) {
+    public TripRequest(
+        String city, List<CityStay> cities, String start_date, String end_date, Integer travel_days,
+        String transportation, String accommodation, String budget, List<String> preferences,
+        String free_text_input, String language
+    ) {
+        this(city, cities, start_date, end_date, travel_days, transportation, accommodation, budget, preferences,
+            free_text_input, language, List.of(), List.of());
+    }
     public List<CityStay> normalizedCities() {
         if (cities != null && !cities.isEmpty()) {
             return cities;
@@ -58,6 +68,14 @@ public record TripRequest(
 
     public String safeBudget() {
         return isBlank(budget) ? "未填写" : budget;
+    }
+
+    public List<Long> safeInspirationIds() {
+        return inspiration_ids == null ? List.of() : inspiration_ids;
+    }
+
+    public List<InspirationSource> safeInspirationSources() {
+        return inspiration_sources == null ? List.of() : inspiration_sources;
     }
 
     private boolean isBlank(String value) {

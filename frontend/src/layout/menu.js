@@ -1,13 +1,16 @@
 /** 顶栏主导航：C 端旅行产品路径（动作导向，非后台模块名） */
 export const primaryNav = [
   { path: '/', label: '首页' },
-  { path: '/cities', label: '发现目的地' },
-  { path: '/map', label: '立体地图' },
+  { path: '/inspirations', label: '旅行社区' },
+  { path: '/assistant', label: 'AI 伴游' },
+  { path: '/cities', label: '目的地' },
   { path: '/trip-history', label: '我的行程' },
 ];
 
 /** 账户菜单只承载当前用户拥有的内容与设置。 */
 export const accountNav = [
+  { path: '/inspiration-bag', label: '我的灵感包' },
+  { path: '/my-posts', label: '我的分享' },
   { path: '/favorites', label: '我的收藏' },
   { path: '/travel-notes', label: '我的笔记' },
   { path: '/profile', label: '旅行偏好' },
@@ -16,8 +19,8 @@ export const accountNav = [
 /** 页面内或行动按钮入口，仍属于用户可达的产品路径。 */
 export const auxiliaryNav = [
   { path: '/planning', label: '智能规划' },
-  { path: '/ai-lab', label: 'AI 灵感' },
-  { path: '/ai-records', label: '最近灵感' },
+  { path: '/map', label: '立体地图' },
+  { path: '/ai-lab', label: 'AI 内容解读' },
 ];
 
 /** 扁平列表，供路由/测试校验。 */

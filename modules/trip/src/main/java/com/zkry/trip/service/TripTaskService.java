@@ -10,6 +10,9 @@ import com.zkry.trip.dto.SubmitTripPlanResponse;
 import com.zkry.trip.dto.TripPlanResponse;
 import com.zkry.trip.dto.TripRequest;
 import com.zkry.trip.dto.TripTaskEvent;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -246,15 +249,30 @@ public class TripTaskService {
             });
     }
 
-    private void validateTripRequest(TripRequest request) {
+    void validateTripRequest(TripRequest request) {
         if (request == null) {
             throw new BizException("行程请求不能为空。");
         }
         if (request.normalizedCities().isEmpty()) {
             throw new BizException("请至少填写一个目的地城市。");
         }
-        if (request.safeTravelDays() <= 0) {
-            throw new BizException("旅行天数必须大于 0。");
+        if (request.safeTravelDays() <= 0 || request.safeTravelDays() > 30) {
+            throw new BizException("旅行天数必须在 1 到 30 天之间。");
+        }
+        try {
+            LocalDate startDate = LocalDate.parse(request.start_date());
+            LocalDate endDate = LocalDate.parse(request.end_date());
+            if (startDate.isBefore(LocalDate.now())) {
+                throw new BizException("出发日期不能早于今天。");
+            }
+            if (endDate.isBefore(startDate)) {
+                throw new BizException("返程日期不能早于出发日期。");
+            }
+            if (ChronoUnit.DAYS.between(startDate, endDate) + 1 != request.safeTravelDays()) {
+                throw new BizException("返程日期与旅行天数不一致。");
+            }
+        } catch (DateTimeParseException | NullPointerException ex) {
+            throw new BizException("请填写有效的出发和返程日期。");
         }
     }
 

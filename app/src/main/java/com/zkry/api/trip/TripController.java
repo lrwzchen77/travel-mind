@@ -11,6 +11,8 @@ import com.zkry.trip.service.TripTaskService;
 import com.zkry.common.core.domain.PageResult;
 import com.zkry.common.satoken.core.LoginHelper;
 import com.zkry.resources.service.TripHistoryPersistenceService;
+import com.zkry.resources.service.CommunityService;
+import com.zkry.trip.dto.InspirationSource;
 import java.util.Map;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.slf4j.Logger;
@@ -37,20 +39,25 @@ public class TripController {
 
     private final TripChatService tripChatService;
 
+    private final CommunityService communityService;
+
     public TripController(
         TripTaskService tripTaskService,
         TripHistoryPersistenceService tripHistoryPersistenceService,
         TripPlanPersistenceService tripPlanPersistenceService,
-        TripChatService tripChatService
+        TripChatService tripChatService,
+        CommunityService communityService
     ) {
         this.tripTaskService = tripTaskService;
         this.tripHistoryPersistenceService = tripHistoryPersistenceService;
         this.tripPlanPersistenceService = tripPlanPersistenceService;
         this.tripChatService = tripChatService;
+        this.communityService = communityService;
     }
 
     @PostMapping("/plan")
     public SubmitTripPlanResponse plan(@RequestBody TripRequest request) {
+        request = attachCommunitySources(request);
         log.info("[TripAPI] 收到行程规划请求 city={} cities={} days={} date={}~{} preferences={}",
             request.primaryCity(),
             request.normalizedCities().stream().map(city -> city.city() + ":" + city.safeDays() + "天").toList(),
@@ -113,5 +120,25 @@ public class TripController {
 
     private String safe(String value) {
         return value == null || value.isBlank() ? "-" : value;
+    }
+
+    private TripRequest attachCommunitySources(TripRequest request) {
+        if (request == null || request.safeInspirationIds().isEmpty()) return request;
+        var sources = communityService.sourcePosts(LoginHelper.getUserId(), request.safeInspirationIds()).stream().map(row -> new InspirationSource(
+            ((Number) row.get("post_id")).longValue(), String.valueOf(row.get("title")), String.valueOf(row.get("city")),
+            String.valueOf(row.get("topic")), String.valueOf(row.get("intent")), excerpt(String.valueOf(row.get("content")))
+        )).toList();
+        String references = sources.stream().map(source -> "【社区分享：" + source.title() + "】\n" + source.excerpt())
+            .collect(java.util.stream.Collectors.joining("\n"));
+        String note = (request.free_text_input() == null ? "" : request.free_text_input().trim());
+        return new TripRequest(request.city(), request.cities(), request.start_date(), request.end_date(), request.travel_days(),
+            request.transportation(), request.accommodation(), request.budget(), request.preferences(),
+            (note + "\n\n以下是用户明确引用的旅行社区分享，仅作为体验参考；优先满足用户明确要求，并以地图、预算和日期校验可行性：\n" + references).trim(),
+            request.language(), request.safeInspirationIds(), sources);
+    }
+
+    private String excerpt(String value) {
+        String text = value == null ? "" : value.trim();
+        return text.length() <= 700 ? text : text.substring(0, 700) + "…";
     }
 }

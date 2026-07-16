@@ -7,9 +7,11 @@ import java.util.Arrays;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 
 @Service
 public class AiAgentService {
@@ -24,6 +26,25 @@ public class AiAgentService {
 
     public boolean isAvailable() {
         return aiTextService.isAvailable();
+    }
+
+    /** 无工具对话的增量输出；流失败时返回空流，由调用方决定降级内容。 */
+    public Flux<String> stream(TravelMindAgent agent, String instruction, String userPrompt) {
+        Optional<ChatModel> chatModel = aiTextService.chatModel();
+        if (chatModel.isEmpty()) {
+            return Flux.empty();
+        }
+        return Flux.defer(() -> ChatClient.create(chatModel.get())
+                .prompt()
+                .system(instruction)
+                .user(userPrompt)
+                .stream()
+                .content())
+            .filter(part -> part != null && !part.isEmpty())
+            .onErrorResume(ex -> {
+                log.warn("[AI-AGENT] 流式调用失败 reason={}", ex.getMessage());
+                return Flux.empty();
+            });
     }
 
     /**

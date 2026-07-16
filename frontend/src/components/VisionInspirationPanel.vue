@@ -84,7 +84,6 @@ function goPlanning() {
     <div class="vision-inspiration-copy">
       <p class="eyebrow">本地 AI 看图</p>
       <h2 id="vision-inspiration-title">从一张照片，找到这趟旅行的感觉</h2>
-      <p>照片在本地模型中分析。模型判断旅行场景，不识别具体地标。</p>
       <label v-if="loggedIn" class="vision-upload">
         <input type="file" accept="image/jpeg,image/png,image/webp" @change="selectImage" />
         <span>{{ loading ? '正在识别…' : previewUrl ? '换一张照片' : '上传照片' }}</span>

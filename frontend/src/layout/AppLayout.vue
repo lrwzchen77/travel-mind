@@ -3,6 +3,7 @@ import { computed, ref, onMounted, onUnmounted, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { accountNav, primaryNav } from './menu.js';
 import PageTransition from '../components/PageTransition.vue';
+import InspirationBagFloat from '../components/InspirationBagFloat.vue';
 import { authApi } from '../api/auth.js';
 import { authSession } from '../auth/session.js';
 
@@ -56,12 +57,6 @@ onUnmounted(() => {
 
 <template>
   <div class="app-shell">
-    <div class="ambient" aria-hidden="true">
-      <span class="orb orb-a" />
-      <span class="orb orb-b" />
-      <span class="orb orb-c" />
-    </div>
-
     <header class="site-header" :class="{ 'is-scrolled': scrolled }">
       <div class="site-header-inner">
         <RouterLink to="/" class="brand" @click="closeMenus">
@@ -101,7 +96,6 @@ onUnmounted(() => {
           </RouterLink>
 
           <RouterLink to="/planning" class="header-cta" @click="closeMenus">
-            <span class="cta-shine" aria-hidden="true" />
             智能规划
           </RouterLink>
           <div v-if="currentUser" class="account-menu" :class="{ 'is-open': accountOpen }">
@@ -145,11 +139,12 @@ onUnmounted(() => {
       <PageTransition />
     </main>
 
+    <InspirationBagFloat v-if="currentUser" />
+
     <footer class="site-footer">
       <div class="site-footer-inner">
         <div>
           <strong>Travel Mind</strong>
-          <p>把心血来潮，变成说走就走的行程。灵感、地图、日程都在同一处。</p>
         </div>
         <div class="footer-links">
           <RouterLink to="/planning">智能规划</RouterLink>

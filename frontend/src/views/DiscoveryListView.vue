@@ -19,7 +19,6 @@ const { busyKey, isFavorite, loadFavorites, toggleFavorite } = useFavorites();
 
 const resourceKey = computed(() => route.meta.resourceKey);
 const title = computed(() => route.meta.title);
-const description = computed(() => route.meta.description);
 const isCityDiscovery = computed(() => resourceKey.value === 'cities');
 
 const resourceMeta = computed(() => {
@@ -59,7 +58,7 @@ const resourceMeta = computed(() => {
 function subtitle(item) {
   if (resourceKey.value === 'cities') return [item.province, item.country].filter(Boolean).join(' · ') || '目的地';
   if (resourceKey.value === 'restaurants') return [item.cuisine, item.category].filter(Boolean).join(' · ') || '本地味道';
-  return item.category || item.tags || '旅行灵感';
+  return item.category || item.tags || '旅行推荐';
 }
 
 function detail(item) {
@@ -97,7 +96,17 @@ function planLink(item) {
   if (resourceKey.value === 'cities') {
     return { path: '/planning', query: { city: item.name } };
   }
-  return { path: '/planning' };
+  const labels = { attractions: '景点', hotels: '住宿', restaurants: '餐厅' };
+  const actions = { attractions: '安排游览', hotels: '优先考虑入住', restaurants: '安排用餐' };
+  const city = item.city_name || item.city || route.query.city || '';
+  const query = {
+    resourceType: resourceKey.value,
+    resourceName: item.name,
+    cityId: item.city_id,
+    note: `希望${actions[resourceKey.value]}：${item.name}${city ? `（${city}）` : ''}，类型：${labels[resourceKey.value]}。`,
+  };
+  if (city) query.city = city;
+  return { path: '/planning', query };
 }
 
 function cityDetailLink(item) {
@@ -118,11 +127,20 @@ async function load() {
   loading.value = true;
   error.value = '';
   try {
-    const data = await resourceApi.discover(resourceKey.value, {
-      keyword: keyword.value,
-      pageSize: resourceKey.value === 'cities' ? 50 : 30,
-    });
-    items.value = data.records || [];
+    const [data, cityData] = await Promise.all([
+      resourceApi.discover(resourceKey.value, {
+        keyword: keyword.value,
+        pageSize: resourceKey.value === 'cities' ? 50 : 30,
+      }),
+      resourceKey.value === 'cities'
+        ? Promise.resolve({ records: [] })
+        : resourceApi.discover('cities', { pageSize: 100 }).catch(() => ({ records: [] })),
+    ]);
+    const cityNames = new Map((cityData.records || []).map((city) => [String(city.id), city.name]));
+    items.value = (data.records || []).map((item) => ({
+      ...item,
+      city_name: item.city_name || cityNames.get(String(item.city_id)) || '',
+    }));
     total.value = data.total || items.value.length;
   } catch (err) {
     error.value = err?.message || '暂时打不开这份清单，稍后再试';
@@ -171,7 +189,6 @@ onMounted(() => {
   <section class="page-intro">
     <p class="eyebrow">发现</p>
     <h1>{{ title }}</h1>
-    <p>{{ description }}</p>
   </section>
 
   <VisionInspirationPanel v-if="isCityDiscovery" />
@@ -196,7 +213,6 @@ onMounted(() => {
   <div class="section-head">
     <div>
       <h2>{{ loading ? '正在翻找灵感…' : resourceMeta.countLabel(total) }}</h2>
-      <p>点卡片收藏，或直接带进规划</p>
     </div>
   </div>
 

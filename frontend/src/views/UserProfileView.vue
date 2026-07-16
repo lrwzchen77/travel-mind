@@ -99,7 +99,6 @@ onMounted(load);
   <section class="page-intro">
     <p class="eyebrow">旅行偏好</p>
     <h1>让每一程更像你</h1>
-    <p>不用填得很满。预算、节奏和口味会悄悄影响智能规划的推荐。</p>
   </section>
 
   <p v-if="message" class="success-line">{{ message }}</p>
@@ -111,7 +110,6 @@ onMounted(load);
         <span class="profile-emoji" aria-hidden="true">🪪</span>
         <div>
           <h2>怎么称呼你</h2>
-          <p>只用于你的旅行账号展示</p>
         </div>
       </div>
       <div class="profile-fields">
@@ -135,7 +133,6 @@ onMounted(load);
         <span class="profile-emoji" aria-hidden="true">🎒</span>
         <div>
           <h2>这趟通常怎么玩</h2>
-          <p>点选就好，也可以自己补充</p>
         </div>
       </div>
 
@@ -185,7 +182,6 @@ onMounted(load);
         <span class="profile-emoji" aria-hidden="true">🍜</span>
         <div>
           <h2>吃住与出行</h2>
-          <p>规划时会优先参考这些习惯</p>
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 <script setup>
 import { computed, reactive, ref } from 'vue';
 import { adminAiApi as aiApi } from '../api/ai.js';
+import ImageDropUpload from '../components/ImageDropUpload.vue';
 
 const loading = ref('');
 const error = ref('');
@@ -9,7 +10,7 @@ const trip = ref(null);
 const content = ref(null);
 
 const visionForm = reactive({
-  image_url: 'https://example.com/west-lake-night-food.jpg',
+  image_url: '',
   city: '杭州',
   resource_type: 'attraction',
 });
@@ -33,6 +34,7 @@ const visionData = computed(() => vision.value?.data || vision.value || {});
 const contentData = computed(() => content.value?.data || content.value || {});
 
 async function runVision() {
+  if (!visionForm.image_url) { error.value = '先上传一张旅行照片'; return; }
   await run('vision', async () => {
     vision.value = await aiApi.detectVision({ ...visionForm });
   });
@@ -67,7 +69,6 @@ async function run(name, action) {
   <section class="page-intro">
     <p class="eyebrow">AI 灵感</p>
     <h1>旅行灵感小工具</h1>
-    <p>不是冷冰冰的实验室——是帮你认场景、估舒适度、读懂游记的小助手。</p>
   </section>
 
   <p v-if="error" class="error-line">{{ error }}</p>
@@ -76,11 +77,7 @@ async function run(name, action) {
     <form class="tool-card field-stack" style="--reveal-delay: 0ms" @submit.prevent="runVision">
       <div class="tool-icon">📷</div>
       <h2>认一认这张图</h2>
-      <p class="tool-desc">丢一张旅行照片链接，看看场景更像景点、美食还是夜游。</p>
-      <div>
-        <label class="field-label">图片链接</label>
-        <input v-model="visionForm.image_url" placeholder="https://…" />
-      </div>
+      <ImageDropUpload v-model="visionForm.image_url" label="拖拽旅行照片到这里，或点击选择" />
       <div class="field-row">
         <div>
           <label class="field-label">城市</label>
@@ -100,7 +97,6 @@ async function run(name, action) {
     <form class="tool-card field-stack" @submit.prevent="runTrip">
       <div class="tool-icon">🧭</div>
       <h2>这趟会不会太累</h2>
-      <p class="tool-desc">贴一段行程结构，估舒适度与风险，适合出门前自查。</p>
       <div>
         <label class="field-label">行程内容</label>
         <textarea v-model="tripText" class="code-area" rows="10" spellcheck="false" />
@@ -114,7 +110,6 @@ async function run(name, action) {
     <form class="tool-card field-stack" @submit.prevent="runContent">
       <div class="tool-icon">✍️</div>
       <h2>读懂这段游记</h2>
-      <p class="tool-desc">粘贴中文游记或评价，提炼亮点与槽点，规划时更有数。</p>
       <div>
         <label class="field-label">游记原文</label>
         <textarea v-model="contentForm.text" rows="5" spellcheck="false" />

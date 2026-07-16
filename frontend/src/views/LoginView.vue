@@ -13,11 +13,6 @@ const error = ref('');
 const cityIndex = ref(0);
 
 const cities = ['杭州', '成都', '厦门', '西安', '大理', '青岛'];
-const perks = [
-  { icon: '🗺', title: '智能排程', desc: '景点吃住一键成日程' },
-  { icon: '🌍', title: '立体地图', desc: '三维城市里选下一站' },
-  { icon: '✦', title: 'AI 灵感', desc: '游记变出发线索' },
-];
 
 let cityTimer;
 
@@ -58,7 +53,6 @@ onUnmounted(() => {
     <section class="login-panel login-panel--admin">
       <p class="eyebrow">管理员登录</p>
       <h1>进入运营工作台</h1>
-      <p>仅供平台运营与内容管理人员使用。</p>
       <form class="field-stack" @submit.prevent="submit">
         <label>
           <span class="field-label">账号</span>
@@ -103,9 +97,6 @@ onUnmounted(() => {
             <span class="login-headline-fixed">下一站，</span>
             <span class="login-city" :key="cities[cityIndex]">{{ cities[cityIndex] }}</span>
           </h1>
-          <p class="login-showcase-lead">
-            登录后保存行程、收藏灵感、同步偏好——把心血来潮变成说走就走的日程。
-          </p>
         </div>
 
         <div class="login-ticket" aria-hidden="true">
@@ -133,22 +124,12 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <ul class="login-perks">
-        <li v-for="item in perks" :key="item.title">
-          <span class="login-perk-icon" aria-hidden="true">{{ item.icon }}</span>
-          <div>
-            <strong>{{ item.title }}</strong>
-            <p>{{ item.desc }}</p>
-          </div>
-        </li>
-      </ul>
     </aside>
 
     <section class="login-form-side">
       <div class="login-form-card">
         <p class="eyebrow">欢迎回来</p>
         <h1>继续你的下一程</h1>
-        <p class="login-form-lead">用旅行账号登录，随时打开未完成的规划。</p>
 
         <form class="field-stack" @submit.prevent="submit">
           <label>
@@ -179,7 +160,6 @@ onUnmounted(() => {
 
         <div class="login-switch">
           <RouterLink to="/">先逛逛目的地</RouterLink>
-          <RouterLink to="/admin/login" class="login-switch-muted">运营入口</RouterLink>
         </div>
       </div>
     </section>

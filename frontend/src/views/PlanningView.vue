@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { useRoute, useRouter, RouterLink } from 'vue-router';
 import { http } from '../api/http.js';
+import { resourceApi } from '../api/resources.js';
 import { tripApi } from '../api/trip.js';
 import { authSession } from '../auth/session.js';
 import {
@@ -18,13 +19,20 @@ const error = ref('');
 const task = ref(null);
 const result = ref(null);
 let taskAbortController = null;
+const DRAFT_KEY = 'travelmind.planning-draft';
 
 const prefOptions = ['湖景', '美食', '轻松', '亲子', '夜景', '拍照', '徒步', '博物馆', '购物'];
 
+function localDate(offsetDays = 0) {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() + offsetDays);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 const form = reactive({
   city: '杭州',
-  start_date: '2026-08-01',
-  end_date: '2026-08-02',
+  start_date: localDate(7),
   travel_days: 2,
   transportation: '公共交通',
   accommodation: '舒适型酒店',
@@ -32,8 +40,18 @@ const form = reactive({
   preferences: ['湖景', '美食', '轻松'],
   free_text_input: '节奏轻松，适合第一次到杭州。',
   language: 'zh',
+  inspiration_ids: [],
 });
 
+const today = localDate();
+const endDate = computed(() => {
+  const daysCount = Number(form.travel_days);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(form.start_date) || !Number.isInteger(daysCount) || daysCount < 1) return '';
+  const date = new Date(`${form.start_date}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return '';
+  date.setDate(date.getDate() + daysCount - 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+});
 const days = computed(() => result.value?.data?.days || []);
 const budget = computed(() => result.value?.data?.budget || {});
 const progress = computed(() => Number(task.value?.progress || 0));
@@ -58,7 +76,99 @@ function togglePref(tag) {
   else form.preferences.push(tag);
 }
 
+function values(value) {
+  return String(value || '').split(/[,，、\s]+/).map((item) => item.trim()).filter(Boolean);
+}
+
+function appendNote(note) {
+  const text = String(note || '').trim().slice(0, 1500);
+  if (text && !form.free_text_input.includes(text)) {
+    form.free_text_input = [form.free_text_input.trim(), text].filter(Boolean).join('\n');
+  }
+}
+
+function applyProfile(profile) {
+  const preference = profile?.preference || {};
+  const preferredCity = values(preference.preferred_city)[0];
+  if (preferredCity) form.city = preferredCity;
+  if (preference.transportation) form.transportation = String(preference.transportation);
+  if (preference.hotel_level) form.accommodation = String(preference.hotel_level);
+  const budgets = { economy: '1500', medium: '3000', premium: '6000' };
+  if (budgets[preference.budget_level]) form.budget = budgets[preference.budget_level];
+
+  const unmatched = [];
+  for (const item of [...values(preference.travel_style), ...values(preference.preferred_tags)]) {
+    const matched = prefOptions.find((tag) => item.includes(tag) || tag.includes(item));
+    if (matched && !form.preferences.includes(matched)) form.preferences.push(matched);
+    else if (!matched) unmatched.push(item);
+  }
+  appendNote([
+    unmatched.length ? `其他旅行偏好：${unmatched.join('、')}` : '',
+    preference.diet_preference ? `饮食偏好：${preference.diet_preference}` : '',
+  ].filter(Boolean).join('；'));
+}
+
+function restoreDraft() {
+  try {
+    const draft = JSON.parse(window.sessionStorage.getItem(DRAFT_KEY) || 'null');
+    window.sessionStorage.removeItem(DRAFT_KEY);
+    if (!draft) return;
+    for (const key of Object.keys(form)) {
+      if (Object.prototype.hasOwnProperty.call(draft, key)) form[key] = draft[key];
+    }
+  } catch {
+    // 会话存储不可用时保留页面默认值。
+  }
+}
+
+function applyQuery() {
+  const directFields = ['city', 'start_date', 'travel_days', 'transportation', 'accommodation', 'budget'];
+  for (const field of directFields) {
+    if (route.query[field] != null && String(route.query[field]).trim()) form[field] = String(route.query[field]);
+  }
+  if (route.query.free_text_input) form.free_text_input = String(route.query.free_text_input).slice(0, 1500);
+
+  const vision = route.query.vision ? String(route.query.vision) : '';
+  const source = route.query.model === 'local' ? '本地图片模型' : '图片场景';
+  if (vision) appendNote(`${source}判断我喜欢${vision}，请安排相似体验并留意相应风险。`);
+  if (route.query.poi) appendNote(`希望围绕${String(route.query.poi)}安排邻近景点，减少折返。`);
+  appendNote(route.query.note);
+  appendNote(route.query.assistant ? `AI 对话补充：${String(route.query.assistant).slice(0, 800)}` : '');
+
+  form.inspiration_ids = String(route.query.inspirationIds || '').split(',').map(Number).filter(Boolean).slice(0, 5);
+  const explicitPreferences = String(route.query.preferences || '').split(',')
+    .map((item) => item.trim()).filter((item) => prefOptions.includes(item));
+  if (explicitPreferences.length) form.preferences = [...explicitPreferences];
+  const requestedPreferences = [route.query.preference]
+    .map((item) => String(item || '').trim()).filter(Boolean);
+  for (const preference of requestedPreferences) {
+    if (prefOptions.includes(preference) && !form.preferences.includes(preference)) form.preferences.push(preference);
+  }
+}
+
 async function submit() {
+  const travelDays = Number(form.travel_days);
+  if (!form.city.trim()) {
+    error.value = '请填写目的地城市';
+    return;
+  }
+  if (!Number.isInteger(travelDays) || travelDays < 1 || travelDays > 30) {
+    error.value = '游玩天数需为 1 到 30 天';
+    return;
+  }
+  if (!endDate.value || form.start_date < today) {
+    error.value = '出发日期不能早于今天';
+    return;
+  }
+  if (!authSession.isLoggedIn()) {
+    try {
+      window.sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ ...form, travel_days: travelDays }));
+    } catch {
+      // 浏览器禁用会话存储时仍允许用户继续登录。
+    }
+    await router.push({ path: '/login', query: { redirect: route.fullPath } });
+    return;
+  }
   taskAbortController?.abort();
   const controller = new AbortController();
   taskAbortController = controller;
@@ -68,7 +178,8 @@ async function submit() {
   try {
     const payload = {
       ...form,
-      travel_days: Number(form.travel_days),
+      end_date: endDate.value,
+      travel_days: travelDays,
       preferences: [...form.preferences],
     };
     task.value = await tripApi.submitPlan(payload);
@@ -108,27 +219,16 @@ function openSavedPlan() {
   if (id) router.push(`/trip/${id}`);
 }
 
-onMounted(() => {
-  if (route.query.city) {
-    form.city = String(route.query.city);
-    const vision = route.query.vision ? String(route.query.vision) : '';
-    const source = route.query.model === 'local' ? '本地图片模型' : '图片场景';
-    const notes = [];
-    if (vision) notes.push(`${source}判断我喜欢${vision}，请安排相似体验并留意相应风险`);
-    if (route.query.poi) notes.push(`希望围绕${String(route.query.poi)}安排邻近景点，减少折返`);
-    form.free_text_input = notes.length
-      ? `想去${form.city}，${notes.join('；')}。`
-      : `想去${form.city}玩一玩，节奏轻松一点。`;
-  }
-  const requestedPreferences = [
-    route.query.preference,
-    ...String(route.query.preferences || '').split(','),
-  ].map((item) => String(item || '').trim()).filter(Boolean);
-  for (const preference of requestedPreferences) {
-    if (prefOptions.includes(preference) && !form.preferences.includes(preference)) {
-      form.preferences.push(preference);
+onMounted(async () => {
+  if (authSession.isLoggedIn()) {
+    try {
+      applyProfile(await resourceApi.getProfile());
+    } catch {
+      // 偏好服务不可用不阻断规划。
     }
   }
+  restoreDraft();
+  applyQuery();
 });
 
 onUnmounted(() => taskAbortController?.abort());
@@ -138,7 +238,6 @@ onUnmounted(() => taskAbortController?.abort());
   <section class="page-intro">
     <p class="eyebrow">规划行程</p>
     <h1>这一趟，怎么玩？</h1>
-    <p>说清楚去哪、几天、大概花多少就够了——剩下的交给 Travel Mind 排成可执行日程。</p>
   </section>
 
   <p v-if="error" class="error-line">{{ error }}</p>
@@ -147,7 +246,6 @@ onUnmounted(() => taskAbortController?.abort());
     <div class="planner-map-head">
       <div>
         <h2>在地图上确认目的地</h2>
-        <p class="panel-hint" style="margin-bottom: 0;">先看清城市位置，也可以直接在下方写下目的地。</p>
       </div>
       <RouterLink class="text-link" :to="{ path: '/map', query: { city: form.city } }">全屏地图 →</RouterLink>
     </div>
@@ -164,7 +262,6 @@ onUnmounted(() => taskAbortController?.abort());
   <section class="planner-layout" style="margin-top: 22px;">
     <form class="glass-panel field-stack" @submit.prevent="submit">
       <h2>写下你的旅行愿望</h2>
-      <p class="panel-hint">不用填得很完美，像和朋友聊天一样说清想法就行。</p>
 
       <div class="field-row">
         <div>
@@ -173,18 +270,18 @@ onUnmounted(() => taskAbortController?.abort());
         </div>
         <div>
           <label class="field-label">玩几天</label>
-          <input v-model="form.travel_days" type="number" min="1" max="30" placeholder="2" />
+          <input v-model.number="form.travel_days" type="number" min="1" max="30" placeholder="2" required />
         </div>
       </div>
 
       <div class="field-row">
         <div>
           <label class="field-label">出发日期</label>
-          <input v-model="form.start_date" type="date" />
+          <input v-model="form.start_date" type="date" :min="today" required />
         </div>
         <div>
-          <label class="field-label">返程日期</label>
-          <input v-model="form.end_date" type="date" />
+          <label class="field-label">预计返程</label>
+          <input :value="endDate" type="date" readonly aria-label="根据出发日期和游玩天数自动计算的返程日期" />
         </div>
       </div>
 
@@ -230,6 +327,11 @@ onUnmounted(() => taskAbortController?.abort());
         />
       </div>
 
+      <div v-if="form.inspiration_ids.length" class="planner-inspiration-note">
+        <strong>已引用 {{ form.inspiration_ids.length }} 篇社区分享</strong>
+        <RouterLink class="text-link" to="/inspiration-bag">调整灵感包 →</RouterLink>
+      </div>
+
       <div class="actions">
         <button type="submit" class="btn-coral" :disabled="loading">
           {{ loading ? '正在为你排程…' : '生成我的行程' }}
@@ -249,7 +351,7 @@ onUnmounted(() => taskAbortController?.abort());
         <span :style="{ width: `${loading && progress < 8 ? 8 : Math.min(100, progress)}%` }" />
       </div>
       <p class="progress-text">
-        {{ task?.progress_text || task?.message || '填好左边，点生成，这里会出现逐日路线。' }}
+        {{ task?.progress_text || task?.message }}
       </p>
 
       <div v-if="result" class="trip-summary" style="margin-top: 20px;">

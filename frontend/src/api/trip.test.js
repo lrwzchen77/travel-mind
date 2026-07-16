@@ -29,6 +29,9 @@ describe('trip API client', () => {
     await api.copy(9001);
     await api.remove(9001);
     await api.chat(9001, '预算是多少？');
+    await api.expenses(9001);
+    await api.addExpense(9001, { category: 'food', amount: 88 });
+    await api.removeExpense(9001, 7001);
     await api.history(10);
 
     expect(http.post).toHaveBeenCalledWith('/user/trip/plan', payload);
@@ -37,6 +40,9 @@ describe('trip API client', () => {
     expect(http.post).toHaveBeenCalledWith('/user/trip/9001/copy');
     expect(http.delete).toHaveBeenCalledWith('/user/trip/9001');
     expect(http.post).toHaveBeenCalledWith('/user/trip/9001/chat', { message: '预算是多少？', history: [] });
+    expect(http.get).toHaveBeenCalledWith('/user/trip/9001/expenses');
+    expect(http.post).toHaveBeenCalledWith('/user/trip/9001/expenses', { category: 'food', amount: 88 });
+    expect(http.delete).toHaveBeenCalledWith('/user/trip/9001/expenses/7001');
     expect(http.get).toHaveBeenCalledWith('/user/trip/history', { params: { limit: 10 } });
   });
 });

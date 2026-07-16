@@ -30,7 +30,6 @@ const filters = reactive({
 
 const resourceKey = computed(() => route.meta.resourceKey);
 const title = computed(() => route.meta.title);
-const description = computed(() => route.meta.description || '');
 const fields = computed(() => route.meta.fields || []);
 const fieldLabels = computed(() => route.meta.fieldLabels || {});
 const canToggleStatus = computed(() => route.meta.canToggleStatus !== false);
@@ -159,7 +158,6 @@ onMounted(load);
   <section class="page-intro">
     <p class="eyebrow">{{ isAdmin ? '运营管理' : (isDiscover ? '发现' : '我的') }}</p>
     <h1>{{ title }}</h1>
-    <p>{{ description }}</p>
   </section>
 
   <div v-if="isDiscover" class="actions" style="margin-bottom: 18px;">
@@ -236,7 +234,6 @@ onMounted(load);
 
     <form v-if="showEditor" class="editor-panel field-stack" @submit.prevent="save">
       <h2 class="panel-title">{{ editingId ? '改一改' : '添加一条' }}</h2>
-      <p class="panel-hint">用结构化内容保存。完成后会回到列表。</p>
       <textarea v-model="formText" class="code-area" rows="14" spellcheck="false" />
       <div class="actions">
         <button type="submit" class="btn-coral">保存</button>

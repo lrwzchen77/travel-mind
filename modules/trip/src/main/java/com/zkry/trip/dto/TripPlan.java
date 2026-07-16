@@ -10,6 +10,13 @@ public record TripPlan(
     List<DayPlan> days,
     List<WeatherInfo> weather_info,
     String overall_suggestions,
-    Budget budget
+    Budget budget,
+    List<InspirationSource> inspiration_sources
 ) {
+    public TripPlan(
+        String city, List<String> cities, String start_date, String end_date, List<DayPlan> days,
+        List<WeatherInfo> weather_info, String overall_suggestions, Budget budget
+    ) {
+        this(city, cities, start_date, end_date, days, weather_info, overall_suggestions, budget, List.of());
+    }
 }

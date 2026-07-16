@@ -2,6 +2,8 @@ import { createApp } from 'vue';
 import App from './App.vue';
 import router from './router/index.js';
 import './styles.css';
+import './workspace.css';
+import './community.css';
 import { scheduleMapWarmup } from './map/prefetch.js';
 
 createApp(App).use(router).mount('#app');

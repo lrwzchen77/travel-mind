@@ -33,7 +33,8 @@ public class TripPlanPersistenceService {
             throw new BizException("行程结果为空，无法保存。");
         }
         long tripId = nextId();
-        TripPlan plan = response.data();
+        TripPlan plan = withSources(response.data(), request.safeInspirationSources());
+        TripPlanResponse prepared = new TripPlanResponse(response.success(), response.message(), response.plan_id(), plan, response.graph_data());
         jdbcTemplate.update("""
                 INSERT INTO tm_trip_plan
                   (id, user_id, title, destination_city, start_date, end_date, travel_days, budget, total_cost, status,
@@ -54,7 +55,7 @@ public class TripPlanPersistenceService {
                 .addValue("totalCost", BigDecimal.valueOf(plan.budget() == null ? 0 : plan.budget().total()))
                 .addValue("status", "generated")
                 .addValue("summary", plan.overall_suggestions())
-                .addValue("rawPlanJson", JsonUtils.toJsonString(withPlanId(response, String.valueOf(tripId)))));
+                .addValue("rawPlanJson", JsonUtils.toJsonString(withPlanId(prepared, String.valueOf(tripId)))));
         saveDays(tripId, plan);
         return tripId;
     }
@@ -188,6 +189,11 @@ public class TripPlanPersistenceService {
 
     private TripPlanResponse withPlanId(TripPlanResponse response, String planId) {
         return new TripPlanResponse(response.success(), response.message(), planId, response.data(), response.graph_data());
+    }
+
+    private TripPlan withSources(TripPlan plan, List<com.zkry.trip.dto.InspirationSource> sources) {
+        return new TripPlan(plan.city(), plan.cities(), plan.start_date(), plan.end_date(), plan.days(), plan.weather_info(),
+            plan.overall_suggestions(), plan.budget(), sources == null ? List.of() : List.copyOf(sources));
     }
 
     private TripRequest requestFromPlan(TripPlan plan) {

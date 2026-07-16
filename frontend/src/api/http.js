@@ -13,6 +13,7 @@ export function createHttpClient(options = {}) {
     },
   });
   client.interceptors.request.use((config) => {
+    if (config.data instanceof FormData) config.headers.setContentType(undefined);
     const token = authSession.token();
     if (token) config.headers.Authorization = token;
     return config;

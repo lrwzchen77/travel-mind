@@ -14,6 +14,7 @@ import com.zkry.trip.dto.Attraction;
 import com.zkry.trip.dto.Budget;
 import com.zkry.trip.dto.DayPlan;
 import com.zkry.trip.dto.Hotel;
+import com.zkry.trip.dto.InspirationSource;
 import com.zkry.trip.dto.Meal;
 import com.zkry.trip.dto.TripPlan;
 import com.zkry.trip.dto.TripPlanResponse;
@@ -24,6 +25,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.mockito.ArgumentCaptor;
 
 class TripPlanPersistenceServiceTest {
 
@@ -63,6 +65,23 @@ class TripPlanPersistenceServiceTest {
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.delete(9001L, 2002L))
             .isInstanceOf(com.zkry.common.core.exception.BizException.class)
             .hasMessage("行程不存在或无权操作。");
+    }
+
+    @Test
+    void persistsVerifiedInspirationSourcesWithPlanSnapshot() {
+        NamedParameterJdbcTemplate jdbcTemplate = org.mockito.Mockito.mock(NamedParameterJdbcTemplate.class);
+        when(jdbcTemplate.update(anyString(), any(MapSqlParameterSource.class))).thenReturn(1);
+        TripPlanPersistenceService service = new TripPlanPersistenceService(jdbcTemplate);
+        TripRequest request = new TripRequest("Hangzhou", null, "2026-08-01", "2026-08-01", 1, "公共交通", "舒适型酒店", "2000",
+            List.of("湖景"), "参考旅行灵感", "zh", List.of(7001L),
+            List.of(new InspirationSource(7001L, "西湖慢游", "Hangzhou", "route", "must", "上午走断桥和苏堤")));
+
+        service.save(1001L, response("plan-1"), request);
+
+        ArgumentCaptor<MapSqlParameterSource> params = ArgumentCaptor.forClass(MapSqlParameterSource.class);
+        verify(jdbcTemplate).update(contains("INSERT INTO tm_trip_plan"), params.capture());
+        TripPlanResponse stored = JsonUtils.parseObject(String.valueOf(params.getValue().getValue("rawPlanJson")), TripPlanResponse.class);
+        assertThat(stored.data().inspiration_sources()).singleElement().extracting(InspirationSource::intent).isEqualTo("must");
     }
 
     private TripRequest request() {
