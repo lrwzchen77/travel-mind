@@ -74,7 +74,7 @@ onMounted(load);
     <p class="eyebrow">旅行社区</p>
     <h1>每个人的真实旅行，值得被看见</h1>
     <div class="actions">
-      <RouterLink class="btn-link btn-coral" to="/assistant">问 AI 伴游</RouterLink>
+      <RouterLink class="btn-link btn-coral" to="/assistant">先问 AI 怎么取舍</RouterLink>
       <button type="button" class="btn-ghost" @click="startPublish">{{ composing ? '收起发布' : '发布我的分享' }}</button>
     </div>
   </section>

@@ -5,7 +5,6 @@ import { aiApi } from '../api/ai.js';
 import { authSession } from '../auth/session.js';
 import {
   buildVisionPlanningQuery,
-  formatVisionConfidence,
   visionLabelMeta,
 } from '../data/visionInsights.js';
 
@@ -21,8 +20,6 @@ const loggedIn = authSession.isLoggedIn();
 const resultData = computed(() => result.value?.data || result.value || {});
 const prediction = computed(() => resultData.value.labels?.[0] || null);
 const predictionMeta = computed(() => visionLabelMeta(prediction.value?.name));
-const trained = computed(() => resultData.value.model_mode === 'trained_yolo');
-const confidence = computed(() => formatVisionConfidence(prediction.value?.confidence));
 const risks = computed(() => resultData.value.risk_hints || []);
 
 function readAsDataUrl(file) {
@@ -73,7 +70,6 @@ function goPlanning() {
     query: buildVisionPlanningQuery({
       city: city.value,
       prediction: prediction.value,
-      trained: trained.value,
     }),
   });
 }
@@ -82,7 +78,7 @@ function goPlanning() {
 <template>
   <section class="vision-inspiration" aria-labelledby="vision-inspiration-title">
     <div class="vision-inspiration-copy">
-      <p class="eyebrow">本地 AI 看图</p>
+      <p class="eyebrow">按照片找旅行感觉</p>
       <h2 id="vision-inspiration-title">从一张照片，找到这趟旅行的感觉</h2>
       <label v-if="loggedIn" class="vision-upload">
         <input type="file" accept="image/jpeg,image/png,image/webp" @change="selectImage" />
@@ -101,11 +97,7 @@ function goPlanning() {
         <img :src="previewUrl" alt="等待分析的旅行照片" />
       </div>
       <div v-if="result" class="vision-result-copy">
-        <span class="vision-source" :class="{ 'is-local': trained }">
-          {{ trained ? '本地训练模型' : '基础场景判断' }}
-        </span>
         <h3>{{ predictionMeta.label }}</h3>
-        <p v-if="confidence">判断置信度 {{ confidence }}</p>
         <p v-for="risk in risks" :key="risk" class="vision-risk">{{ risk }}</p>
         <label class="vision-city-field">
           <span>准备去哪座城</span>
@@ -115,7 +107,7 @@ function goPlanning() {
       </div>
       <div v-else-if="loading" class="vision-placeholder" aria-live="polite">
         <span class="vision-scan-line" aria-hidden="true" />
-        <strong>本地模型正在看图</strong>
+        <strong>正在从照片里找旅行感觉</strong>
       </div>
       <div v-else class="vision-placeholder">
         <strong>选择一张旅行照片</strong>

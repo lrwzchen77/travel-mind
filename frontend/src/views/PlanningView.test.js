@@ -73,7 +73,7 @@ describe('规划页 P0 闭环', () => {
 
   it('恢复草稿和偏好后仍以显式 query 为准，并避免重复追加线索', async () => {
     mocks.isLoggedIn.mockReturnValue(true);
-    mocks.route.query = { city: '苏州', note: '必须去拙政园', travel_days: '4', preferences: '夜景,拍照' };
+    mocks.route.query = { city: '苏州', note: '必须去拙政园', travel_days: '4', preferences: '夜景,拍照', vision: '夜景画面', model: 'local' };
     window.sessionStorage.setItem('travelmind.planning-draft', JSON.stringify({
       city: '厦门', travel_days: 3, free_text_input: '必须去拙政园', preferences: ['轻松'],
     }));
@@ -92,6 +92,8 @@ describe('规划页 P0 闭环', () => {
     expect(fields[0].element.value).toBe('苏州');
     expect(fields[1].element.value).toBe('4');
     expect(wrapper.find('textarea').element.value.match(/必须去拙政园/g)).toHaveLength(1);
+    expect(wrapper.find('textarea').element.value).toContain('照片场景偏好：喜欢夜景画面');
+    expect(wrapper.find('textarea').element.value).not.toContain('模型');
     expect(wrapper.findAll('.chip-choice.is-on').map((chip) => chip.text())).toEqual(['夜景', '拍照']);
     expect(window.sessionStorage.getItem('travelmind.planning-draft')).toBeNull();
   });
@@ -119,5 +121,20 @@ describe('规划页 P0 闭环', () => {
 
     expect(wrapper.text()).toContain('出发日期不能早于今天');
     expect(mocks.submitPlan).not.toHaveBeenCalled();
+  });
+
+  it('把同行人快捷选择写入现有自由文本', async () => {
+    mocks.isLoggedIn.mockReturnValue(true);
+    const wrapper = mount(PlanningView);
+    await flushPromises();
+    const companion = wrapper.findAll('.chip-choice').find((button) => button.text() === '带老人');
+    await companion.trigger('click');
+    await wrapper.find('form').trigger('submit');
+    await flushPromises();
+
+    expect(companion.attributes('aria-pressed')).toBe('true');
+    expect(mocks.submitPlan).toHaveBeenCalledWith(expect.objectContaining({
+      free_text_input: expect.stringContaining('同行人：带老人'),
+    }));
   });
 });

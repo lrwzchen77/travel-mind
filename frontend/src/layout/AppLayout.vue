@@ -96,7 +96,7 @@ onUnmounted(() => {
           </RouterLink>
 
           <RouterLink to="/planning" class="header-cta" @click="closeMenus">
-            智能规划
+            生成行程
           </RouterLink>
           <div v-if="currentUser" class="account-menu" :class="{ 'is-open': accountOpen }">
             <button
@@ -147,11 +147,11 @@ onUnmounted(() => {
           <strong>Travel Mind</strong>
         </div>
         <div class="footer-links">
-          <RouterLink to="/planning">智能规划</RouterLink>
+          <RouterLink to="/planning">生成行程</RouterLink>
           <RouterLink to="/map">立体地图</RouterLink>
           <RouterLink to="/trip-history">我的行程</RouterLink>
           <RouterLink to="/cities">发现城市</RouterLink>
-          <RouterLink to="/ai-lab">AI 灵感</RouterLink>
+          <RouterLink to="/assistant">先问 AI</RouterLink>
         </div>
       </div>
     </footer>

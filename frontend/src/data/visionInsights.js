@@ -32,12 +32,11 @@ export function cityVisionInsight(city) {
   };
 }
 
-export function buildVisionPlanningQuery({ city, prediction, trained }) {
+export function buildVisionPlanningQuery({ city, prediction }) {
   const meta = visionLabelMeta(prediction?.name);
   return {
     city: String(city || '').trim(),
     preference: meta.preference || undefined,
     vision: meta.label,
-    model: trained ? 'local' : 'basic',
   };
 }

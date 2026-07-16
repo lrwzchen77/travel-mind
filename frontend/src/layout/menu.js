@@ -1,8 +1,8 @@
 /** 顶栏主导航：C 端旅行产品路径（动作导向，非后台模块名） */
 export const primaryNav = [
   { path: '/', label: '首页' },
-  { path: '/inspirations', label: '旅行社区' },
-  { path: '/assistant', label: 'AI 伴游' },
+  { path: '/inspirations', label: '旅行灵感' },
+  { path: '/assistant', label: '先问 AI' },
   { path: '/cities', label: '目的地' },
   { path: '/trip-history', label: '我的行程' },
 ];
@@ -18,7 +18,7 @@ export const accountNav = [
 
 /** 页面内或行动按钮入口，仍属于用户可达的产品路径。 */
 export const auxiliaryNav = [
-  { path: '/planning', label: '智能规划' },
+  { path: '/planning', label: '生成行程' },
   { path: '/map', label: '立体地图' },
   { path: '/ai-lab', label: 'AI 内容解读' },
 ];
@@ -38,7 +38,6 @@ export const featuredDestinations = [
     days: '2–3 天',
     mood: 'haze',
     hint: '轻松 · 美食 · 亲子',
-    season: '春秋最宜',
   },
   {
     city: '成都',
@@ -47,7 +46,6 @@ export const featuredDestinations = [
     days: '3 天',
     mood: 'spice',
     hint: '美食 · 市井 · 熊猫',
-    season: '四季皆可',
   },
   {
     city: '厦门',
@@ -56,7 +54,6 @@ export const featuredDestinations = [
     days: '2–4 天',
     mood: 'sea',
     hint: '海岛 · 拍照 · 轻徒步',
-    season: '秋冬舒适',
   },
   {
     city: '西安',
@@ -65,15 +62,7 @@ export const featuredDestinations = [
     days: '3 天',
     mood: 'terra',
     hint: '文化 · 夜景 · 小吃',
-    season: '春秋最佳',
   },
-];
-
-export const trustStats = [
-  { value: '34', suffix: '城', label: '省会与重点目的地' },
-  { value: '3', suffix: '步', label: '从灵感到日程' },
-  { value: 'AI', suffix: '', label: '本地灵感助手' },
-  { value: '24h', suffix: '', label: '随时开规划' },
 ];
 
 export const marqueeTags = [

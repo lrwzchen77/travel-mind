@@ -26,9 +26,9 @@ describe('application shell contracts', () => {
       '/profile',
     ]);
     expect(primaryNav.map((item) => item.label)).toEqual([
-      '首页', '旅行社区', 'AI 伴游', '目的地', '我的行程',
+      '首页', '旅行灵感', '先问 AI', '目的地', '我的行程',
     ]);
-    expect(auxiliaryNav.map((item) => item.label)).toEqual(['智能规划', '立体地图', 'AI 内容解读']);
+    expect(auxiliaryNav.map((item) => item.label)).toEqual(['生成行程', '立体地图', 'AI 内容解读']);
     expect(accountNav.map((item) => item.label)).toEqual(['我的灵感包', '我的分享', '我的收藏', '我的笔记', '旅行偏好']);
   });
 

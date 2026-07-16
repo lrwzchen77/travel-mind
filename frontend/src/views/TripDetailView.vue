@@ -239,6 +239,98 @@ onMounted(load);
 
   <p v-if="error" class="error-line">{{ error }}</p>
 
+  <section v-if="days.length" class="trip-route-section" aria-labelledby="trip-route-title">
+    <div class="section-head">
+      <div>
+        <p class="eyebrow">先看每天怎么走</p>
+        <h2 id="trip-route-title">逐日路线</h2>
+      </div>
+    </div>
+
+    <div class="route-timeline">
+      <article v-for="(day, idx) in days" :key="day.day_index ?? idx" class="route-day">
+        <div class="route-axis"><span class="route-node" /></div>
+        <div class="route-card">
+          <h3>Day {{ day.day_index || idx + 1 }} · {{ day.date || '日期待定' }}</h3>
+          <p class="day-meta">
+            {{ day.description || day.city || '今天的安排' }}
+            <template v-if="day.transportation"> · {{ day.transportation }}</template>
+          </p>
+          <div class="route-chips">
+            <span
+              v-for="item in (day.attractions || [])"
+              :key="`a-${item.name}`"
+              class="chip chip-accent"
+            >景 · {{ item.name }}</span>
+            <span
+              v-for="item in (day.meals || [])"
+              :key="`m-${item.name}`"
+              class="chip"
+            >食 · {{ item.name }}</span>
+            <span v-if="day.hotel?.name" class="chip">住 · {{ day.hotel.name }}</span>
+          </div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <div v-else-if="detail" class="empty-state empty-state--card" style="margin-top: 8px;">
+    <strong>日程细节还没排出来</strong>
+    <p>可以再生成一版，或直接在下方问这趟行程。</p>
+    <div class="actions" style="justify-content: center; margin-top: 16px;">
+      <RouterLink class="btn-link btn-coral" to="/planning">重新规划</RouterLink>
+    </div>
+  </div>
+
+  <section v-if="detail && departureMode && departureDay" class="trip-departure glass-panel">
+    <div class="trip-departure-head">
+      <div>
+        <p class="eyebrow">出发模式</p>
+        <h2>Day {{ departureDayIndex + 1 }} · {{ departureDay.date || '今天的安排' }}</h2>
+        <p>{{ departureDay.description || departureDay.city || plan.city }}</p>
+      </div>
+      <button type="button" class="btn-ghost" @click="exportCalendar">导入手机日历</button>
+    </div>
+    <div class="trip-departure-grid">
+      <div>
+        <h3>现在去哪</h3>
+        <a v-for="stop in departureStops" :key="`${stop.type}-${stop.name}`" class="trip-departure-stop" :href="mapLink(stop)" target="_blank" rel="noreferrer">
+          <span>{{ stop.type }}</span><strong>{{ stop.name }}</strong><small>{{ stop.address || departureDay.city || plan.city }} · 去导航 →</small>
+        </a>
+        <p v-if="!departureStops.length" class="trip-departure-empty">今天还没有具体停靠点，可以先问 AI 调整。</p>
+      </div>
+      <div>
+        <h3>出门前确认</h3>
+        <label v-for="item in departureChecks" :key="item.id" class="trip-departure-check" :class="{ 'is-done': checklist[item.id] }">
+          <input type="checkbox" :checked="checklist[item.id]" @change="toggleCheck(item.id)" />
+          <span>{{ item.label }}</span>
+        </label>
+      </div>
+    </div>
+  </section>
+
+  <section v-if="detail && plan.city" class="glass-panel trip-map-panel">
+    <div class="planner-map-head">
+      <div>
+        <p class="eyebrow">路线辅助</p>
+        <h2>地图与导航</h2>
+      </div>
+      <RouterLink
+        class="text-link"
+        :to="{ path: '/map', query: { city: plan.city } }"
+      >
+        全屏地图 →
+      </RouterLink>
+    </div>
+    <TravelMap3D
+      :city="plan.city"
+      height="340px"
+      compact
+      :show-pois="true"
+      style="margin-top: 12px;"
+    />
+  </section>
+
   <section v-if="detail" class="trip-summary">
     <article class="trip-summary-card">
       <span>预算大约</span>
@@ -277,33 +369,6 @@ onMounted(load);
       <article v-for="item in expenseItems" :key="item.id"><span>{{ { transport: '交通', stay: '住宿', food: '餐饮', ticket: '门票', shopping: '购物', other: '其他' }[item.category] || '其他' }}</span><strong>{{ item.title }}</strong><time>{{ item.spent_on || '今天' }}</time><b>¥{{ money(item.amount) }}</b><button type="button" :disabled="busy === `expense-${item.id}`" @click="removeExpense(item.id)">删除</button></article>
     </div>
     <p v-else class="trip-expense-empty">还没有实际支出，先记下第一笔，预算才会开始帮你把关。</p>
-  </section>
-
-  <section v-if="detail && departureMode && departureDay" class="trip-departure glass-panel">
-    <div class="trip-departure-head">
-      <div>
-        <p class="eyebrow">出发模式</p>
-        <h2>Day {{ departureDayIndex + 1 }} · {{ departureDay.date || '今天的安排' }}</h2>
-        <p>{{ departureDay.description || departureDay.city || plan.city }}</p>
-      </div>
-      <button type="button" class="btn-ghost" @click="exportCalendar">导入手机日历</button>
-    </div>
-    <div class="trip-departure-grid">
-      <div>
-        <h3>现在去哪</h3>
-        <a v-for="stop in departureStops" :key="`${stop.type}-${stop.name}`" class="trip-departure-stop" :href="mapLink(stop)" target="_blank" rel="noreferrer">
-          <span>{{ stop.type }}</span><strong>{{ stop.name }}</strong><small>{{ stop.address || departureDay.city || plan.city }} · 去导航 →</small>
-        </a>
-        <p v-if="!departureStops.length" class="trip-departure-empty">今天还没有具体停靠点，可以先问 AI 调整。</p>
-      </div>
-      <div>
-        <h3>出门前确认</h3>
-        <label v-for="item in departureChecks" :key="item.id" class="trip-departure-check" :class="{ 'is-done': checklist[item.id] }">
-          <input type="checkbox" :checked="checklist[item.id]" @change="toggleCheck(item.id)" />
-          <span>{{ item.label }}</span>
-        </label>
-      </div>
-    </div>
   </section>
 
   <section v-if="inspirationSources.length" class="trip-source-section glass-panel">
@@ -357,67 +422,6 @@ onMounted(load);
       </div>
     </div>
   </section>
-
-  <section v-if="detail && plan.city" class="glass-panel trip-map-panel">
-    <div class="planner-map-head">
-      <div>
-        <h2>目的地三维视野</h2>
-      </div>
-      <RouterLink
-        class="text-link"
-        :to="{ path: '/map', query: { city: plan.city } }"
-      >
-        全屏地图 →
-      </RouterLink>
-    </div>
-    <TravelMap3D
-      :city="plan.city"
-      height="340px"
-      compact
-      :show-pois="true"
-      style="margin-top: 12px;"
-    />
-  </section>
-
-  <div class="section-head" v-if="days.length">
-    <div>
-      <h2>逐日路线</h2>
-    </div>
-  </div>
-
-  <div v-if="days.length" class="route-timeline">
-    <article v-for="(day, idx) in days" :key="day.day_index ?? idx" class="route-day">
-      <div class="route-axis"><span class="route-node" /></div>
-      <div class="route-card">
-        <h3>Day {{ day.day_index || idx + 1 }} · {{ day.date || '日期待定' }}</h3>
-        <p class="day-meta">
-          {{ day.description || day.city || '今天的安排' }}
-          <template v-if="day.transportation"> · {{ day.transportation }}</template>
-        </p>
-        <div class="route-chips">
-          <span
-            v-for="item in (day.attractions || [])"
-            :key="`a-${item.name}`"
-            class="chip chip-accent"
-          >景 · {{ item.name }}</span>
-          <span
-            v-for="item in (day.meals || [])"
-            :key="`m-${item.name}`"
-            class="chip"
-          >食 · {{ item.name }}</span>
-          <span v-if="day.hotel?.name" class="chip">住 · {{ day.hotel.name }}</span>
-        </div>
-      </div>
-    </article>
-  </div>
-
-  <div v-else-if="detail" class="empty-state empty-state--card" style="margin-top: 8px;">
-    <strong>日程细节还没排出来</strong>
-    <p>可以再生成一版，或直接在下方问这趟行程。</p>
-    <div class="actions" style="justify-content: center; margin-top: 16px;">
-      <RouterLink class="btn-link btn-coral" to="/planning">重新规划</RouterLink>
-    </div>
-  </div>
 
   <section v-if="detail" class="glass-panel trip-chat-panel">
     <h2>问问这趟行程</h2>

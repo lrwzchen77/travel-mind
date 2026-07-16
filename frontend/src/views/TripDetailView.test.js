@@ -133,4 +133,15 @@ describe('行程详情新增能力', () => {
     expect(mocks.chat).toHaveBeenCalledWith('9001', '第二天少走一点', []);
     expect(mocks.push).toHaveBeenCalledWith({ path: '/planning', query: { city: '杭州', assistant: '第二天删掉一个景点，保留西湖。' } });
   });
+
+  it('puts the daily route and map before budget tools', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+    await wrapper.get('.trip-hero-actions button').trigger('click');
+    const html = wrapper.html();
+
+    expect(html.indexOf('trip-route-section')).toBeLessThan(html.indexOf('trip-departure glass-panel'));
+    expect(html.indexOf('trip-departure glass-panel')).toBeLessThan(html.indexOf('trip-map-panel'));
+    expect(html.indexOf('trip-map-panel')).toBeLessThan(html.indexOf('trip-expense glass-panel'));
+  });
 });

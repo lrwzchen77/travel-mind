@@ -22,6 +22,8 @@ let taskAbortController = null;
 const DRAFT_KEY = 'travelmind.planning-draft';
 
 const prefOptions = ['湖景', '美食', '轻松', '亲子', '夜景', '拍照', '徒步', '博物馆', '购物'];
+const companionOptions = ['独自', '情侣', '朋友', '带孩子', '带老人'];
+const companion = ref('');
 
 function localDate(offsetDays = 0) {
   const date = new Date();
@@ -74,6 +76,12 @@ function togglePref(tag) {
   const i = form.preferences.indexOf(tag);
   if (i >= 0) form.preferences.splice(i, 1);
   else form.preferences.push(tag);
+}
+
+function setCompanion(value) {
+  companion.value = value;
+  form.free_text_input = form.free_text_input.replace(/^同行人：.*(?:\n|$)/m, '').trim();
+  appendNote(`同行人：${value}`);
 }
 
 function values(value) {
@@ -129,8 +137,7 @@ function applyQuery() {
   if (route.query.free_text_input) form.free_text_input = String(route.query.free_text_input).slice(0, 1500);
 
   const vision = route.query.vision ? String(route.query.vision) : '';
-  const source = route.query.model === 'local' ? '本地图片模型' : '图片场景';
-  if (vision) appendNote(`${source}判断我喜欢${vision}，请安排相似体验并留意相应风险。`);
+  if (vision) appendNote(`照片场景偏好：喜欢${vision}，请安排相似的旅行感觉并留意相应风险。`);
   if (route.query.poi) appendNote(`希望围绕${String(route.query.poi)}安排邻近景点，减少折返。`);
   appendNote(route.query.note);
   appendNote(route.query.assistant ? `AI 对话补充：${String(route.query.assistant).slice(0, 800)}` : '');
@@ -242,24 +249,7 @@ onUnmounted(() => taskAbortController?.abort());
 
   <p v-if="error" class="error-line">{{ error }}</p>
 
-  <section class="planner-map-block glass-panel">
-    <div class="planner-map-head">
-      <div>
-        <h2>在地图上确认目的地</h2>
-      </div>
-      <RouterLink class="text-link" :to="{ path: '/map', query: { city: form.city } }">全屏地图 →</RouterLink>
-    </div>
-    <TravelMap3D
-      style="margin-top: 14px;"
-      :city="form.city"
-      height="360px"
-      compact
-      :show-pois="true"
-      @city-change="(c) => { form.city = c; }"
-    />
-  </section>
-
-  <section class="planner-layout" style="margin-top: 22px;">
+  <section class="planner-layout">
     <form class="glass-panel field-stack" @submit.prevent="submit">
       <h2>写下你的旅行愿望</h2>
 
@@ -285,47 +275,70 @@ onUnmounted(() => taskAbortController?.abort());
         </div>
       </div>
 
-      <div class="field-row">
-        <div>
-          <label class="field-label">怎么出门</label>
-          <input v-model="form.transportation" placeholder="公共交通 / 自驾 / 打车" />
-        </div>
-        <div>
-          <label class="field-label">住哪里</label>
-          <input v-model="form.accommodation" placeholder="舒适型酒店 / 民宿" />
-        </div>
-      </div>
-
       <div>
         <label class="field-label">大概预算（元）</label>
         <input v-model="form.budget" type="number" min="0" step="100" placeholder="例如 3000" />
       </div>
 
       <div>
-        <label class="field-label">这趟更想要…</label>
-        <div class="chip-row">
+        <span class="field-label">和谁一起</span>
+        <div class="chip-row" role="group" aria-label="同行人快捷选择">
           <button
-            v-for="tag in prefOptions"
-            :key="tag"
+            v-for="item in companionOptions"
+            :key="item"
             type="button"
             class="chip-choice"
-            :class="{ 'is-on': form.preferences.includes(tag) }"
-            @click="togglePref(tag)"
+            :class="{ 'is-on': companion === item }"
+            :aria-pressed="companion === item"
+            @click="setCompanion(item)"
           >
-            {{ tag }}
+            {{ item }}
           </button>
         </div>
       </div>
 
-      <div>
-        <label class="field-label">还有什么想补充的</label>
-        <textarea
-          v-model="form.free_text_input"
-          rows="3"
-          spellcheck="false"
-          placeholder="例如：第一次去、带老人、想少走路、爱吃辣…"
-        />
-      </div>
+      <details class="planner-more">
+        <summary>更多要求：交通、住宿和旅行偏好</summary>
+        <div class="planner-more-fields">
+          <div class="field-row">
+            <div>
+              <label class="field-label">怎么出门</label>
+              <input v-model="form.transportation" placeholder="公共交通 / 自驾 / 打车" />
+            </div>
+            <div>
+              <label class="field-label">住哪里</label>
+              <input v-model="form.accommodation" placeholder="舒适型酒店 / 民宿" />
+            </div>
+          </div>
+
+          <div>
+            <span class="field-label">这趟更想要…</span>
+            <div class="chip-row" role="group" aria-label="旅行偏好">
+              <button
+                v-for="tag in prefOptions"
+                :key="tag"
+                type="button"
+                class="chip-choice"
+                :class="{ 'is-on': form.preferences.includes(tag) }"
+                :aria-pressed="form.preferences.includes(tag)"
+                @click="togglePref(tag)"
+              >
+                {{ tag }}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label class="field-label">还有什么想补充的</label>
+            <textarea
+              v-model="form.free_text_input"
+              rows="3"
+              spellcheck="false"
+              placeholder="例如：第一次去、想少走路、爱吃辣…"
+            />
+          </div>
+        </div>
+      </details>
 
       <div v-if="form.inspiration_ids.length" class="planner-inspiration-note">
         <strong>已引用 {{ form.inspiration_ids.length }} 篇社区分享</strong>
@@ -401,4 +414,20 @@ onUnmounted(() => taskAbortController?.abort());
       </div>
     </div>
   </section>
+
+  <details class="planner-map-block glass-panel">
+    <summary>在地图上看看 {{ form.city }} 的位置和周边</summary>
+    <div class="planner-map-head">
+      <p class="panel-hint">地图用来辅助看距离，不影响上面的行程生成。</p>
+      <RouterLink class="text-link" :to="{ path: '/map', query: { city: form.city } }">全屏地图 →</RouterLink>
+    </div>
+    <TravelMap3D
+      style="margin-top: 14px;"
+      :city="form.city"
+      height="360px"
+      compact
+      :show-pois="true"
+      @city-change="(c) => { form.city = c; }"
+    />
+  </details>
 </template>

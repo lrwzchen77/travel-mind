@@ -22,7 +22,6 @@ describe('vision insights', () => {
     expect(buildVisionPlanningQuery({
       city: '重庆',
       prediction: { name: 'low_light_scene' },
-      trained: true,
-    })).toEqual({ city: '重庆', preference: '夜景', vision: '夜景画面', model: 'local' });
+    })).toEqual({ city: '重庆', preference: '夜景', vision: '夜景画面' });
   });
 });

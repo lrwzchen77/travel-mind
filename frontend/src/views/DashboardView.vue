@@ -4,7 +4,6 @@ import { RouterLink } from 'vue-router';
 import {
   featuredDestinations,
   rotatingCities,
-  trustStats,
   marqueeTags,
 } from '../layout/menu.js';
 import { useReveal } from '../composables/useReveal.js';
@@ -74,17 +73,51 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <div class="stat-strip" data-reveal>
-      <div v-for="item in trustStats" :key="item.label" class="stat-item">
-        <strong>
-          {{ item.value }}<small v-if="item.suffix">{{ item.suffix }}</small>
-        </strong>
-        <span>{{ item.label }}</span>
+    <div class="section-head" data-reveal>
+      <div>
+        <p class="eyebrow">先选一座城</p>
+        <h2>人气目的地</h2>
       </div>
+      <RouterLink class="text-link" to="/cities">
+        全部发现 <span aria-hidden="true">→</span>
+      </RouterLink>
+    </div>
+
+    <div class="dest-grid">
+      <RouterLink
+        v-for="(item, index) in featuredDestinations"
+        :key="item.city"
+        class="dest-card dest-card--luxe"
+        :to="`/city/${encodeURIComponent(item.city)}`"
+        data-reveal
+        :style="{ '--reveal-delay': `${index * 80}ms` }"
+        @mouseenter="hoverCity = item.city"
+        @mouseleave="hoverCity = null"
+      >
+        <div class="dest-cover" :class="`mood-${item.mood}`">
+          <img class="dest-cover-image" :src="cityImageByName[item.city]" :alt="`${item.city}城市风景`" />
+          <span class="dest-shine" aria-hidden="true" />
+          <div class="dest-labels">
+            <span class="tag">{{ item.tag }}</span>
+          </div>
+          <strong>{{ item.city }}</strong>
+        </div>
+        <div class="dest-body">
+          <p>{{ item.blurb }}</p>
+          <div class="dest-meta">
+            <span>{{ item.days }}</span>
+            <span class="dest-cta" :class="{ 'is-hot': hoverCity === item.city }">
+              先看看 →
+            </span>
+          </div>
+          <div class="dest-hint">{{ item.hint }}</div>
+        </div>
+      </RouterLink>
     </div>
 
     <div class="section-head" data-reveal>
       <div>
+        <p class="eyebrow">再看路线距离</p>
         <h2>立体地图 · 下一站</h2>
       </div>
       <RouterLink class="text-link" to="/map">
@@ -114,55 +147,13 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <div class="section-head" data-reveal>
-      <div>
-        <h2>人气目的地</h2>
-      </div>
-      <RouterLink class="text-link" to="/cities">
-        全部发现 <span aria-hidden="true">→</span>
-      </RouterLink>
-    </div>
-
-    <div class="dest-grid">
-      <RouterLink
-        v-for="(item, index) in featuredDestinations"
-        :key="item.city"
-        class="dest-card dest-card--luxe"
-        :to="`/city/${encodeURIComponent(item.city)}`"
-        data-reveal
-        :style="{ '--reveal-delay': `${index * 80}ms` }"
-        @mouseenter="hoverCity = item.city"
-        @mouseleave="hoverCity = null"
-      >
-        <div class="dest-cover" :class="`mood-${item.mood}`">
-          <img class="dest-cover-image" :src="cityImageByName[item.city]" :alt="`${item.city}城市风景`" />
-          <span class="dest-shine" aria-hidden="true" />
-          <div class="dest-labels">
-            <span class="tag">{{ item.tag }}</span>
-            <span class="season">{{ item.season }}</span>
-          </div>
-          <strong>{{ item.city }}</strong>
-        </div>
-        <div class="dest-body">
-          <p>{{ item.blurb }}</p>
-          <div class="dest-meta">
-            <span>{{ item.days }}</span>
-            <span class="dest-cta" :class="{ 'is-hot': hoverCity === item.city }">
-              先看看 →
-            </span>
-          </div>
-          <div class="dest-hint">{{ item.hint }}</div>
-        </div>
-      </RouterLink>
-    </div>
-
     <section class="cta-banner" data-reveal>
       <div class="cta-banner-bg" aria-hidden="true" />
       <div class="cta-banner-copy">
         <h2>还在犹豫去哪？</h2>
       </div>
       <div class="actions">
-        <RouterLink class="btn-link btn-coral btn-glow" to="/ai-lab">试试 AI 灵感</RouterLink>
+        <RouterLink class="btn-link btn-coral btn-glow" to="/assistant">先问 AI，聊聊怎么安排</RouterLink>
         <RouterLink class="btn-link btn-ghost" to="/profile">设置我的偏好</RouterLink>
       </div>
     </section>

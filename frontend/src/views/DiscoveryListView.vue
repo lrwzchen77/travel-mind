@@ -4,7 +4,6 @@ import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { resourceApi } from '../api/resources.js';
 import { authSession } from '../auth/session.js';
 import { cityImageByName } from '../data/cityImages.js';
-import { cityVisionInsight } from '../data/visionInsights.js';
 import VisionInspirationPanel from '../components/VisionInspirationPanel.vue';
 import { useFavorites } from '../composables/useFavorites.js';
 
@@ -82,10 +81,6 @@ function coverUrl(item) {
   return item.cover_image || item.image_url || cityImageByName[item.name] || '';
 }
 
-function aiInsight(item) {
-  return resourceKey.value === 'cities' ? cityVisionInsight(item.name) : null;
-}
-
 function moodClass(item, index) {
   if (coverUrl(item)) return 'has-photo';
   const moods = ['mood-haze', 'mood-spice', 'mood-sea', 'mood-terra'];
@@ -130,6 +125,7 @@ async function load() {
     const [data, cityData] = await Promise.all([
       resourceApi.discover(resourceKey.value, {
         keyword: keyword.value,
+        cityId: route.query.cityId || undefined,
         pageSize: resourceKey.value === 'cities' ? 50 : 30,
       }),
       resourceKey.value === 'cities'
@@ -191,8 +187,6 @@ onMounted(() => {
     <h1>{{ title }}</h1>
   </section>
 
-  <VisionInspirationPanel v-if="isCityDiscovery" />
-
   <form class="discovery-search glass-panel" @submit.prevent="load">
     <div class="discovery-search-field">
       <label class="field-label" for="discover-q">想找什么</label>
@@ -247,12 +241,6 @@ onMounted(() => {
           loading="lazy"
           decoding="async"
         />
-        <span
-          v-if="aiInsight(item)"
-          class="discovery-ai-badge"
-          :class="`is-${aiInsight(item).tone}`"
-          :title="`本地模型判断置信度 ${aiInsight(item).confidenceText}`"
-        >AI · {{ aiInsight(item).label }}</span>
         <span class="discovery-tag">{{ subtitle(item) }}</span>
         <strong>{{ item.name }}</strong>
       </component>
@@ -283,4 +271,12 @@ onMounted(() => {
       </div>
     </article>
   </div>
+
+  <details v-if="isCityDiscovery" class="vision-disclosure glass-panel">
+    <summary>
+      <span>按照片找旅行感觉</span>
+      <small>有一张喜欢的风景照？从照片里的氛围开始找目的地。</small>
+    </summary>
+    <VisionInspirationPanel />
+  </details>
 </template>

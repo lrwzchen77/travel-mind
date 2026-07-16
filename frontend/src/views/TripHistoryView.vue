@@ -86,7 +86,7 @@ onMounted(load);
         <h3>{{ item.destination_city || item.title || '未命名目的地' }}</h3>
       </div>
       <div class="trip-card-body">
-        <p class="trip-card-title">{{ item.title || '智能规划行程' }}</p>
+        <p class="trip-card-title">{{ item.title || '旅行计划' }}</p>
         <p>
           <template v-if="item.start_date || item.end_date">
             {{ item.start_date || '待定' }} — {{ item.end_date || '待定' }}

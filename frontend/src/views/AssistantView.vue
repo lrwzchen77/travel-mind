@@ -9,7 +9,7 @@ const route = useRoute();
 const router = useRouter();
 const conversations = ref([]);
 const activeId = ref(null);
-const messages = ref([{ role: 'assistant', content: '你好，我是 Travel Mind AI 伴游。告诉我想去哪、什么时候出发、和谁一起、预算多少；也可以带上灵感包里的攻略。' }]);
+const messages = ref([{ role: 'assistant', content: '还没想清楚怎么安排？告诉我目的地、时间、同行人和预算，我先帮你理顺，再交给行程生成器。' }]);
 const text = ref('');
 const loading = ref(false);
 const error = ref('');
@@ -42,7 +42,7 @@ async function ask(question = text.value) {
       if (event === 'delta') reply.content += data.text || '';
       if (event === 'done') { activeId.value = data.conversation_id; reply.sources = data.sources || []; }
     });
-    if (!reply.content) throw new Error('AI 伴游没有返回内容。');
+    if (!reply.content) throw new Error('AI 没有返回内容。');
     await loadConversations();
   } catch (err) {
     messages.value.splice(-2, 2);
@@ -50,7 +50,7 @@ async function ask(question = text.value) {
       router.push({ path: '/login', query: { redirect: route.fullPath } });
       return;
     }
-    error.value = err?.message || '这次没有连上 AI 伴游。';
+    error.value = err?.message || '这次没有连上 AI。';
   } finally { reply.streaming = false; loading.value = false; }
 }
 
@@ -75,7 +75,7 @@ onMounted(loadConversations);
   <section class="assistant-page">
     <aside class="assistant-sidebar" aria-label="旅行对话列表">
       <div class="assistant-side-head">
-        <div><p class="eyebrow">AI 伴游</p><h2>旅行对话</h2></div>
+        <div><p class="eyebrow">先问 AI</p><h2>理清复杂旅行要求</h2></div>
         <button type="button" class="btn-ghost" @click="newConversation">新对话</button>
       </div>
       <RouterLink class="assistant-bag-link" to="/inspiration-bag"><span>灵感包</span><strong>{{ sourceCount }} 篇</strong></RouterLink>

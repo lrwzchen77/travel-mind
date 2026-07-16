@@ -8,7 +8,7 @@ function unwrap(response) {
 }
 
 export async function readSse(response, onEvent) {
-  if (!response.ok || !response.body) throw new Error('AI 伴游暂时无法连接。');
+  if (!response.ok || !response.body) throw new Error('暂时无法连接 AI。');
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';

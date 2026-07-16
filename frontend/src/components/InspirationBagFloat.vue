@@ -78,7 +78,7 @@ onUnmounted(() => {
         </RouterLink>
         <p v-if="count > preview.length" class="panel-hint">另有 {{ count - preview.length }} 篇灵感待组合</p>
         <div class="inspiration-bag-popover-actions">
-          <RouterLink class="btn-link btn-ghost" to="/assistant" @click="close">交给 AI 伴游</RouterLink>
+          <RouterLink class="btn-link btn-ghost" to="/assistant" @click="close">先问 AI</RouterLink>
           <button type="button" class="btn-coral" @click="plan">去生成行程</button>
         </div>
       </template>
