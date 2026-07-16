@@ -4,6 +4,8 @@ import com.zkry.common.core.domain.PageResult;
 import com.zkry.common.core.domain.R;
 import com.zkry.common.satoken.core.LoginHelper;
 import com.zkry.resources.service.TripMemoryService;
+import com.zkry.resources.service.TripMemoryAnalysisContract;
+import com.zkry.trip.service.TripMemoryAnalysisApplicationService;
 import java.util.Map;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,9 +21,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class TripMemoryController {
 
     private final TripMemoryService tripMemoryService;
+    private final TripMemoryAnalysisApplicationService analysisService;
 
-    public TripMemoryController(TripMemoryService tripMemoryService) {
+    public TripMemoryController(TripMemoryService tripMemoryService, TripMemoryAnalysisApplicationService analysisService) {
         this.tripMemoryService = tripMemoryService;
+        this.analysisService = analysisService;
     }
 
     @PostMapping("/trips/{tripId}/memory")
@@ -45,6 +49,11 @@ public class TripMemoryController {
     @PostMapping("/memories/{memoryId}/items/photos")
     public R<Map<String, Object>> addPhoto(@PathVariable long memoryId, @RequestBody Map<String, Object> payload) {
         return R.ok(tripMemoryService.addPhoto(LoginHelper.getUserId(), memoryId, payload));
+    }
+
+    @PostMapping("/memories/{memoryId}/analyze")
+    public R<TripMemoryAnalysisContract.Saved> analyze(@PathVariable long memoryId) {
+        return R.ok(analysisService.analyze(LoginHelper.getUserId(), memoryId));
     }
 
     @DeleteMapping("/memories/{memoryId}/items/{itemId}")

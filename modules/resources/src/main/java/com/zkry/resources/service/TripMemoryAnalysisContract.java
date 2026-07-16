@@ -30,7 +30,28 @@ public final class TripMemoryAnalysisContract {
     public record Result(List<ItemResult> items, Generation generation) {
     }
 
-    public record ItemResult(long itemId, String caption, List<String> tags, String placeName, BigDecimal confidence) {
+    public record ItemResult(
+        long itemId,
+        String caption,
+        List<String> tags,
+        String placeName,
+        BigDecimal confidence,
+        LocalDateTime takenAt,
+        BigDecimal latitude,
+        BigDecimal longitude,
+        Integer dayIndex,
+        Long matchedItemId,
+        List<String> evidenceReasons,
+        String scene,
+        List<String> riskHints,
+        String modelMode,
+        Integer orientation,
+        String imageStatus
+    ) {
+        public ItemResult(long itemId, String caption, List<String> tags, String placeName, BigDecimal confidence) {
+            this(itemId, caption, tags, placeName, confidence, null, null, null, null, null,
+                List.of(), null, List.of(), null, null, null);
+        }
     }
 
     public record Generation(String type, String content, List<Long> evidenceItemIds) {

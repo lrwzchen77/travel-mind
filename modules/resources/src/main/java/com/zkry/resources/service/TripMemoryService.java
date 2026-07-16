@@ -147,6 +147,13 @@ public class TripMemoryService {
             String.valueOf(memory.get("title")), String.valueOf(memory.get("destination_city")), items);
     }
 
+    public void analysisStatus(long userId, long memoryId, String status) {
+        ownedMemory(userId, memoryId);
+        if (!Set.of("processing", "failed").contains(status)) throw new BizException("旅行记忆分析状态不支持。");
+        jdbcTemplate.update("UPDATE tm_trip_memory SET generation_status = :status WHERE id = :memoryId",
+            Map.of("status", status, "memoryId", memoryId));
+    }
+
     @Transactional
     public TripMemoryAnalysisContract.Saved saveAnalysis(
         long userId,
@@ -161,13 +168,28 @@ public class TripMemoryService {
                 throw new BizException("AI 置信度必须在 0 到 1 之间。");
             }
             List<String> tags = safeTags(item.tags());
+            BigDecimal latitude = checkedCoordinate(item.latitude(), -90, 90, "AI 纬度");
+            BigDecimal longitude = checkedCoordinate(item.longitude(), -180, 180, "AI 经度");
+            if (item.dayIndex() != null && (item.dayIndex() < 1 || item.dayIndex() > 366)) {
+                throw new BizException("AI dayIndex 超出有效范围。");
+            }
+            if (item.matchedItemId() != null) {
+                Long matchCount = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(1) FROM tm_trip_memory_item WHERE memory_id = :memoryId AND id = :itemId
+                        """, Map.of("memoryId", memoryId, "itemId", item.matchedItemId()), Long.class);
+                if (matchCount == null || matchCount != 1) throw new BizException("AI 匹配结果引用了不属于该记忆册的项目。");
+            }
             int changed = jdbcTemplate.update("""
                     UPDATE tm_trip_memory_item SET ai_caption = :caption, ai_tags = :tags,
-                      place_name = COALESCE(NULLIF(:placeName, ''), place_name), confidence = :confidence
-                    WHERE id = :itemId AND memory_id = :memoryId
+                      place_name = COALESCE(NULLIF(:placeName, ''), place_name), confidence = :confidence,
+                      taken_at = COALESCE(taken_at, :takenAt), latitude = COALESCE(latitude, :latitude),
+                      longitude = COALESCE(longitude, :longitude), day_index = COALESCE(day_index, :dayIndex)
+                    WHERE id = :itemId AND memory_id = :memoryId AND item_type = 'photo'
                     """, new MapSqlParameterSource().addValue("caption", limited(item.caption(), 2000, "图片说明"))
                 .addValue("tags", JsonUtils.toJsonString(tags)).addValue("placeName", limited(item.placeName(), 255, "地点"))
-                .addValue("confidence", confidence).addValue("itemId", item.itemId()).addValue("memoryId", memoryId));
+                .addValue("confidence", confidence).addValue("takenAt", item.takenAt()).addValue("latitude", latitude)
+                .addValue("longitude", longitude).addValue("dayIndex", item.dayIndex())
+                .addValue("itemId", item.itemId()).addValue("memoryId", memoryId));
             if (changed == 0) throw new BizException("AI 结果包含不属于该记忆册的项目。");
         }
         TripMemoryAnalysisContract.Generation generation = result.generation();
@@ -204,15 +226,15 @@ public class TripMemoryService {
     }
 
     private void seedItems(long memoryId, Map<String, Object> trip) {
-        insertSeed(memoryId, "trip_summary", "trip_plan", ((Number) trip.get("id")).longValue(), null, 0,
+        insertSeed(memoryId, "trip_summary", "trip_plan", ((Number) trip.get("id")).longValue(), null, null, 0,
             trip.get("destination_city"), trip.get("title"), trip.get("summary"));
         for (Map<String, Object> item : jdbcTemplate.queryForList("""
-                SELECT i.id, i.item_order, i.title, i.location, i.note, i.cost, d.day_no, d.date
+                SELECT i.id, i.item_order, i.title, i.location, i.start_time, i.note, i.cost, d.day_no, d.date
                 FROM tm_trip_item i JOIN tm_trip_day d ON d.id = i.trip_day_id
                 WHERE d.trip_plan_id = :tripId AND d.deleted = 0 AND i.deleted = 0
                 ORDER BY d.day_no, i.item_order
                 """, Map.of("tripId", trip.get("id")))) {
-            insertSeed(memoryId, "place", "trip_item", number(item, "id").longValue(), number(item, "day_no").intValue(),
+            insertSeed(memoryId, "place", "trip_item", number(item, "id").longValue(), dateTime(item.get("date"), item.get("start_time")), number(item, "day_no").intValue(),
                 number(item, "item_order").intValue(), trip.get("destination_city"), item.get("location"),
                 join(item.get("title"), item.get("note"), item.get("cost") == null ? null : "预计花费 ¥" + item.get("cost")));
         }
@@ -223,7 +245,8 @@ public class TripMemoryService {
                 WHERE e.trip_plan_id = :tripId AND e.deleted = 0 ORDER BY e.spent_on, e.id
                 """, Map.of("tripId", trip.get("id")))) {
             Number day = number(expense, "day_no");
-            insertSeed(memoryId, "expense", "trip_expense", number(expense, "id").longValue(), day == null ? null : day.intValue(), 0,
+            insertSeed(memoryId, "expense", "trip_expense", number(expense, "id").longValue(), dateAtStart(expense.get("spent_on")),
+                day == null ? null : day.intValue(), 0,
                 trip.get("destination_city"), expense.get("title"),
                 join(expense.get("category"), "¥" + expense.get("amount"), expense.get("note")));
         }
@@ -231,15 +254,16 @@ public class TripMemoryService {
     }
 
     private void insertSeed(
-        long memoryId, String itemType, String sourceType, long sourceId, Integer dayIndex, int sortOrder,
+        long memoryId, String itemType, String sourceType, long sourceId, LocalDateTime takenAt, Integer dayIndex, int sortOrder,
         Object city, Object placeName, Object content
     ) {
         jdbcTemplate.update("""
                 INSERT IGNORE INTO tm_trip_memory_item
-                  (id, memory_id, item_type, source_type, source_id, city, place_name, content, day_index, sort_order)
-                VALUES (:id, :memoryId, :itemType, :sourceType, :sourceId, :city, :placeName, :content, :dayIndex, :sortOrder)
+                  (id, memory_id, item_type, source_type, source_id, taken_at, city, place_name, content, day_index, sort_order)
+                VALUES (:id, :memoryId, :itemType, :sourceType, :sourceId, :takenAt, :city, :placeName, :content, :dayIndex, :sortOrder)
                 """, new MapSqlParameterSource().addValue("id", nextId()).addValue("memoryId", memoryId)
             .addValue("itemType", itemType).addValue("sourceType", sourceType).addValue("sourceId", sourceId)
+            .addValue("takenAt", takenAt)
             .addValue("city", city).addValue("placeName", placeName).addValue("content", content)
             .addValue("dayIndex", dayIndex).addValue("sortOrder", sortOrder));
     }
@@ -304,6 +328,13 @@ public class TripMemoryService {
         }
     }
 
+    private BigDecimal checkedCoordinate(BigDecimal value, int min, int max, String label) {
+        if (value != null && (value.compareTo(BigDecimal.valueOf(min)) < 0 || value.compareTo(BigDecimal.valueOf(max)) > 0)) {
+            throw new BizException(label + "超出有效范围。");
+        }
+        return value;
+    }
+
     private Integer integer(Object value, int min, int max, String label) {
         if (value == null || String.valueOf(value).isBlank()) return null;
         try {
@@ -340,6 +371,23 @@ public class TripMemoryService {
     private Number number(Map<String, Object> row, String key) {
         Object value = row.get(key);
         return value instanceof Number number ? number : null;
+    }
+
+    private LocalDateTime dateAtStart(Object value) {
+        if (value instanceof java.sql.Date date) return date.toLocalDate().atStartOfDay();
+        if (value instanceof java.time.LocalDate date) return date.atStartOfDay();
+        return null;
+    }
+
+    private LocalDateTime dateTime(Object dateValue, Object timeValue) {
+        java.time.LocalDate date = dateValue instanceof java.sql.Date sqlDate ? sqlDate.toLocalDate()
+            : dateValue instanceof java.time.LocalDate localDate ? localDate : null;
+        if (date == null || timeValue == null || String.valueOf(timeValue).isBlank()) return null;
+        try {
+            return date.atTime(java.time.LocalTime.parse(String.valueOf(timeValue)));
+        } catch (java.time.format.DateTimeParseException ex) {
+            return null;
+        }
     }
 
     private String join(Object... values) {

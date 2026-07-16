@@ -10,6 +10,7 @@ import com.zkry.trip.dto.ai.TripEvaluateRequest;
 import com.zkry.trip.dto.ai.TripEvaluateResult;
 import com.zkry.trip.dto.ai.VisionDetectRequest;
 import com.zkry.trip.dto.ai.VisionDetectResult;
+import com.zkry.resources.service.TripMemoryAnalysisContract;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -131,6 +132,25 @@ class PythonAiClientTest {
             assertThat(result.success()).isTrue();
             assertThat(requestBody.get()).doesNotContain("\"city_transfers\":null");
             assertThat(requestBody.get()).doesNotContain("\"transfer\":null");
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void analyzeMemoryParsesTraceableResult() throws Exception {
+        HttpServer server = startJsonServer("/api/memory/analyze", """
+            {"code":0,"message":"success","data":{"items":[{"itemId":21,"caption":"西湖，scenic_spot，照片","tags":["scenic_spot"],"placeName":"西湖","confidence":0.8,"takenAt":"2026-08-12 10:30:00","dayIndex":1,"matchedItemId":11,"evidenceReasons":["拍摄时间匹配"],"modelMode":"trained_yolo","riskHints":[]}],"generation":{"type":"timeline","content":"第一天游览西湖","evidenceItemIds":[11,21]}}}
+            """);
+        try {
+            PythonAiClient client = new PythonAiClient("http://127.0.0.1:" + server.getAddress().getPort(), Duration.ofSeconds(2));
+            var input = new TripMemoryAnalysisContract.Input(301L, 901L, "杭州旅行", "杭州", List.of());
+
+            PythonAiCallResult<TripMemoryAnalysisContract.Result> result = client.analyzeMemory(input);
+
+            assertThat(result.success()).isTrue();
+            assertThat(result.data().items().get(0).matchedItemId()).isEqualTo(11L);
+            assertThat(result.data().generation().evidenceItemIds()).containsExactly(11L, 21L);
         } finally {
             server.stop(0);
         }

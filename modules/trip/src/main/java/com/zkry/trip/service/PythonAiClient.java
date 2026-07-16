@@ -12,6 +12,7 @@ import com.zkry.trip.dto.ai.TripEvaluateRequest;
 import com.zkry.trip.dto.ai.TripEvaluateResult;
 import com.zkry.trip.dto.ai.VisionDetectRequest;
 import com.zkry.trip.dto.ai.VisionDetectResult;
+import com.zkry.resources.service.TripMemoryAnalysisContract;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -60,6 +61,10 @@ public class PythonAiClient {
 
     public PythonAiCallResult<ContentAnalyzeResult> analyzeContent(ContentAnalyzeRequest request) {
         return post("/api/content/analyze", request, ContentAnalyzeResult.class);
+    }
+
+    public PythonAiCallResult<TripMemoryAnalysisContract.Result> analyzeMemory(TripMemoryAnalysisContract.Input request) {
+        return post("/api/memory/analyze", request, TripMemoryAnalysisContract.Result.class);
     }
 
     private <T> PythonAiCallResult<T> post(String path, Object body, Class<T> responseType) {

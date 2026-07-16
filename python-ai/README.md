@@ -15,5 +15,6 @@ Endpoints:
 - `POST /api/vision/detect`
 - `POST /api/trip/evaluate`
 - `POST /api/content/analyze`
+- `POST /api/memory/analyze` (Java-validated trip memory items only)
 
 The bundled `models/travel-risk-yolo-best.pt` model is enabled by the root `.env.example` configuration. Clear `TRAVEL_MIND_YOLO_MODEL` to exercise deterministic rule fallback.

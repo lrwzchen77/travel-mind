@@ -6,10 +6,11 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
+from app.memory import MemoryAnalysisRequest, analyze_memory
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(PROJECT_ROOT / ".env", override=False)
@@ -262,6 +263,14 @@ async def _read_vision_payload(request: Request) -> dict[str, Any]:
     if "application/json" in content_type:
         return await request.json()
     return {}
+
+
+@app.post("/api/memory/analyze")
+def memory_analyze(payload: MemoryAnalysisRequest):
+    try:
+        return ok(analyze_memory(payload, _try_yolo_detection))
+    except ValueError as ex:
+        raise HTTPException(status_code=400, detail=str(ex)) from ex
 
 
 def _data_url_to_temp_path(value: str) -> str | None:
