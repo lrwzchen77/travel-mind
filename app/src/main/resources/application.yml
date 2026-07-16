@@ -28,7 +28,7 @@ logging:
 travelmind:
   python-ai:
     base-url: ${PYTHON_AI_BASE_URL:http://localhost:19080}
-      timeout-ms: ${PYTHON_AI_TIMEOUT_MS:10000}
+    timeout-ms: ${PYTHON_AI_TIMEOUT_MS:10000}
   map:
     amap:
       enabled: ${AMAP_ENABLED:true}
