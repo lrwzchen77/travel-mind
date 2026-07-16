@@ -35,28 +35,21 @@ public class SaTokenConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(new SaInterceptor(handle -> StpUtil.checkLogin()))
-            // 默认保护所有业务 API，避免新接口忘记加鉴权导致裸奔。
             .addPathPatterns("/api/**")
-            // 认证入口和公开接口放行；这些路径内部是否还需要验证码、限流等，由具体业务自己控制。
             .excludePathPatterns(
-                "/api/auth/**",
-                "/api/user/auth/**",
-                "/api/admin/auth/**",
+                "/api/user/auth/login",
+                "/api/admin/auth/login",
                 "/api/public/**",
-                "/api/trip/**",
-                "/api/chat/**",
                 "/api/poi/**",
-                "/api/users/**",
-                "/api/user-preferences/**",
-                "/api/cities/**",
-                "/api/attractions/**",
-                "/api/hotels/**",
-                "/api/restaurants/**",
-                "/api/travel-tags/**",
-                "/api/favorites/**",
-                "/api/travel-notes/**",
-                "/api/ai/**",
-                "/api/ai-records/**"
+                "/health"
             );
+
+        registry.addInterceptor(new SaInterceptor(handle -> StpUtil.checkRole("admin")))
+            .addPathPatterns("/api/admin/**")
+            .excludePathPatterns("/api/admin/auth/login");
+
+        registry.addInterceptor(new SaInterceptor(handle -> StpUtil.checkRole("user")))
+            .addPathPatterns("/api/user/**")
+            .excludePathPatterns("/api/user/auth/login");
     }
 }

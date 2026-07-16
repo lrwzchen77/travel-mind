@@ -1,74 +1,67 @@
 # Backend API
 
-Base URL: `http://localhost:8080`.
+Base URL: `http://localhost:8080`. Sa-Token uses the `Authorization` header. Public endpoints do not require it; user and admin namespaces require their matching role.
 
-## Health And Settings
+## Authentication
 
-- `GET /health`: backend health.
-- `GET /api/settings`: runtime settings summary.
-- `PUT /api/settings`: update runtime settings.
+- `POST /api/user/auth/login`: consumer account login.
+- `GET /api/user/auth/me`: current consumer session.
+- `POST /api/user/auth/logout`: consumer logout.
+- `POST /api/admin/auth/login`: administrator login.
+- `GET /api/admin/auth/me`: current administrator session.
+- `POST /api/admin/auth/logout`: administrator logout.
 
-## User Profile
-
-- `GET /api/users/profile?userId=1001`: get user and latest preference.
-- `PUT /api/users/profile?userId=1001`: update user and preference.
-
-Example:
+Login body:
 
 ```json
-{
-  "user": {"nickname": "Demo User"},
-  "preference": {"travel_style": "relaxed", "preferred_city": "Hangzhou"}
-}
+{"username": "demo_user", "password": "configured-password"}
 ```
 
-## Generic CRUD Resources
+## Public Discovery
 
-Pattern:
+- `GET /api/public/resources/{resourceKey}`: paged active resources.
+- `GET /api/public/resources/{resourceKey}/{id}`: active resource detail.
 
-- `GET /api/{resourceKey}`: paged list.
-- `GET /api/{resourceKey}/{id}`: detail.
-- `POST /api/{resourceKey}`: create.
-- `PUT /api/{resourceKey}/{id}`: update.
-- `PUT /api/{resourceKey}/{id}/status?status=1`: update status where supported.
-- `DELETE /api/{resourceKey}/{id}`: logical delete.
+Public resource keys are `cities`, `attractions`, `hotels`, `restaurants`, and `travel-tags`. Writes and inactive content are never exposed here.
 
-Supported `resourceKey` values include `users`, `user-preferences`, `cities`, `attractions`, `hotels`, `restaurants`, `travel-tags`, `favorites`, `travel-notes`, `trip-plans`, and `ai-records`.
+## Consumer APIs
 
-Common filters include `keyword`, `cityId`, `category`, `tag`, `ratingMin`, `ratingMax`, `userId`, `targetType`, `targetId`, `analysisType`, `status`, `pageNum`, and `pageSize` when supported by the resource.
+- `GET /api/user/profile`: current user's profile and preferences.
+- `PUT /api/user/profile`: update the current user's profile and preferences.
+- `GET /api/user/library/{resourceKey}`: current user's favorites, notes, or AI records.
+- `POST|PUT|DELETE /api/user/library/{resourceKey}`: current user's favorites and notes only.
+- `POST /api/user/trip/plan`: submit an asynchronous trip task.
+- `GET /api/user/trip/status/{taskId}`: current user's task progress.
+- `GET /api/user/trip/history?limit=8`: current user's saved trips.
+- `GET /api/user/trip/{id}`: owned trip detail.
+- `POST /api/user/trip/{id}/copy`: copy an owned trip.
+- `DELETE /api/user/trip/{id}`: delete an owned trip.
+- `POST /api/user/trip/{id}/chat`: chat about an owned trip.
+- `WS /api/user/trip/ws/{taskId}`: authenticated progress stream; browser clients pass the same token as the `Authorization` query parameter.
+- `POST /api/user/ai/vision/detect`
+- `POST /api/user/ai/trip/evaluate`
+- `POST /api/user/ai/content/analyze`
+- `GET /api/user/ai/trip/{id}/comfort`
 
-## Trip Planning
+User IDs are taken only from the authenticated session. Client-supplied `userId` values are not accepted.
 
-- `POST /api/trip/plan`: submit async trip planning task.
-- `GET /api/trip/status/{taskId}`: poll task progress/result.
-- `GET /api/trip/history?limit=8`: list recent saved trips.
-- `GET /api/trip/{id}`: trip detail.
-- `POST /api/trip/{id}/copy?userId=1001`: copy saved trip.
-- `DELETE /api/trip/{id}`: delete saved trip.
-- `POST /api/trip/{id}/chat`: chat about a saved trip.
+## Admin APIs
 
-Trip request example:
+- `GET|POST /api/admin/resources/{resourceKey}`
+- `GET|PUT|DELETE /api/admin/resources/{resourceKey}/{id}`
+- `PUT /api/admin/resources/{resourceKey}/{id}/status?status=1`
+- `GET /api/admin/settings`: redacted runtime configuration status.
+- `PUT /api/admin/settings`: update runtime configuration in the Java process.
+- `POST /api/admin/ai/**`: administrator AI validation endpoints matching the user AI contract.
 
-```json
-{
-  "city": "Hangzhou",
-  "start_date": "2026-08-01",
-  "end_date": "2026-08-02",
-  "travel_days": 2,
-  "transportation": "公共交通",
-  "accommodation": "舒适型酒店",
-  "budget": "3000",
-  "preferences": ["湖景", "美食", "轻松"],
-  "free_text_input": "节奏轻松，适合第一次到杭州。",
-  "language": "zh"
-}
-```
+Supported admin resource keys include users, preferences, cities, attractions, hotels, restaurants, tags, favorites, notes, trip plans, and AI records.
 
-## AI Endpoints
+## Status Rules
 
-- `POST /api/ai/vision/detect`: image detection through Python AI.
-- `POST /api/ai/trip/evaluate`: trip comfort scoring through Python AI.
-- `POST /api/ai/content/analyze`: travel text analysis through Python AI.
-- `GET /api/ai/trip/{id}/comfort`: latest stored comfort record for a saved trip.
+- `200`: request succeeded.
+- `400`: validation, login credential, or business error.
+- `401`: no valid session.
+- `403`: valid session with the wrong portal role.
+- `404`: resource does not exist or is not owned by the current user.
 
-See `docs/api/java-python-api.md` for the Python-facing contract.
+See `docs/api/java-python-api.md` for the internal Java-to-Python contract.

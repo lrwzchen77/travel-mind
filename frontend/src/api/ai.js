@@ -10,21 +10,22 @@ function params(options = {}) {
   };
 }
 
-export function createAiApi(client = http) {
+export function createAiApi(client = http, prefix = '/user/ai') {
   return {
     detectVision(payload) {
-      return client.post('/ai/vision/detect', payload).then(unwrap);
+      return client.post(`${prefix}/vision/detect`, payload).then(unwrap);
     },
     evaluateTrip(payload, options = {}) {
-      return client.post('/ai/trip/evaluate', payload, params(options)).then(unwrap);
+      return client.post(`${prefix}/trip/evaluate`, payload, params(options)).then(unwrap);
     },
     analyzeContent(payload, options = {}) {
-      return client.post('/ai/content/analyze', payload, params(options)).then(unwrap);
+      return client.post(`${prefix}/content/analyze`, payload, params(options)).then(unwrap);
     },
     tripComfort(id) {
-      return client.get(`/ai/trip/${id}/comfort`).then(unwrap);
+      return client.get(`${prefix}/trip/${id}/comfort`).then(unwrap);
     },
   };
 }
 
 export const aiApi = createAiApi();
+export const adminAiApi = createAiApi(http, '/admin/ai');

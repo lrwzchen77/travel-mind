@@ -56,6 +56,11 @@
         </dependency>
         <dependency>
             <groupId>com.zkry</groupId>
+            <artifactId>identity</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.zkry</groupId>
             <artifactId>trip</artifactId>
             <version>${project.version}</version>
         </dependency>

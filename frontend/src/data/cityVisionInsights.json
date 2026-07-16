@@ -1,0 +1,138 @@
+{
+  "beijing": {
+    "label": "low_light_scene",
+    "confidence": 0.4055
+  },
+  "changchun": {
+    "label": "scenic_spot",
+    "confidence": 0.9033
+  },
+  "changsha": {
+    "label": "scenic_spot",
+    "confidence": 0.592
+  },
+  "chengdu": {
+    "label": "scenic_spot",
+    "confidence": 0.9982
+  },
+  "chongqing": {
+    "label": "low_light_scene",
+    "confidence": 0.9994
+  },
+  "fuzhou": {
+    "label": "low_light_scene",
+    "confidence": 0.9911
+  },
+  "guangzhou": {
+    "label": "scenic_spot",
+    "confidence": 0.6579
+  },
+  "guiyang": {
+    "label": "low_light_scene",
+    "confidence": 0.5244
+  },
+  "haikou": {
+    "label": "transport_station",
+    "confidence": 0.4365
+  },
+  "hangzhou": {
+    "label": "low_light_scene",
+    "confidence": 0.3995
+  },
+  "harbin": {
+    "label": "scenic_spot",
+    "confidence": 0.934
+  },
+  "hefei": {
+    "label": "scenic_spot",
+    "confidence": 0.6105
+  },
+  "hohhot": {
+    "label": "scenic_spot",
+    "confidence": 0.5059
+  },
+  "hong-kong": {
+    "label": "low_light_scene",
+    "confidence": 0.9263
+  },
+  "jinan": {
+    "label": "scenic_spot",
+    "confidence": 0.7914
+  },
+  "kunming": {
+    "label": "transport_station",
+    "confidence": 0.6411
+  },
+  "lanzhou": {
+    "label": "scenic_spot",
+    "confidence": 0.7999
+  },
+  "lhasa": {
+    "label": "scenic_spot",
+    "confidence": 0.8993
+  },
+  "macau": {
+    "label": "scenic_spot",
+    "confidence": 0.5437
+  },
+  "nanchang": {
+    "label": "low_light_scene",
+    "confidence": 0.9752
+  },
+  "nanjing": {
+    "label": "scenic_spot",
+    "confidence": 0.8987
+  },
+  "nanning": {
+    "label": "scenic_spot",
+    "confidence": 0.9395
+  },
+  "shanghai": {
+    "label": "low_light_scene",
+    "confidence": 0.638
+  },
+  "shenyang": {
+    "label": "scenic_spot",
+    "confidence": 0.3263
+  },
+  "shijiazhuang": {
+    "label": "transport_station",
+    "confidence": 0.5393
+  },
+  "taipei": {
+    "label": "low_light_scene",
+    "confidence": 0.9602
+  },
+  "taiyuan": {
+    "label": "scenic_spot",
+    "confidence": 0.6364
+  },
+  "tianjin": {
+    "label": "scenic_spot",
+    "confidence": 0.6716
+  },
+  "urumqi": {
+    "label": "scenic_spot",
+    "confidence": 0.8557
+  },
+  "wuhan": {
+    "label": "scenic_spot",
+    "confidence": 0.7817
+  },
+  "xian": {
+    "label": "scenic_spot",
+    "confidence": 0.5232
+  },
+  "xining": {
+    "label": "scenic_spot",
+    "confidence": 0.8675
+  },
+  "yinchuan": {
+    "label": "low_light_scene",
+    "confidence": 0.6593
+  },
+  "zhengzhou": {
+    "label": "low_light_scene",
+    "confidence": 0.5289
+  }
+}

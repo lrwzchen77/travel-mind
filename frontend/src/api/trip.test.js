@@ -31,12 +31,12 @@ describe('trip API client', () => {
     await api.chat(9001, '预算是多少？');
     await api.history(10);
 
-    expect(http.post).toHaveBeenCalledWith('/trip/plan', payload);
-    expect(http.get).toHaveBeenCalledWith('/trip/status/task1');
-    expect(http.get).toHaveBeenCalledWith('/trip/9001');
-    expect(http.post).toHaveBeenCalledWith('/trip/9001/copy');
-    expect(http.delete).toHaveBeenCalledWith('/trip/9001');
-    expect(http.post).toHaveBeenCalledWith('/trip/9001/chat', { message: '预算是多少？', history: [] });
-    expect(http.get).toHaveBeenCalledWith('/trip/history', { params: { limit: 10 } });
+    expect(http.post).toHaveBeenCalledWith('/user/trip/plan', payload);
+    expect(http.get).toHaveBeenCalledWith('/user/trip/status/task1');
+    expect(http.get).toHaveBeenCalledWith('/user/trip/9001');
+    expect(http.post).toHaveBeenCalledWith('/user/trip/9001/copy');
+    expect(http.delete).toHaveBeenCalledWith('/user/trip/9001');
+    expect(http.post).toHaveBeenCalledWith('/user/trip/9001/chat', { message: '预算是多少？', history: [] });
+    expect(http.get).toHaveBeenCalledWith('/user/trip/history', { params: { limit: 10 } });
   });
 });

@@ -1,22 +1,27 @@
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue';
-import { RouterLink, useRoute } from 'vue-router';
-import { primaryNav, secondaryNav } from './menu.js';
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue';
+import { RouterLink, useRoute, useRouter } from 'vue-router';
+import { accountNav, primaryNav } from './menu.js';
 import PageTransition from '../components/PageTransition.vue';
+import { authApi } from '../api/auth.js';
+import { authSession } from '../auth/session.js';
 
 const route = useRoute();
+const router = useRouter();
+const currentUser = ref(authSession.user());
+const userInitial = computed(() => String(currentUser.value?.name || '旅').trim().charAt(0));
 const menuOpen = ref(false);
-const moreOpen = ref(false);
+const accountOpen = ref(false);
 const scrolled = ref(false);
 
 function closeMenus() {
   menuOpen.value = false;
-  moreOpen.value = false;
+  accountOpen.value = false;
 }
 
 function onDocClick(e) {
-  if (!e.target.closest?.('.nav-more') && !e.target.closest?.('.nav-toggle')) {
-    moreOpen.value = false;
+  if (!e.target.closest?.('.account-menu') && !e.target.closest?.('.nav-toggle')) {
+    accountOpen.value = false;
   }
 }
 
@@ -24,7 +29,15 @@ function onScroll() {
   scrolled.value = window.scrollY > 12;
 }
 
+async function logout() {
+  await authApi.logout('user');
+  currentUser.value = null;
+  closeMenus();
+  router.replace('/');
+}
+
 watch(() => route.fullPath, () => {
+  currentUser.value = authSession.user();
   closeMenus();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 });
@@ -87,33 +100,43 @@ onUnmounted(() => {
             {{ item.label }}
           </RouterLink>
 
-          <div class="nav-more" :class="{ 'is-open': moreOpen }">
+          <RouterLink to="/planning" class="header-cta" @click="closeMenus">
+            <span class="cta-shine" aria-hidden="true" />
+            智能规划
+          </RouterLink>
+          <div v-if="currentUser" class="account-menu" :class="{ 'is-open': accountOpen }">
             <button
               type="button"
-              class="top-link top-link-btn"
-              :class="{ 'is-active': secondaryNav.some((i) => route.path === i.path) }"
-              @click.stop="moreOpen = !moreOpen"
+              class="account-trigger"
+              aria-haspopup="true"
+              :aria-expanded="accountOpen"
+              @click.stop="accountOpen = !accountOpen"
             >
-              更多
-              <span class="chev" aria-hidden="true">▾</span>
+              <span class="account-avatar" aria-hidden="true">{{ userInitial }}</span>
+              <span class="account-trigger-name">{{ currentUser.name || '旅行者' }}</span>
+              <span class="account-chevron" aria-hidden="true">▾</span>
             </button>
-            <div v-show="moreOpen" class="more-panel">
+            <div v-show="accountOpen" class="account-popover" role="menu">
+              <div class="account-head">
+                <strong>{{ currentUser.name || '旅行者' }}</strong>
+                <span>旅行账户</span>
+              </div>
               <RouterLink
-                v-for="item in secondaryNav"
+                v-for="item in accountNav"
                 :key="item.path"
                 :to="item.path"
-                class="more-link"
+                class="account-link"
+                role="menuitem"
                 @click="closeMenus"
               >
                 {{ item.label }}
               </RouterLink>
+              <button type="button" class="account-logout" role="menuitem" @click="logout">
+                退出登录
+              </button>
             </div>
           </div>
-
-          <RouterLink to="/planning" class="header-cta" @click="closeMenus">
-            <span class="cta-shine" aria-hidden="true" />
-            开始规划
-          </RouterLink>
+          <RouterLink v-else to="/login" class="session-link" @click="closeMenus">登录</RouterLink>
         </nav>
       </div>
     </header>
@@ -126,14 +149,14 @@ onUnmounted(() => {
       <div class="site-footer-inner">
         <div>
           <strong>Travel Mind</strong>
-          <p>把灵感变成可执行的行程，像整理行李箱一样自然。</p>
+          <p>把心血来潮，变成说走就走的行程。灵感、地图、日程都在同一处。</p>
         </div>
         <div class="footer-links">
-          <RouterLink to="/planning">规划行程</RouterLink>
+          <RouterLink to="/planning">智能规划</RouterLink>
           <RouterLink to="/map">立体地图</RouterLink>
           <RouterLink to="/trip-history">我的行程</RouterLink>
+          <RouterLink to="/cities">发现城市</RouterLink>
           <RouterLink to="/ai-lab">AI 灵感</RouterLink>
-          <RouterLink to="/profile">旅行偏好</RouterLink>
         </div>
       </div>
     </footer>

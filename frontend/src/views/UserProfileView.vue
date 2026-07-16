@@ -1,31 +1,92 @@
 <script setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, reactive, ref } from 'vue';
+import { RouterLink } from 'vue-router';
 import { resourceApi } from '../api/resources.js';
 
-const profile = ref({ user: {}, preference: {} });
-const editorText = ref('{\n  "user": {},\n  "preference": {}\n}');
+const form = reactive({
+  nickname: '',
+  email: '',
+  phone: '',
+  travel_style: '',
+  preferred_city: '',
+  preferred_tags: '',
+  budget_level: 'medium',
+  transportation: '',
+  hotel_level: '',
+  diet_preference: '',
+});
+
+const styleOptions = ['轻松慢游', '美食优先', '文化历史', '亲子友好', '徒步户外', '夜生活'];
+const transportOptions = ['公共交通', '高铁+地铁', '自驾', '打车为主', '步行多'];
+const hotelOptions = ['经济实惠', '舒适型', '精品民宿', '高星酒店', '随便睡'];
+const dietOptions = ['本地菜', '清淡', '爱吃辣', '少油少盐', '素食友好', '海鲜'];
+
 const error = ref('');
+const message = ref('');
 const saving = ref(false);
-const showAdvanced = ref(false);
+
+function selectedList(field) {
+  return String(form[field] || '')
+    .split(/[,，、\s]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function toggleChip(field, value) {
+  const list = selectedList(field);
+  const i = list.indexOf(value);
+  if (i >= 0) list.splice(i, 1);
+  else list.push(value);
+  form[field] = list.join('、');
+}
+
+function isOn(field, value) {
+  return selectedList(field).includes(value);
+}
+
+function fill(profile) {
+  const user = profile?.user || {};
+  const preference = profile?.preference || {};
+  Object.keys(form).forEach((key) => {
+    if (Object.prototype.hasOwnProperty.call(user, key)) form[key] = user[key] || '';
+    if (Object.prototype.hasOwnProperty.call(preference, key)) form[key] = preference[key] || '';
+  });
+}
 
 async function load() {
   error.value = '';
   try {
-    profile.value = await resourceApi.getProfile(1001);
-    editorText.value = JSON.stringify(profile.value, null, 2);
+    fill(await resourceApi.getProfile());
   } catch (err) {
-    error.value = err?.message || '加载偏好失败';
+    error.value = err?.message || '偏好加载失败';
   }
 }
 
 async function save() {
   saving.value = true;
   error.value = '';
+  message.value = '';
   try {
-    profile.value = await resourceApi.updateProfile(1001, JSON.parse(editorText.value));
-    editorText.value = JSON.stringify(profile.value, null, 2);
+    const profile = await resourceApi.updateProfile({
+      user: {
+        nickname: form.nickname,
+        email: form.email,
+        phone: form.phone,
+      },
+      preference: {
+        travel_style: form.travel_style,
+        preferred_city: form.preferred_city,
+        preferred_tags: form.preferred_tags,
+        budget_level: form.budget_level,
+        transportation: form.transportation,
+        hotel_level: form.hotel_level,
+        diet_preference: form.diet_preference,
+      },
+    });
+    fill(profile);
+    message.value = '偏好已保存。下次规划会更贴近你的节奏。';
   } catch (err) {
-    error.value = err?.message || '保存失败，请检查内容格式';
+    error.value = err?.message || '保存失败';
   } finally {
     saving.value = false;
   }
@@ -37,50 +98,154 @@ onMounted(load);
 <template>
   <section class="page-intro">
     <p class="eyebrow">旅行偏好</p>
-    <h1>你是怎样的旅行者</h1>
-    <p>风格和标签会悄悄影响规划结果——越像你，行程越顺手。</p>
+    <h1>让每一程更像你</h1>
+    <p>不用填得很满。预算、节奏和口味会悄悄影响智能规划的推荐。</p>
   </section>
 
+  <p v-if="message" class="success-line">{{ message }}</p>
   <p v-if="error" class="error-line">{{ error }}</p>
 
-  <div class="passport">
-    <article class="passport-card">
-      <div class="label">旅行护照</div>
-      <h2>{{ profile.user.nickname || profile.user.username || '旅人' }}</h2>
-      <p>{{ profile.user.email || '还没留下邮箱' }}</p>
-    </article>
-    <article class="passport-card alt">
-      <div class="label">出行风格</div>
-      <h2>{{ profile.preference.travel_style || '随心所欲' }}</h2>
-      <p>{{ profile.preference.preferred_tags || '去设置几个你喜欢的标签吧' }}</p>
-    </article>
-  </div>
+  <form class="profile-form" @submit.prevent="save">
+    <section class="glass-panel profile-card">
+      <div class="profile-card-head">
+        <span class="profile-emoji" aria-hidden="true">🪪</span>
+        <div>
+          <h2>怎么称呼你</h2>
+          <p>只用于你的旅行账号展示</p>
+        </div>
+      </div>
+      <div class="profile-fields">
+        <label>
+          <span>昵称</span>
+          <input v-model="form.nickname" placeholder="路上怎么称呼你" autocomplete="nickname" />
+        </label>
+        <label>
+          <span>邮箱</span>
+          <input v-model="form.email" type="email" placeholder="可选" autocomplete="email" />
+        </label>
+        <label class="span-2">
+          <span>手机号</span>
+          <input v-model="form.phone" inputmode="tel" placeholder="可选" autocomplete="tel" />
+        </label>
+      </div>
+    </section>
 
-  <section class="glass-panel field-stack" style="max-width: 720px;">
-    <h2>更新我的资料</h2>
-    <p class="panel-hint">
-      当前以结构化内容保存偏好。
-      <button type="button" class="btn-ghost btn-sm" style="margin-left: 8px;" @click="showAdvanced = !showAdvanced">
-        {{ showAdvanced ? '收起高级编辑' : '打开高级编辑' }}
+    <section class="glass-panel profile-card">
+      <div class="profile-card-head">
+        <span class="profile-emoji" aria-hidden="true">🎒</span>
+        <div>
+          <h2>这趟通常怎么玩</h2>
+          <p>点选就好，也可以自己补充</p>
+        </div>
+      </div>
+
+      <div class="profile-block">
+        <span class="field-label">旅行节奏</span>
+        <div class="chip-row">
+          <button
+            v-for="opt in styleOptions"
+            :key="opt"
+            type="button"
+            class="chip-choice"
+            :class="{ 'is-on': isOn('travel_style', opt) }"
+            @click="toggleChip('travel_style', opt)"
+          >
+            {{ opt }}
+          </button>
+        </div>
+        <input
+          v-model="form.travel_style"
+          class="profile-soft-input"
+          placeholder="或自己写：例如轻松、文化、美食"
+        />
+      </div>
+
+      <div class="profile-fields" style="margin-top: 18px;">
+        <label>
+          <span>常去 / 想去城市</span>
+          <input v-model="form.preferred_city" placeholder="例如：杭州、成都" />
+        </label>
+        <label>
+          <span>预算水平</span>
+          <select v-model="form.budget_level">
+            <option value="economy">经济实惠</option>
+            <option value="medium">舒适适中</option>
+            <option value="premium">品质优先</option>
+          </select>
+        </label>
+        <label class="span-2">
+          <span>偏好标签</span>
+          <input v-model="form.preferred_tags" placeholder="湖景、博物馆、夜市、少走路…" />
+        </label>
+      </div>
+    </section>
+
+    <section class="glass-panel profile-card">
+      <div class="profile-card-head">
+        <span class="profile-emoji" aria-hidden="true">🍜</span>
+        <div>
+          <h2>吃住与出行</h2>
+          <p>规划时会优先参考这些习惯</p>
+        </div>
+      </div>
+
+      <div class="profile-block">
+        <span class="field-label">怎么出门</span>
+        <div class="chip-row">
+          <button
+            v-for="opt in transportOptions"
+            :key="opt"
+            type="button"
+            class="chip-choice"
+            :class="{ 'is-on': isOn('transportation', opt) }"
+            @click="toggleChip('transportation', opt)"
+          >
+            {{ opt }}
+          </button>
+        </div>
+        <input v-model="form.transportation" class="profile-soft-input" placeholder="或自定义交通偏好" />
+      </div>
+
+      <div class="profile-block" style="margin-top: 16px;">
+        <span class="field-label">住哪里更舒服</span>
+        <div class="chip-row">
+          <button
+            v-for="opt in hotelOptions"
+            :key="opt"
+            type="button"
+            class="chip-choice"
+            :class="{ 'is-on': isOn('hotel_level', opt) }"
+            @click="toggleChip('hotel_level', opt)"
+          >
+            {{ opt }}
+          </button>
+        </div>
+        <input v-model="form.hotel_level" class="profile-soft-input" placeholder="或自定义住宿偏好" />
+      </div>
+
+      <div class="profile-block" style="margin-top: 16px;">
+        <span class="field-label">饮食口味</span>
+        <div class="chip-row">
+          <button
+            v-for="opt in dietOptions"
+            :key="opt"
+            type="button"
+            class="chip-choice"
+            :class="{ 'is-on': isOn('diet_preference', opt) }"
+            @click="toggleChip('diet_preference', opt)"
+          >
+            {{ opt }}
+          </button>
+        </div>
+        <input v-model="form.diet_preference" class="profile-soft-input" placeholder="过敏或不吃的也可以写在这" />
+      </div>
+    </section>
+
+    <div class="profile-submit-bar">
+      <button type="submit" class="btn-coral" :disabled="saving">
+        {{ saving ? '保存中…' : '保存我的偏好' }}
       </button>
-    </p>
-
-    <template v-if="showAdvanced">
-      <textarea v-model="editorText" class="code-area" rows="14" spellcheck="false" />
-      <div class="actions">
-        <button type="button" class="btn-coral" :disabled="saving" @click="save">
-          {{ saving ? '保存中…' : '保存偏好' }}
-        </button>
-        <button type="button" class="btn-ghost" @click="load">重新加载</button>
-      </div>
-    </template>
-    <template v-else>
-      <p class="progress-text">
-        昵称、邮箱与偏好标签已展示在上方卡片。需要改字段时，点「打开高级编辑」。
-      </p>
-      <div class="actions">
-        <button type="button" class="btn-ghost" @click="load">刷新资料</button>
-      </div>
-    </template>
-  </section>
+      <RouterLink class="btn-link btn-ghost" to="/planning">保存后去规划 →</RouterLink>
+    </div>
+  </form>
 </template>

@@ -57,9 +57,9 @@ function pick(city) {
         </ul>
         <div class="actions" style="margin-top: 16px;">
           <button type="button" class="btn-coral" @click="planHere">去规划这程</button>
-          <RouterLink class="btn-link btn-ghost" to="/cities">城市清单</RouterLink>
+          <RouterLink class="btn-link btn-ghost" to="/cities">发现更多城市</RouterLink>
         </div>
-        <p class="map-side-hint">提示：按住地图拖动可旋转；滚轮缩放；「环绕」开启慢速巡航。</p>
+        <p class="map-side-hint">拖动旋转 · 滚轮缩放 · 点「环绕」慢慢巡航</p>
       </aside>
     </div>
 

@@ -2,6 +2,22 @@ import { describe, expect, it, vi } from 'vitest';
 import { createResourceApi } from './resources.js';
 
 describe('resource API client', () => {
+  it('separates public discovery and current-user library endpoints', async () => {
+    const http = {
+      get: vi.fn().mockResolvedValue({ data: { data: { records: [] } } }),
+      post: vi.fn().mockResolvedValue({ data: { data: { id: 1 } } }),
+    };
+    const api = createResourceApi(http);
+
+    await api.discover('cities', { keyword: '杭州' });
+    await api.userCreate('favorites', { target_type: 'city', target_id: 2001, note: '杭州' });
+
+    expect(http.get).toHaveBeenCalledWith('/public/resources/cities', { params: { keyword: '杭州' } });
+    expect(http.post).toHaveBeenCalledWith('/user/library/favorites', {
+      target_type: 'city', target_id: 2001, note: '杭州',
+    });
+  });
+
   it('calls backend CRUD endpoints with filters and payloads', async () => {
     const http = {
       get: vi.fn().mockResolvedValue({ data: { data: { records: [] } } }),
@@ -17,30 +33,26 @@ describe('resource API client', () => {
     await api.updateStatus('cities', 2004, 0);
     await api.remove('cities', 2004);
 
-    expect(http.get).toHaveBeenCalledWith('/attractions', {
+    expect(http.get).toHaveBeenCalledWith('/admin/resources/attractions', {
       params: { keyword: 'lake', cityId: 2001 },
     });
-    expect(http.post).toHaveBeenCalledWith('/cities', { name: 'Suzhou' });
-    expect(http.put).toHaveBeenCalledWith('/cities/2004', { name: 'Suzhou City' });
-    expect(http.put).toHaveBeenCalledWith('/cities/2004/status', null, { params: { status: 0 } });
-    expect(http.delete).toHaveBeenCalledWith('/cities/2004');
+    expect(http.post).toHaveBeenCalledWith('/admin/resources/cities', { name: 'Suzhou' });
+    expect(http.put).toHaveBeenCalledWith('/admin/resources/cities/2004', { name: 'Suzhou City' });
+    expect(http.put).toHaveBeenCalledWith('/admin/resources/cities/2004/status', null, { params: { status: 0 } });
+    expect(http.delete).toHaveBeenCalledWith('/admin/resources/cities/2004');
   });
 
-  it('loads user profile and trip history from dedicated endpoints', async () => {
+  it('loads and updates the current user profile without accepting a user id', async () => {
     const http = {
       get: vi.fn().mockResolvedValue({ data: { data: {} } }),
       put: vi.fn().mockResolvedValue({ data: { data: {} } }),
     };
     const api = createResourceApi(http);
 
-    await api.getProfile(1001);
-    await api.updateProfile(1001, { user: { nickname: 'Demo' } });
-    await api.tripHistory(8);
+    await api.getProfile();
+    await api.updateProfile({ user: { nickname: 'Demo' } });
 
-    expect(http.get).toHaveBeenCalledWith('/users/profile', { params: { userId: 1001 } });
-    expect(http.put).toHaveBeenCalledWith('/users/profile', { user: { nickname: 'Demo' } }, {
-      params: { userId: 1001 },
-    });
-    expect(http.get).toHaveBeenCalledWith('/trip/history', { params: { limit: 8 } });
+    expect(http.get).toHaveBeenCalledWith('/user/profile');
+    expect(http.put).toHaveBeenCalledWith('/user/profile', { user: { nickname: 'Demo' } });
   });
 });

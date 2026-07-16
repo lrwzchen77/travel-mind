@@ -18,7 +18,7 @@ public class TravelMindWebSocketConfig implements WebSocketConfigurer {
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(tripTaskWebSocketHandler, "/api/trip/ws/{taskId}")
+        registry.addHandler(tripTaskWebSocketHandler, "/api/user/trip/ws/{taskId}")
             .setAllowedOriginPatterns("*");
     }
 }

@@ -1,5 +1,6 @@
 import httpx
 import pytest
+import base64
 from pathlib import Path
 
 import app.main as main
@@ -42,6 +43,39 @@ async def test_vision_detect_accepts_uploaded_image_file():
     data = response.json()["data"]
     assert data["source"] == "upload"
     assert "hotel" in data["scene_tags"]
+
+
+@pytest.mark.anyio
+async def test_vision_detect_materializes_browser_data_url(monkeypatch):
+    image_bytes = b"browser-upload-image"
+
+    def fake_detection(image_source):
+        path = Path(image_source)
+        assert path.read_bytes() == image_bytes
+        return {
+            "model_mode": "trained_yolo",
+            "labels": [{"name": "scenic_spot", "confidence": 0.94}],
+            "scene_tags": ["scenic_spot"],
+            "risk_hints": [],
+        }
+
+    monkeypatch.setattr(main, "_try_yolo_detection", fake_detection)
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.post(
+            "/api/vision/detect",
+            json={
+                "image_url": "data:image/jpeg;base64," + base64.b64encode(image_bytes).decode(),
+                "city": "杭州",
+                "resource_type": "travel_scene",
+            },
+        )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["model_mode"] == "trained_yolo"
+    assert data["source"] == "upload"
+    assert data["labels"][0]["name"] == "scenic_spot"
 
 
 @pytest.mark.anyio

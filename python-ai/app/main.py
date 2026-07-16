@@ -1,3 +1,5 @@
+import base64
+import binascii
 import os
 import re
 import tempfile
@@ -80,7 +82,8 @@ async def vision_detect(request: Request):
     image_path = str(payload.get("image_path") or "")
     city = str(payload.get("city") or "Unknown city")
     resource_type = str(payload.get("resource_type") or "travel_scene")
-    source_text = f"{image_url} {filename} {image_path} {resource_type}".lower()
+    source_image_text = "" if image_url.startswith("data:image/") else image_url
+    source_text = f"{source_image_text} {filename} {image_path} {resource_type}".lower()
 
     scene_tags = ["travel_scene"]
     risks: list[str] = []
@@ -96,9 +99,17 @@ async def vision_detect(request: Request):
     if resource_type and resource_type not in scene_tags:
         scene_tags.append(resource_type)
 
-    # Prefer local path / upload temp file / then URL
+    # Prefer local path / multipart upload / data URL / then remote URL.
     yolo_source = image_path or image_url
-    yolo = _try_yolo_detection(yolo_source)
+    temporary_source = image_path if payload.get("_temporary_image") else ""
+    if image_url.startswith("data:image/"):
+        temporary_source = _data_url_to_temp_path(image_url) or ""
+        yolo_source = temporary_source
+    try:
+        yolo = _try_yolo_detection(yolo_source)
+    finally:
+        if temporary_source:
+            Path(temporary_source).unlink(missing_ok=True)
     if yolo is not None:
         labels = yolo["labels"]
         for tag in yolo.get("scene_tags") or []:
@@ -117,7 +128,7 @@ async def vision_detect(request: Request):
                     f"（置信度 {top_conf}），可用于补充旅行资源画像。"
                 ),
                 "risk_hints": _unique(risks),
-                "source": "upload" if filename else ("local_path" if image_path else "image_url"),
+                "source": "upload" if filename or image_url.startswith("data:image/") else ("local_path" if image_path else "image_url"),
             }
         )
 
@@ -132,7 +143,7 @@ async def vision_detect(request: Request):
             "scene_tags": _unique(scene_tags),
             "summary": f"{city} {resource_type} 图片呈现{_join_tags(scene_tags)}特征，可用于补充旅行资源画像。",
             "risk_hints": risks,
-            "source": "upload" if filename else "image_url",
+            "source": "upload" if filename or image_url.startswith("data:image/") else "image_url",
         }
     )
 
@@ -244,12 +255,38 @@ async def _read_vision_payload(request: Request) -> dict[str, Any]:
                     tmp.write(raw)
                     tmp.flush()
                     payload["image_path"] = tmp.name
+                    payload["_temporary_image"] = True
                 finally:
                     tmp.close()
         return payload
     if "application/json" in content_type:
         return await request.json()
     return {}
+
+
+def _data_url_to_temp_path(value: str) -> str | None:
+    match = re.fullmatch(
+        r"data:image/(?P<format>jpeg|jpg|png|webp);base64,(?P<data>[A-Za-z0-9+/=\r\n]+)",
+        value,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return None
+    try:
+        raw = base64.b64decode(match.group("data"), validate=True)
+    except (binascii.Error, ValueError):
+        return None
+    if not raw or len(raw) > 8 * 1024 * 1024:
+        return None
+    image_format = match.group("format").lower()
+    suffix = ".jpg" if image_format in {"jpeg", "jpg"} else f".{image_format}"
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    try:
+        tmp.write(raw)
+        tmp.flush()
+        return tmp.name
+    finally:
+        tmp.close()
 
 
 def _extract_keywords(text: str, city: str | None, attraction_name: str | None) -> list[str]:

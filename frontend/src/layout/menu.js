@@ -1,26 +1,27 @@
-/** 顶栏主导航：C 端旅行产品路径 */
+/** 顶栏主导航：C 端旅行产品路径（动作导向，非后台模块名） */
 export const primaryNav = [
   { path: '/', label: '首页' },
-  { path: '/planning', label: '规划行程' },
+  { path: '/cities', label: '发现目的地' },
   { path: '/map', label: '立体地图' },
   { path: '/trip-history', label: '我的行程' },
-  { path: '/cities', label: '发现' },
-  { path: '/ai-lab', label: 'AI 灵感' },
 ];
 
-/** 次级入口：个人与深度资源（顶栏「更多」） */
-export const secondaryNav = [
-  { path: '/attractions', label: '景点清单' },
-  { path: '/hotels', label: '住哪里' },
-  { path: '/restaurants', label: '吃什么' },
+/** 账户菜单只承载当前用户拥有的内容与设置。 */
+export const accountNav = [
   { path: '/favorites', label: '我的收藏' },
-  { path: '/travel-notes', label: '旅行笔记' },
-  { path: '/ai-records', label: '分析足迹' },
+  { path: '/travel-notes', label: '我的笔记' },
   { path: '/profile', label: '旅行偏好' },
 ];
 
-/** 扁平列表，供路由/测试校验 */
-export const navigationItems = [...primaryNav, ...secondaryNav];
+/** 页面内或行动按钮入口，仍属于用户可达的产品路径。 */
+export const auxiliaryNav = [
+  { path: '/planning', label: '智能规划' },
+  { path: '/ai-lab', label: 'AI 灵感' },
+  { path: '/ai-records', label: '最近灵感' },
+];
+
+/** 扁平列表，供路由/测试校验。 */
+export const navigationItems = [...primaryNav, ...auxiliaryNav, ...accountNav];
 
 /** 首页轮播/高亮城市名 */
 export const rotatingCities = ['杭州', '成都', '厦门', '西安', '大理', '青岛', '丽江', '桂林'];
@@ -66,7 +67,7 @@ export const featuredDestinations = [
 ];
 
 export const trustStats = [
-  { value: '4', suffix: '城', label: '精选灵感目的地' },
+  { value: '34', suffix: '城', label: '省会与重点目的地' },
   { value: '3', suffix: '步', label: '从灵感到日程' },
   { value: 'AI', suffix: '', label: '本地灵感助手' },
   { value: '24h', suffix: '', label: '随时开规划' },

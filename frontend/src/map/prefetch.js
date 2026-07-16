@@ -2,10 +2,9 @@
  * 地图加载加速：预连接 CDN、缓存 style JSON、预热 MapLibre 模块
  */
 
-const STYLE_URL =
-  import.meta.env.VITE_MAP_STYLE_URL || 'https://tiles.openfreemap.org/styles/liberty';
+import { createTravelMindStyle, getMapAssetBaseUrl } from './travelMindStyle.js';
 
-const TILE_ORIGIN = 'https://tiles.openfreemap.org';
+const STYLE_URL = import.meta.env.VITE_MAP_STYLE_URL || '';
 
 /** @type {Promise<object>|null} */
 let stylePromise = null;
@@ -13,7 +12,15 @@ let stylePromise = null;
 let maplibrePromise = null;
 
 export function getStyleUrl() {
-  return STYLE_URL;
+  return STYLE_URL || null;
+}
+
+function getAssetOrigin() {
+  try {
+    return new URL(STYLE_URL || getMapAssetBaseUrl()).origin;
+  } catch {
+    return getMapAssetBaseUrl();
+  }
 }
 
 /** 尽早 DNS / TLS 握手 */
@@ -27,8 +34,9 @@ export function preconnectMapCdn() {
     if (crossOrigin) link.crossOrigin = 'anonymous';
     document.head.appendChild(link);
   };
-  ensure('preconnect', TILE_ORIGIN);
-  ensure('dns-prefetch', TILE_ORIGIN, false);
+  const assetOrigin = getAssetOrigin();
+  ensure('preconnect', assetOrigin);
+  ensure('dns-prefetch', assetOrigin, false);
 }
 
 /**
@@ -37,6 +45,10 @@ export function preconnectMapCdn() {
 export function prefetchMapStyle() {
   if (stylePromise) return stylePromise;
   preconnectMapCdn();
+  if (!STYLE_URL) {
+    stylePromise = Promise.resolve(createTravelMindStyle());
+    return stylePromise;
+  }
   stylePromise = fetch(STYLE_URL, {
     mode: 'cors',
     credentials: 'omit',
@@ -48,10 +60,9 @@ export function prefetchMapStyle() {
       return res.json();
     })
     .catch((err) => {
-      // 失败时回退 URL，让 MapLibre 自己拉
-      stylePromise = null;
-      console.warn('[map] style prefetch failed, fallback to URL', err);
-      return STYLE_URL;
+      console.warn('[map] style prefetch failed, fallback to lightweight style', err);
+      stylePromise = Promise.resolve(createTravelMindStyle());
+      return stylePromise;
     });
   return stylePromise;
 }
@@ -69,15 +80,21 @@ export function prefetchMapLibre() {
 export function scheduleMapWarmup() {
   if (typeof window === 'undefined') return;
   preconnectMapCdn();
+  const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  if (connection?.saveData || ['slow-2g', '2g'].includes(connection?.effectiveType)) return;
   const run = () => {
     prefetchMapStyle();
     prefetchMapLibre();
   };
-  if ('requestIdleCallback' in window) {
-    window.requestIdleCallback(run, { timeout: 2500 });
-  } else {
-    window.setTimeout(run, 1200);
-  }
+  const schedule = () => {
+    if ('requestIdleCallback' in window) {
+      window.requestIdleCallback(run, { timeout: 3500 });
+    } else {
+      window.setTimeout(run, 1600);
+    }
+  };
+  if (document.readyState === 'complete') schedule();
+  else window.addEventListener('load', schedule, { once: true });
 }
 
 /**
@@ -89,7 +106,7 @@ export async function resolveMapStyle() {
     try {
       return await stylePromise;
     } catch {
-      return STYLE_URL;
+      return createTravelMindStyle();
     }
   }
   return prefetchMapStyle();

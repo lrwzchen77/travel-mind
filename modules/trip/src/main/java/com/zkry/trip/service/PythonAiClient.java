@@ -36,7 +36,7 @@ public class PythonAiClient {
     @Autowired
     public PythonAiClient(
         @Value("${travelmind.python-ai.base-url:http://localhost:19080}") String baseUrl,
-        @Value("${travelmind.python-ai.timeout-ms:3000}") long timeoutMs
+        @Value("${travelmind.python-ai.timeout-ms:10000}") long timeoutMs
     ) {
         this(baseUrl, Duration.ofMillis(timeoutMs));
     }

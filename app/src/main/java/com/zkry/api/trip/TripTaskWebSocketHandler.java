@@ -1,6 +1,7 @@
 package com.zkry.api.trip;
 
 import com.zkry.common.json.utils.JsonUtils;
+import com.zkry.common.satoken.core.LoginHelper;
 import com.zkry.trip.dto.TripTaskEvent;
 import com.zkry.trip.service.TripTaskNotFoundException;
 import com.zkry.trip.service.TripTaskStage;
@@ -23,7 +24,7 @@ public class TripTaskWebSocketHandler extends TextWebSocketHandler {
 
     private static final Logger log = LoggerFactory.getLogger(TripTaskWebSocketHandler.class);
 
-    private static final String WS_PREFIX = "/api/trip/ws/";
+    private static final String WS_PREFIX = "/api/user/trip/ws/";
 
     private final TripTaskService tripTaskService;
 
@@ -34,6 +35,7 @@ public class TripTaskWebSocketHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         String taskId = resolveTaskId(session.getUri());
+        long userId = LoginHelper.getUserId();
         log.info("[TripWS] WebSocket 连接建立 sessionId={} uri={} taskId={}",
             session.getId(), session.getUri(), taskId == null ? "-" : taskId);
         if (taskId == null || taskId.isBlank()) {
@@ -45,7 +47,7 @@ public class TripTaskWebSocketHandler extends TextWebSocketHandler {
 
         AtomicReference<TripTaskSubscription> subscriptionRef = new AtomicReference<>();
         try {
-            TripTaskSubscription subscription = tripTaskService.subscribe(taskId, event -> {
+            TripTaskSubscription subscription = tripTaskService.subscribe(taskId, userId, event -> {
                 try {
                     send(session, event);
                     if (isFinal(event)) {
@@ -69,7 +71,7 @@ public class TripTaskWebSocketHandler extends TextWebSocketHandler {
             subscriptionRef.set(subscription);
             log.info("[TripWS] 已订阅任务事件 sessionId={} taskId={}", session.getId(), taskId);
 
-            TripTaskEvent snapshot = tripTaskService.snapshot(taskId);
+            TripTaskEvent snapshot = tripTaskService.snapshot(taskId, userId);
             log.info("[TripWS] 推送任务快照 sessionId={} taskId={} status={} stage={} progress={}",
                 session.getId(), taskId, snapshot.status(), snapshot.stage(), snapshot.progress());
             send(session, snapshot);

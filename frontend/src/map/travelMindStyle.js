@@ -39,19 +39,26 @@ const nameField = [
   ['get', 'name'],
 ];
 
+const DEFAULT_MAP_ASSET_BASE_URL = 'https://tiles.openfreemap.org';
+
+export function getMapAssetBaseUrl() {
+  return (import.meta.env.VITE_MAP_ASSET_BASE_URL || DEFAULT_MAP_ASSET_BASE_URL).replace(/\/+$/, '');
+}
+
 /** 精简主题样式 + OpenFreeMap 全球矢量瓦片（真实路网） */
 export function createTravelMindStyle() {
   const t = MAP_THEME;
+  const assetBaseUrl = getMapAssetBaseUrl();
   return {
     version: 8,
     name: 'Travel Mind Online',
     sources: {
       openmaptiles: {
         type: 'vector',
-        url: 'https://tiles.openfreemap.org/planet',
+        url: `${assetBaseUrl}/planet`,
       },
     },
-    glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
+    glyphs: `${assetBaseUrl}/fonts/{fontstack}/{range}.pbf`,
     layers: [
       {
         id: 'background',
@@ -188,36 +195,6 @@ export function createTravelMindStyle() {
         },
       },
       {
-        id: 'building-3d',
-        type: 'fill-extrusion',
-        source: 'openmaptiles',
-        'source-layer': 'building',
-        minzoom: 14,
-        paint: {
-          'fill-extrusion-color': [
-            'interpolate',
-            ['linear'],
-            ['coalesce', ['get', 'render_height'], ['get', 'height'], 12],
-            0, t.building3dLow,
-            30, t.building3dMid,
-            90, t.building3dHigh,
-          ],
-          'fill-extrusion-height': [
-            'coalesce',
-            ['get', 'render_height'],
-            ['get', 'height'],
-            14,
-          ],
-          'fill-extrusion-base': [
-            'coalesce',
-            ['get', 'render_min_height'],
-            ['get', 'min_height'],
-            0,
-          ],
-          'fill-extrusion-opacity': 0.88,
-        },
-      },
-      {
         id: 'place-city',
         type: 'symbol',
         source: 'openmaptiles',
@@ -236,37 +213,8 @@ export function createTravelMindStyle() {
           'text-halo-width': 1.4,
         },
       },
-      // 飞航图层（空数据，运行时 setData）
-      {
-        id: 'flight-trail-glow',
-        type: 'line',
-        source: {
-          type: 'geojson',
-          data: { type: 'FeatureCollection', features: [] },
-          lineMetrics: true,
-        },
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: {
-          'line-color': t.trailGlow,
-          'line-width': 8,
-          'line-opacity': 0.18,
-          'line-blur': 1.2,
-        },
-      },
     ],
   };
-}
-
-/**
- * 使用完整 Liberty 底图（第一版真实感）+ 运行时叠加飞航层
- * 比自绘层更完整，视觉接近最初版本
- */
-export function getMapStyle() {
-  if (import.meta.env.VITE_MAP_STYLE_URL) {
-    return import.meta.env.VITE_MAP_STYLE_URL;
-  }
-  // 第一版同款在线样式
-  return 'https://tiles.openfreemap.org/styles/liberty';
 }
 
 export function emptyFc() {

@@ -1,0 +1,87 @@
+package com.zkry.identity.service;
+
+import com.zkry.common.core.exception.BizException;
+import com.zkry.identity.domain.IdentityAccount;
+import java.util.List;
+import java.util.Map;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.stereotype.Service;
+
+@Service
+public class IdentityService {
+
+    private final NamedParameterJdbcTemplate jdbcTemplate;
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+
+    public IdentityService(NamedParameterJdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
+
+    public IdentityAccount authenticate(String username, String password, String portalRole) {
+        String normalizedUsername = username == null ? "" : username.trim();
+        if (normalizedUsername.isEmpty() || password == null || password.isEmpty()) {
+            throw new BizException("请输入账号和密码。");
+        }
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+            SELECT u.id, u.username, u.nickname, u.status, a.password_hash, a.role_code, a.status AS account_status
+            FROM tm_identity_account a
+            JOIN tm_user u ON u.id = a.user_id AND u.deleted = 0
+            WHERE u.username = :username
+            LIMIT 1
+            """, Map.of("username", normalizedUsername));
+        if (rows.isEmpty()) {
+            throw new BizException("账号或密码错误。");
+        }
+        Map<String, Object> row = rows.get(0);
+        IdentityAccount account = map(row);
+        if (account.status() != 1 || number(row.get("account_status")) != 1) {
+            throw new BizException("账号已停用，请联系管理员。");
+        }
+        if (!passwordEncoder.matches(password, account.passwordHash())) {
+            throw new BizException("账号或密码错误。");
+        }
+        if ("admin".equals(portalRole) && !SetRoles.isAdmin(account.roleCode())) {
+            throw new BizException("该账号没有管理端访问权限。");
+        }
+        if ("user".equals(portalRole) && SetRoles.isAdmin(account.roleCode())) {
+            throw new BizException("管理员账号请从管理端登录。");
+        }
+        return account;
+    }
+
+    public IdentityAccount findByUserId(long userId) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+            SELECT u.id, u.username, u.nickname, u.status, a.password_hash, a.role_code, a.status AS account_status
+            FROM tm_identity_account a
+            JOIN tm_user u ON u.id = a.user_id AND u.deleted = 0
+            WHERE u.id = :userId
+            LIMIT 1
+            """, Map.of("userId", userId));
+        if (rows.isEmpty()) {
+            throw new BizException("登录账号不存在。");
+        }
+        return map(rows.get(0));
+    }
+
+    private IdentityAccount map(Map<String, Object> row) {
+        return new IdentityAccount(
+            number(row.get("id")),
+            String.valueOf(row.get("username")),
+            String.valueOf(row.getOrDefault("nickname", row.get("username"))),
+            String.valueOf(row.get("password_hash")),
+            String.valueOf(row.getOrDefault("role_code", "user")),
+            number(row.get("status")).intValue()
+        );
+    }
+
+    private Long number(Object value) {
+        return value instanceof Number number ? number.longValue() : Long.parseLong(String.valueOf(value));
+    }
+
+    private static final class SetRoles {
+        private static boolean isAdmin(String role) {
+            return "admin".equals(role) || "operator".equals(role);
+        }
+    }
+}

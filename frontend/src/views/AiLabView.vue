@@ -1,6 +1,6 @@
 <script setup>
 import { computed, reactive, ref } from 'vue';
-import { aiApi } from '../api/ai.js';
+import { adminAiApi as aiApi } from '../api/ai.js';
 
 const loading = ref('');
 const error = ref('');

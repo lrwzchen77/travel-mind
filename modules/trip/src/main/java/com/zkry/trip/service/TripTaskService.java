@@ -74,10 +74,10 @@ public class TripTaskService {
      * <p>接口不会同步等 LLM 全部跑完，而是立刻返回 taskId 和 WebSocket 地址。
      * 真正耗时的资料研究、规划、图谱构建会在后台线程里执行。
      */
-    public SubmitTripPlanResponse submit(TripRequest request) {
+    public SubmitTripPlanResponse submit(TripRequest request, long userId) {
         validateTripRequest(request);
         String taskId = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
-        TripTaskState state = new TripTaskState(taskId, request);
+        TripTaskState state = new TripTaskState(taskId, userId, request);
         tasks.put(taskId, state);
         log.info("[TripTask] 创建旅行规划任务 taskId={} cities={} totalDays={} date={}~{} preferences={} aiAvailable={}",
             taskId,
@@ -88,23 +88,23 @@ public class TripTaskService {
             request.safePreferences(),
             tripAiPlannerService.isAvailable());
         update(taskId, TripTaskStatus.PROCESSING, TripTaskStage.SUBMITTED, 5, TripTaskMessages.SUBMITTED, null, null);
-        CompletableFuture.runAsync(() -> runPlanning(taskId, request), executorService);
+        CompletableFuture.runAsync(() -> runPlanning(taskId, userId, request), executorService);
         return new SubmitTripPlanResponse(
             taskId,
             taskId,
             TripTaskStatus.PROCESSING,
-            "/api/trip/ws/" + taskId,
+            "/api/user/trip/ws/" + taskId,
             TripTaskMessages.SUBMITTED
         );
     }
 
-    public TripTaskEvent snapshot(String taskId) {
-        TripTaskState state = task(taskId);
+    public TripTaskEvent snapshot(String taskId, long userId) {
+        TripTaskState state = task(taskId, userId);
         return state.toEvent(true);
     }
 
-    public Map<String, Object> status(String taskId) {
-        TripTaskState state = task(taskId);
+    public Map<String, Object> status(String taskId, long userId) {
+        TripTaskState state = task(taskId, userId);
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("task_id", state.taskId);
         payload.put("plan_id", state.taskId);
@@ -124,8 +124,8 @@ public class TripTaskService {
         return payload;
     }
 
-    public TripTaskSubscription subscribe(String taskId, TripTaskSubscriber subscriber) {
-        TripTaskState state = task(taskId);
+    public TripTaskSubscription subscribe(String taskId, long userId, TripTaskSubscriber subscriber) {
+        TripTaskState state = task(taskId, userId);
         state.subscribers.add(subscriber);
         log.info("[TripTask] 新增任务订阅 taskId={} subscriberCount={}", taskId, state.subscribers.size());
         return new TripTaskSubscription(taskId, () -> {
@@ -142,13 +142,21 @@ public class TripTaskService {
         return state;
     }
 
+    private TripTaskState task(String taskId, long userId) {
+        TripTaskState state = task(taskId);
+        if (state.userId != userId) {
+            throw new TripTaskNotFoundException(taskId);
+        }
+        return state;
+    }
+
     /**
      * 后台任务主流程。
      *
      * <p>这是整套 Java 版 Travel Mind 的最重要阅读入口：先进入资料研究 Agent，
      * 再进入 Planner/Review Agent，最后把结构化结果推给前端。
      */
-    private void runPlanning(String taskId, TripRequest request) {
+    private void runPlanning(String taskId, long userId, TripRequest request) {
         long startedAt = System.currentTimeMillis();
         try {
             log.info("[TripTask] 开始执行任务 taskId={} city={} language={} transportation={} accommodation={}",
@@ -173,8 +181,8 @@ public class TripTaskService {
             if (!review.passed()) {
                 throw new BizException("行程结构校验未通过：" + String.join("；", review.issues()));
             }
-            long savedPlanId = tripPlanPersistenceService.save(1001L, response, request);
-            evaluateComfort(savedPlanId, response, request);
+            long savedPlanId = tripPlanPersistenceService.save(userId, response, request);
+            evaluateComfort(userId, savedPlanId, response, request);
             TripPlanResponse savedResponse = new TripPlanResponse(
                 response.success(),
                 response.message(),
@@ -199,9 +207,9 @@ public class TripTaskService {
         }
     }
 
-    private void evaluateComfort(long savedPlanId, TripPlanResponse response, TripRequest request) {
+    private void evaluateComfort(long userId, long savedPlanId, TripPlanResponse response, TripRequest request) {
         try {
-            travelAiApplicationService.evaluateSavedTrip(1001L, savedPlanId, response.data(), request);
+            travelAiApplicationService.evaluateSavedTrip(userId, savedPlanId, response.data(), request);
         } catch (Exception ex) {
             log.warn("[TripTask] Python AI 舒适度评分失败但不阻断行程 taskPlanId={} reason={}", savedPlanId, ex.getMessage());
         }
@@ -330,6 +338,7 @@ public class TripTaskService {
     private static final class TripTaskState {
 
         private final String taskId;
+        private final long userId;
         private final TripRequest request;
         private final CopyOnWriteArrayList<TripTaskSubscriber> subscribers = new CopyOnWriteArrayList<>();
 
@@ -340,8 +349,9 @@ public class TripTaskService {
         private volatile String error = "";
         private volatile TripPlanResponse result;
 
-        private TripTaskState(String taskId, TripRequest request) {
+        private TripTaskState(String taskId, long userId, TripRequest request) {
             this.taskId = taskId;
+            this.userId = userId;
             this.request = request;
         }
 

@@ -1,11 +1,13 @@
 <script setup>
 /**
- * MapLibre + OpenFreeMap
- * 加载优化：样式预取并行、直达目标城市、idle 后再加 3D/标注、可见即用
+ * MapLibre + 可配置瓦片镜像
+ * 首帧优先展示，标注与 3D 渐进增强，并按设备能力控制渲染开销。
  */
 import { onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';
 import { findDestination, geoDestinations } from '../../data/geoDestinations.js';
 import { buildFlightArc, sampleArc } from '../../map/flightPath.js';
+import { detectMapPerformanceProfile } from '../../map/performance.js';
+import { prefetchFlightTiles } from '../../map/tilePrefetch.js';
 import { emptyFc, lineFc, MAP_THEME } from '../../map/travelMindStyle.js';
 import {
   prefetchMapLibre,
@@ -34,8 +36,9 @@ const orbiting = ref(false);
 const flying = ref(false);
 const flyLabel = ref('');
 const flyProgress = ref(0);
-/** 仅当首屏瓦片全部渲染完才为 true，避免半成品露出来 */
+/** 样式首帧可用后即展示，瓦片和增强图层继续渐进加载。 */
 const mapRevealed = ref(false);
+const performanceProfile = detectMapPerformanceProfile();
 
 /** @type {Map<string, import('maplibre-gl').Marker>} */
 const cityMarkers = new Map();
@@ -47,7 +50,13 @@ let orbitRaf = 0;
 let flyRaf = 0;
 let flyToken = 0;
 let resizeObserver;
+let resizeRaf = 0;
+let revealTimer = 0;
+let enrichTimer = 0;
+let enrichIdle = 0;
 let destroyed = false;
+let mapStyleReady = false;
+let pendingFlight = null;
 
 function setPrimaryPin(city) {
   cityMarkers.forEach((marker, name) => {
@@ -83,7 +92,7 @@ function clearPois() {
 function addPoiMarkers(map, dest) {
   clearPois();
   if (!props.showPois || !dest.pois?.length || !maplibregl) return;
-  dest.pois.forEach((poi) => {
+  dest.pois.slice(0, performanceProfile.maxPoiMarkers).forEach((poi) => {
     const el = document.createElement('div');
     el.className = 'map-poi';
     el.innerHTML = `<span></span><em>${poi.name}</em>`;
@@ -181,9 +190,9 @@ function setSrc(map, id, data) {
 }
 
 function tryEnable3dBuildings(map) {
-  if (map.getLayer('tm-3d-buildings')) return;
+  if (!performanceProfile.enable3d || map.getLayer('tm-3d-buildings')) return;
   const style = map.getStyle();
-  if (!style?.sources) return;
+  if (!style?.sources || style.layers?.some((layer) => layer.type === 'fill-extrusion')) return;
   const sourceId =
     Object.keys(style.sources).find((id) => style.sources[id].type === 'vector' && id.includes('openmap'))
     || Object.keys(style.sources).find((id) => style.sources[id].type === 'vector');
@@ -238,14 +247,18 @@ function stopOrbit() {
 
 function startOrbit() {
   const map = mapRef.value;
-  if (!map || flying.value) return;
+  if (!map || flying.value || !performanceProfile.enableOrbit || document.hidden) return;
   orbiting.value = true;
   let last = performance.now();
   const tick = (now) => {
     if (!orbiting.value || !mapRef.value || flying.value) return;
-    const dt = Math.min(32, now - last);
+    const dt = now - last;
+    if (dt < 66) {
+      orbitRaf = requestAnimationFrame(tick);
+      return;
+    }
     last = now;
-    map.easeTo({ bearing: map.getBearing() + dt * 0.007, duration: 0, essential: true });
+    map.jumpTo({ bearing: map.getBearing() + Math.min(100, dt) * 0.007 });
     orbitRaf = requestAnimationFrame(tick);
   };
   orbitRaf = requestAnimationFrame(tick);
@@ -256,16 +269,25 @@ function toggleOrbit() {
   else startOrbit();
 }
 
-function flyToCity(cityName, options = {}) {
+async function flyToCity(cityName, options = {}) {
   const { instant = false } = options;
   const map = mapRef.value;
-  if (!map || !map.isStyleLoaded()) return;
+  if (!map) return;
+  if (!mapStyleReady) {
+    pendingFlight = { cityName, options };
+    return;
+  }
 
   const dest = findDestination(cityName);
   if (!dest) return;
   const fromDest = findDestination(activeCity.value) || dest;
 
   const token = ++flyToken;
+  if (flyRaf) {
+    cancelAnimationFrame(flyRaf);
+    flyRaf = 0;
+  }
+  map.stop();
   activeCity.value = dest.city;
   ensureCityMarkers(map);
   setPrimaryPin(dest.city);
@@ -280,7 +302,7 @@ function flyToCity(cityName, options = {}) {
   const finalCam = {
     center: to,
     zoom: Math.min(dest.zoom, 13.2),
-    pitch: dest.pitch,
+    pitch: Math.min(dest.pitch, performanceProfile.maxPitch),
     bearing: dest.bearing,
   };
 
@@ -291,11 +313,38 @@ function flyToCity(cityName, options = {}) {
     setSrc(map, 'flight-path', emptyFc());
     setSrc(map, 'flight-progress', emptyFc());
     setSrc(map, 'flight-plane', emptyFc());
-    map.easeTo({ ...finalCam, duration: instant ? 0 : 1200, essential: true });
+    map.easeTo({
+      ...finalCam,
+      duration: instant || performanceProfile.reducedMotion ? 0 : 750,
+      essential: !performanceProfile.reducedMotion,
+    });
     return;
   }
 
-  const arc = buildFlightArc(from, to, 96, 0.28);
+  if (!performanceProfile.animatedFlightPath) {
+    flying.value = performanceProfile.flightDuration > 0;
+    flyLabel.value = flying.value ? `${fromDest.city} → ${dest.city}` : '';
+    flyProgress.value = flying.value ? 0 : 1;
+    setSrc(map, 'flight-path', emptyFc());
+    setSrc(map, 'flight-progress', emptyFc());
+    setSrc(map, 'flight-plane', emptyFc());
+    map.flyTo({
+      ...finalCam,
+      duration: performanceProfile.flightDuration,
+      essential: false,
+    });
+    if (flying.value) {
+      map.once('moveend', () => {
+        if (token !== flyToken) return;
+        flying.value = false;
+        flyLabel.value = '';
+        flyProgress.value = 1;
+      });
+    }
+    return;
+  }
+
+  const arc = buildFlightArc(from, to, performanceProfile.flightSamples, 0.28);
   setSrc(map, 'flight-path', lineFc(arc));
   setSrc(map, 'flight-progress', emptyFc());
   setSrc(map, 'flight-plane', {
@@ -304,20 +353,48 @@ function flyToCity(cityName, options = {}) {
   });
 
   flying.value = true;
-  flyLabel.value = `${fromDest.city} → ${dest.city}`;
+  flyLabel.value = `${fromDest.city} → ${dest.city} · 准备中`;
   flyProgress.value = 0;
 
-  const duration = 5200;
+  await prefetchFlightTiles(map.getStyle(), arc, to);
+  if (token !== flyToken || !mapRef.value) return;
+
+  flyLabel.value = `${fromDest.city} → ${dest.city}`;
+
+  const duration = performanceProfile.flightDuration;
   const start = performance.now();
-  if (flyRaf) cancelAnimationFrame(flyRaf);
+  let lastFrame = 0;
+
+  const finishFlight = () => {
+    if (token !== flyToken) return;
+    flying.value = false;
+    flyLabel.value = '';
+    flyProgress.value = 1;
+    setSrc(map, 'flight-plane', emptyFc());
+  };
+
+  // 由 MapLibre 统一计算相机轨迹，避免逐帧 jumpTo 引发瓦片请求抖动。
+  map.flyTo({
+    ...finalCam,
+    duration,
+    minZoom: 5.2,
+    easing: easeInOutCubic,
+    essential: true,
+  });
+  map.once('moveend', finishFlight);
 
   const step = (now) => {
     if (token !== flyToken || !mapRef.value) return;
     const raw = Math.min(1, (now - start) / duration);
+    if (raw < 1 && now - lastFrame < 66) {
+      flyRaf = requestAnimationFrame(step);
+      return;
+    }
+    lastFrame = now;
     const t = easeInOutCubic(raw);
     flyProgress.value = t;
 
-    const { point, bearing } = sampleArc(arc, t);
+    const { point } = sampleArc(arc, t);
     const progressCoords = arc.slice(0, Math.max(2, Math.floor(t * (arc.length - 1)) + 1));
     progressCoords[progressCoords.length - 1] = point;
     setSrc(map, 'flight-progress', lineFc(progressCoords));
@@ -326,44 +403,31 @@ function flyToCity(cityName, options = {}) {
       features: [{ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: point } }],
     });
 
-    const midBoost = Math.sin(t * Math.PI);
-    const zoom = 5.4 + (finalCam.zoom - 5.4) * (0.15 + 0.85 * t * t) - midBoost * 1.0;
-    const pitch = 35 + (finalCam.pitch - 35) * t + midBoost * 12;
-    const camBearing = bearing * 0.35 + finalCam.bearing * t * 0.65;
-
-    map.jumpTo({
-      center: point,
-      zoom: Math.max(4.8, zoom),
-      pitch: Math.min(68, pitch),
-      bearing: camBearing,
-    });
-
     if (raw < 1) {
       flyRaf = requestAnimationFrame(step);
       return;
     }
-
-    map.easeTo({ ...finalCam, duration: 900, essential: true });
-    map.once('moveend', () => {
-      if (token !== flyToken) return;
-      flying.value = false;
-      flyLabel.value = '';
-      flyProgress.value = 1;
-      setSrc(map, 'flight-plane', emptyFc());
-    });
+    flyRaf = 0;
   };
 
   flyRaf = requestAnimationFrame(step);
 }
 
 function resetNorth() {
-  mapRef.value?.easeTo({ bearing: 0, pitch: 55, duration: 700 });
+  mapRef.value?.easeTo({
+    bearing: 0,
+    pitch: Math.min(50, performanceProfile.maxPitch),
+    duration: performanceProfile.reducedMotion ? 0 : 500,
+  });
 }
 
 function pitchUp() {
   const map = mapRef.value;
   if (!map) return;
-  map.easeTo({ pitch: Math.min(70, map.getPitch() + 12), duration: 320 });
+  map.easeTo({
+    pitch: Math.min(performanceProfile.maxPitch, map.getPitch() + 12),
+    duration: performanceProfile.reducedMotion ? 0 : 260,
+  });
 }
 
 function zoomIn() {
@@ -374,8 +438,16 @@ function zoomOut() {
   mapRef.value?.zoomOut({ duration: 250 });
 }
 
+function selectCity(event) {
+  const city = event.target.value;
+  if (!city || city === activeCity.value) return;
+  flyToCity(city);
+  emit('city-change', city);
+}
+
 onMounted(async () => {
   if (!containerRef.value || destroyed) return;
+  document.addEventListener('visibilitychange', handleVisibilityChange);
   status.value = 'loading';
   mapRevealed.value = false;
   loadPhase.value = '预连接与拉取样式…';
@@ -393,6 +465,7 @@ onMounted(async () => {
 
     const dest = findDestination(props.city);
     activeCity.value = dest.city;
+    const initialPitch = Math.min(dest.pitch, performanceProfile.maxPitch);
 
     // 直接落在最终机位，等该视角瓦片全部就绪再展示
     const map = new maplibregl.Map({
@@ -400,14 +473,16 @@ onMounted(async () => {
       style,
       center: [dest.lng, dest.lat],
       zoom: Math.min(dest.zoom, 12.8),
-      pitch: dest.pitch,
+      pitch: initialPitch,
       bearing: dest.bearing,
-      antialias: true,
+      antialias: performanceProfile.antialias,
+      pixelRatio: performanceProfile.pixelRatio,
       attributionControl: { compact: true },
       interactive: false, // 渲染完前禁止拖动，避免半屏状态
-      maxPitch: 75,
+      maxPitch: performanceProfile.maxPitch,
       fadeDuration: 0,
-      maxTileCacheSize: 512,
+      maxTileCacheSize: performanceProfile.maxTileCacheSize,
+      cancelPendingTileRequestsWhileZooming: performanceProfile.lowPower,
       renderWorldCopies: false,
       localIdeographFontFamily: '"Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif',
       collectResourceTiming: false,
@@ -415,12 +490,14 @@ onMounted(async () => {
     });
 
     map.getCanvas().style.background = MAP_THEME.land;
-    map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
-    map.addControl(new maplibregl.ScaleControl({ maxWidth: 100 }), 'bottom-left');
+    if (!props.compact && !performanceProfile.mobile) {
+      map.addControl(new maplibregl.ScaleControl({ maxWidth: 100 }), 'bottom-left');
+    }
     mapRef.value = map;
 
     const reveal = () => {
       if (destroyed || !mapRef.value || mapRevealed.value) return;
+      if (revealTimer) window.clearTimeout(revealTimer);
       map.resize();
       status.value = 'ready';
       mapRevealed.value = true;
@@ -436,46 +513,48 @@ onMounted(async () => {
         map.touchZoomRotate.enable();
       }
       emit('ready', map);
-      if (props.autoOrbit) startOrbit();
+      if (props.autoOrbit && performanceProfile.enableOrbit) startOrbit();
     };
 
-    map.once('load', () => {
-      if (destroyed) return;
-      loadPhase.value = '绘制标注与立体建筑…';
+    const enrichMap = () => {
+      if (destroyed || !mapRef.value || !map.isStyleLoaded()) return;
       ensureFlightSources(map);
       ensureCityMarkers(map);
       addPoiMarkers(map, dest);
       tryEnable3dBuildings(map);
+    };
 
-      // 再 jump 一次保证最终机位，然后等 idle = 瓦片+标注都画完
-      map.jumpTo({
-        center: [dest.lng, dest.lat],
-        zoom: Math.min(dest.zoom, 12.8),
-        pitch: dest.pitch,
-        bearing: dest.bearing,
-      });
+    const scheduleEnrichment = () => {
+      const run = () => requestAnimationFrame(enrichMap);
+      if ('requestIdleCallback' in window && !performanceProfile.lowPower) {
+        enrichIdle = window.requestIdleCallback(run, { timeout: 1200 });
+      } else {
+        enrichTimer = window.setTimeout(run, performanceProfile.mobile ? 450 : 180);
+      }
+    };
 
-      loadPhase.value = '等待画面渲染完成…';
-
-      // idle：当前视角没有未完成的瓦片请求与重绘
-      const onIdle = () => {
-        if (destroyed) return;
-        // 再等 1～2 帧，确保 WebGL 画完
-        requestAnimationFrame(() => {
-          requestAnimationFrame(reveal);
-        });
-      };
-
-      map.once('idle', onIdle);
-
-      // 兜底：极慢网络最长等 12s 也展示，避免永久转圈
-      window.setTimeout(() => {
-        if (!mapRevealed.value && status.value === 'loading') {
-          loadPhase.value = '网络较慢，即将显示…';
-          reveal();
+    map.once('load', () => {
+      if (destroyed) return;
+      mapStyleReady = true;
+      loadPhase.value = '地图首帧就绪…';
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        reveal();
+        scheduleEnrichment();
+        if (pendingFlight) {
+          const nextFlight = pendingFlight;
+          pendingFlight = null;
+          flyToCity(nextFlight.cityName, nextFlight.options);
         }
-      }, 12000);
+      }));
     });
+
+    // 样式或单张瓦片很慢时也先展示底色和已到达的内容。
+    revealTimer = window.setTimeout(() => {
+      if (!mapRevealed.value && status.value === 'loading') {
+        loadPhase.value = '网络较慢，先显示已加载内容…';
+        reveal();
+      }
+    }, 3800);
 
     map.on('error', (e) => {
       if (status.value === 'loading' && e?.error?.message && !mapRevealed.value) {
@@ -489,7 +568,8 @@ onMounted(async () => {
     map.on('touchstart', stopOrbit);
 
     resizeObserver = new ResizeObserver(() => {
-      map.resize();
+      if (resizeRaf) cancelAnimationFrame(resizeRaf);
+      resizeRaf = requestAnimationFrame(() => map.resize());
     });
     resizeObserver.observe(containerRef.value);
   } catch (err) {
@@ -504,20 +584,31 @@ onUnmounted(() => {
   destroyed = true;
   stopOrbit();
   flyToken += 1;
+  pendingFlight = null;
   if (flyRaf) cancelAnimationFrame(flyRaf);
+  if (resizeRaf) cancelAnimationFrame(resizeRaf);
+  if (revealTimer) window.clearTimeout(revealTimer);
+  if (enrichTimer) window.clearTimeout(enrichTimer);
+  if (enrichIdle && 'cancelIdleCallback' in window) window.cancelIdleCallback(enrichIdle);
   clearPois();
   cityMarkers.forEach((m) => m.remove());
   cityMarkers.clear();
   resizeObserver?.disconnect();
   mapRef.value?.remove();
   mapRef.value = null;
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
 });
+
+function handleVisibilityChange() {
+  if (document.hidden) stopOrbit();
+}
 
 watch(
   () => props.city,
   (city) => {
     if (!city || status.value !== 'ready') return;
-    if (city === activeCity.value && !flying.value) return;
+    // 点击城市后父组件会回传同一个 prop，不应重启或取消当前飞行。
+    if (city === activeCity.value) return;
     flyToCity(city);
   },
 );
@@ -577,18 +668,23 @@ defineExpose({ flyToCity, toggleOrbit, stopOrbit });
     </Transition>
 
     <div v-show="mapRevealed" class="map3d-hud">
-      <div class="map3d-chip-row">
-        <button
-          v-for="item in geoDestinations"
-          :key="item.city"
-          type="button"
-          class="map-city-chip"
-          :class="{ 'is-on': activeCity === item.city }"
-          @click="flyToCity(item.city); $emit('city-change', item.city)"
+      <label class="map3d-city-picker">
+        <span>目的地</span>
+        <select
+          :value="activeCity"
+          aria-label="选择地图目的地"
+          :disabled="flying"
+          @change="selectCity"
         >
-          {{ item.city }}
-        </button>
-      </div>
+          <option
+            v-for="item in geoDestinations"
+            :key="item.city"
+            :value="item.city"
+          >
+            {{ item.city }} · {{ item.province }}
+          </option>
+        </select>
+      </label>
       <div class="map3d-tools">
         <button type="button" class="map-tool-btn" title="拉近" @click="zoomIn">＋</button>
         <button type="button" class="map-tool-btn" title="拉远" @click="zoomOut">－</button>
@@ -599,7 +695,7 @@ defineExpose({ flyToCity, toggleOrbit, stopOrbit });
           class="map-tool-btn"
           :class="{ 'is-on': orbiting }"
           title="环绕"
-          :disabled="flying"
+          :disabled="flying || !performanceProfile.enableOrbit"
           @click="toggleOrbit"
         >
           环绕
@@ -609,7 +705,7 @@ defineExpose({ flyToCity, toggleOrbit, stopOrbit });
 
     <div v-if="mapRevealed" class="map3d-legend">
       <span class="legend-dot" />
-      <span>OpenFreeMap · 3D · 航线飞航</span>
+      <span>MapLibre · {{ performanceProfile.enable3d ? '3D' : '轻量模式' }} · 航线</span>
     </div>
   </div>
 </template>

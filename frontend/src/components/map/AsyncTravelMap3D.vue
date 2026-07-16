@@ -5,9 +5,9 @@
 import { defineAsyncComponent, h, onMounted, onUnmounted, ref } from 'vue';
 
 const props = defineProps({
-  /** 是否等进入视口再挂载（首页建议 true） */
-  whenVisible: { type: Boolean, default: false },
-  rootMargin: { type: String, default: '200px' },
+  /** 提前接近视口时再挂载，避免地图抢占页面首屏资源 */
+  whenVisible: { type: Boolean, default: true },
+  rootMargin: { type: String, default: '360px' },
 });
 
 const shellRef = ref(null);

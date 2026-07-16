@@ -2,7 +2,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, RouterLink } from 'vue-router';
 import { resourceApi } from '../api/resources.js';
-import { aiApi } from '../api/ai.js';
+import { adminAiApi as aiApi } from '../api/ai.js';
 
 const route = useRoute();
 const loading = ref(false);
@@ -35,8 +35,9 @@ const fields = computed(() => route.meta.fields || []);
 const fieldLabels = computed(() => route.meta.fieldLabels || {});
 const canToggleStatus = computed(() => route.meta.canToggleStatus !== false);
 const isTravelNotes = computed(() => resourceKey.value === 'travel-notes');
+const isAdmin = computed(() => route.meta.admin === true);
 const isDiscover = computed(() =>
-  ['cities', 'attractions', 'hotels', 'restaurants'].includes(resourceKey.value),
+  !isAdmin.value && ['cities', 'attractions', 'hotels', 'restaurants'].includes(resourceKey.value),
 );
 
 function labelOf(field) {
@@ -156,7 +157,7 @@ onMounted(load);
 
 <template>
   <section class="page-intro">
-    <p class="eyebrow">{{ isDiscover ? '发现' : '我的' }}</p>
+    <p class="eyebrow">{{ isAdmin ? '运营管理' : (isDiscover ? '发现' : '我的') }}</p>
     <h1>{{ title }}</h1>
     <p>{{ description }}</p>
   </section>
@@ -208,7 +209,7 @@ onMounted(load);
             <td v-for="field in fields" :key="field">{{ cellValue(record, field) }}</td>
             <td class="actions">
               <button
-                v-if="resourceKey === 'cities' && record.name"
+                v-if="!isAdmin && resourceKey === 'cities' && record.name"
                 type="button"
                 class="btn-coral btn-sm"
                 @click="planThisCity(record)"

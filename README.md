@@ -1,6 +1,6 @@
 # Travel Mind
 
-Travel Mind is a full-stack intelligent travel planning system with Java trip planning, Vue management pages, MySQL persistence, and local FastAPI AI services.
+Travel Mind is a full-stack intelligent travel planning system with a consumer travel application, a separate operations console, Java trip planning, MySQL persistence, and local FastAPI AI services.
 
 ## Tech Stack
 
@@ -40,6 +40,13 @@ npm run dev
 
 Vite runs on `http://localhost:5173` by default.
 
+- Consumer application: `http://localhost:5173/`
+- Consumer login: `http://localhost:5173/login`
+- Admin console: `http://localhost:5173/admin`
+- Admin login: `http://localhost:5173/admin/login`
+
+The dev profile creates BCrypt-backed demo accounts on first startup. Override their passwords with `TRAVELMIND_DEMO_PASSWORD` and `TRAVELMIND_ADMIN_PASSWORD` before startup.
+
 ## Python AI
 
 ```bash
@@ -58,7 +65,7 @@ AI endpoints:
 - `POST http://localhost:19080/api/trip/evaluate`
 - `POST http://localhost:19080/api/content/analyze`
 
-Java exposes matching frontend endpoints under `/api/ai/*` and stores results in `tm_ai_analysis_record`.
+Java exposes matching authenticated user endpoints under `/api/user/ai/*` and stores results in `tm_ai_analysis_record`.
 
 The bundled model is `python-ai/models/travel-risk-yolo-best.pt`. Its dataset, training report, and metrics are under `docs/ai`.
 
@@ -69,6 +76,7 @@ Copy `.env.example` to `.env` and set local values for MySQL, Redis, map/content
 ## Delivery Documents
 
 - Final TODO workflow: `docs/project-todo-workflow.md`.
+- Dual-portal product boundary: `docs/design/dual-portal-product.md`.
 - Backend API: `docs/api/backend-api.md`.
 - Java-Python API: `docs/api/java-python-api.md`.
 - Test report: `docs/test/test-report.md`.

@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, onUnmounted, ref } from 'vue';
-import { useRouter, RouterLink } from 'vue-router';
+import { RouterLink } from 'vue-router';
 import {
   featuredDestinations,
   rotatingCities,
@@ -9,8 +9,8 @@ import {
 } from '../layout/menu.js';
 import { useReveal } from '../composables/useReveal.js';
 import TravelMap3D from '../components/map/AsyncTravelMap3D.vue';
+import { cityImageByName } from '../data/cityImages.js';
 
-const router = useRouter();
 const root = ref(null);
 const cityIndex = ref(0);
 const hoverCity = ref(null);
@@ -19,10 +19,6 @@ let timer;
 
 useReveal(root);
 
-function planCity(city) {
-  router.push({ path: '/planning', query: { city } });
-}
-
 function onMapCity(city) {
   mapCity.value = city;
 }
@@ -30,7 +26,7 @@ function onMapCity(city) {
 onMounted(() => {
   timer = window.setInterval(() => {
     cityIndex.value = (cityIndex.value + 1) % rotatingCities.length;
-  }, 2200);
+  }, 4200);
 });
 
 onUnmounted(() => {
@@ -41,10 +37,12 @@ onUnmounted(() => {
 <template>
   <div ref="root" class="home-page">
     <section class="home-hero home-hero--luxe">
-      <div class="hero-mesh" aria-hidden="true" />
-      <div class="hero-float f1" aria-hidden="true" />
-      <div class="hero-float f2" aria-hidden="true" />
-      <div class="hero-float f3" aria-hidden="true" />
+      <img
+        class="home-hero-image"
+        :src="cityImageByName[rotatingCities[cityIndex]]"
+        :alt="`${rotatingCities[cityIndex]}城市风景`"
+      />
+      <div class="home-hero-shade" aria-hidden="true" />
 
       <div class="hero-copy" data-reveal>
         <p class="hero-kicker">
@@ -54,9 +52,7 @@ onUnmounted(() => {
         <h1>
           下一站，
           <span class="city-swap">
-            <Transition name="city-fade" mode="out-in">
-              <em :key="rotatingCities[cityIndex]">{{ rotatingCities[cityIndex] }}</em>
-            </Transition>
+            <em>{{ rotatingCities[cityIndex] }}</em>
           </span>
         </h1>
         <p class="lead">
@@ -71,29 +67,6 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <div class="hero-ticket" data-reveal aria-hidden="true">
-        <div class="ticket">
-          <div class="ticket-top">
-            <span>BOARDING PASS</span>
-            <span>TM · 2026</span>
-          </div>
-          <div class="ticket-mid">
-            <div>
-              <small>FROM</small>
-              <strong>日常</strong>
-            </div>
-            <div class="ticket-plane">✈</div>
-            <div>
-              <small>TO</small>
-              <strong>{{ rotatingCities[cityIndex] }}</strong>
-            </div>
-          </div>
-          <div class="ticket-bot">
-            <span>智能排程</span>
-            <span>可保存 · 可对话</span>
-          </div>
-        </div>
-      </div>
     </section>
 
     <div class="marquee" data-reveal aria-label="热门标签">
@@ -135,7 +108,7 @@ onUnmounted(() => {
       <div class="home-map-cta">
         <div>
           <strong>当前镜头：{{ mapCity }}</strong>
-          <p>拖动旋转查看天际线，点顶部城市芯片切换目的地</p>
+          <p>拖动旋转查看天际线，继续比较不同目的地</p>
         </div>
         <div class="actions">
           <RouterLink class="btn-link btn-coral" :to="{ path: '/planning', query: { city: mapCity } }">
@@ -157,40 +130,42 @@ onUnmounted(() => {
     </div>
 
     <div class="dest-grid">
-      <button
+      <RouterLink
         v-for="(item, index) in featuredDestinations"
         :key="item.city"
-        type="button"
         class="dest-card dest-card--luxe"
+        :to="`/city/${encodeURIComponent(item.city)}`"
         data-reveal
         :style="{ '--reveal-delay': `${index * 80}ms` }"
         @mouseenter="hoverCity = item.city"
         @mouseleave="hoverCity = null"
-        @click="planCity(item.city)"
       >
         <div class="dest-cover" :class="`mood-${item.mood}`">
+          <img class="dest-cover-image" :src="cityImageByName[item.city]" :alt="`${item.city}城市风景`" />
           <span class="dest-shine" aria-hidden="true" />
-          <span class="tag">{{ item.tag }}</span>
+          <div class="dest-labels">
+            <span class="tag">{{ item.tag }}</span>
+            <span class="season">{{ item.season }}</span>
+          </div>
           <strong>{{ item.city }}</strong>
-          <span class="season">{{ item.season }}</span>
         </div>
         <div class="dest-body">
           <p>{{ item.blurb }}</p>
           <div class="dest-meta">
             <span>{{ item.days }}</span>
             <span class="dest-cta" :class="{ 'is-hot': hoverCity === item.city }">
-              去规划 →
+              先看看 →
             </span>
           </div>
           <div class="dest-hint">{{ item.hint }}</div>
         </div>
-      </button>
+      </RouterLink>
     </div>
 
     <div class="section-head" data-reveal>
       <div>
         <h2>三步出门</h2>
-        <p>从灵感到日程，不用学系统</p>
+        <p>从灵感到日程，像聊天一样简单</p>
       </div>
     </div>
 

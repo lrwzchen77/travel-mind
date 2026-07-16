@@ -1,131 +1,102 @@
 import { createRouter, createWebHistory } from 'vue-router';
+import { authSession } from '../auth/session.js';
+import AppLayout from '../layout/AppLayout.vue';
+import AdminLayout from '../layout/AdminLayout.vue';
 import DashboardView from '../views/DashboardView.vue';
 import AiLabView from '../views/AiLabView.vue';
+import AiInspirationView from '../views/AiInspirationView.vue';
 import PlanningView from '../views/PlanningView.vue';
 import ExploreMapView from '../views/ExploreMapView.vue';
+import DiscoveryListView from '../views/DiscoveryListView.vue';
+import CityDetailView from '../views/CityDetailView.vue';
 import ResourceCrudView from '../views/ResourceCrudView.vue';
 import TripDetailView from '../views/TripDetailView.vue';
 import TripHistoryView from '../views/TripHistoryView.vue';
 import UserProfileView from '../views/UserProfileView.vue';
+import UserLibraryView from '../views/UserLibraryView.vue';
+import LoginView from '../views/LoginView.vue';
+import AdminDashboardView from '../views/admin/AdminDashboardView.vue';
+import AdminSettingsView from '../views/admin/AdminSettingsView.vue';
 
 const fieldLabels = {
-  id: '编号',
-  name: '名称',
-  province: '省份',
-  country: '国家',
-  popularity: '热度',
-  status: '状态',
-  city_id: '城市',
-  category: '分类',
-  rating: '评分',
-  price: '参考价',
-  tags: '标签',
-  price_range: '价位',
-  cuisine: '菜系',
-  average_cost: '人均',
-  user_id: '用户',
-  target_type: '类型',
-  target_id: '目标',
-  note: '备注',
-  attraction_id: '景点',
-  title: '标题',
-  visibility: '可见',
-  analysis_type: '分析类型',
+  id: '编号', name: '名称', username: '账号', nickname: '昵称', phone: '手机号', email: '邮箱',
+  province: '省份', country: '国家', popularity: '热度', status: '状态', city_id: '城市',
+  category: '分类', rating: '评分', price: '参考价', tags: '标签', price_range: '价位',
+  cuisine: '菜系', average_cost: '人均', user_id: '用户', target_type: '类型', target_id: '目标',
+  note: '备注', attraction_id: '景点', title: '标题', visibility: '可见', analysis_type: '分析类型',
 };
 
+const discoveryRoutes = [
+  ['cities', '发现城市', '翻一翻下一站灵感，点进去就能开始规划。', ['name', 'province', 'description', 'popularity']],
+  ['attractions', '去哪玩', '挑几个真正想走进日程的地方，别只收藏不出发。', ['name', 'category', 'rating', 'price', 'tags']],
+  ['hotels', '住哪里', '按感觉和价位挑落脚点，规划时会参考你的选择。', ['name', 'category', 'rating', 'price_range', 'tags']],
+  ['restaurants', '吃什么', '一顿值得专程去吃的本地味道，先收藏再说。', ['name', 'cuisine', 'rating', 'average_cost', 'tags']],
+].map(([resourceKey, title, description, fields]) => ({
+  path: resourceKey,
+  name: resourceKey,
+  component: DiscoveryListView,
+  meta: { resourceKey, title, description, fields, public: true },
+}));
+
+const adminResources = [
+  ['users', '用户管理', ['id', 'username', 'nickname', 'phone', 'email', 'status']],
+  ['cities', '城市内容', ['id', 'name', 'province', 'country', 'popularity', 'status']],
+  ['attractions', '景点内容', ['id', 'city_id', 'name', 'category', 'rating', 'price', 'status']],
+  ['hotels', '住宿内容', ['id', 'city_id', 'name', 'category', 'rating', 'price_range', 'status']],
+  ['restaurants', '餐饮内容', ['id', 'city_id', 'name', 'cuisine', 'rating', 'average_cost', 'status']],
+  ['travel-tags', '标签体系', ['id', 'name', 'category', 'status']],
+  ['travel-notes', '用户笔记', ['id', 'user_id', 'title', 'visibility', 'status']],
+  ['trip-plans', '行程记录', ['id', 'user_id', 'title', 'destination_city', 'status']],
+  ['ai-records', 'AI 调用记录', ['id', 'user_id', 'analysis_type', 'target_type', 'status']],
+].map(([resourceKey, title, fields]) => ({
+  path: `resources/${resourceKey}`,
+  name: `admin-${resourceKey}`,
+  component: ResourceCrudView,
+  meta: {
+    resourceKey,
+    title,
+    description: '运营数据维护与状态治理',
+    fields,
+    fieldLabels,
+    admin: true,
+    requiresAuth: true,
+    canToggleStatus: resourceKey !== 'ai-records',
+  },
+}));
+
 export const routes = [
-  { path: '/', name: 'dashboard', component: DashboardView },
-  { path: '/planning', name: 'planning', component: PlanningView },
-  { path: '/map', name: 'explore-map', component: ExploreMapView },
-  { path: '/profile', name: 'profile', component: UserProfileView },
   {
-    path: '/cities',
-    name: 'cities',
-    component: ResourceCrudView,
-    meta: {
-      resourceKey: 'cities',
-      title: '发现城市',
-      description: '逛逛目的地灵感墙，看中了就一键带进行程规划。',
-      fields: ['id', 'name', 'province', 'country', 'popularity', 'status'],
-      fieldLabels,
-    },
+    path: '/',
+    component: AppLayout,
+    children: [
+      { path: '', name: 'dashboard', component: DashboardView, meta: { public: true } },
+      { path: 'planning', name: 'planning', component: PlanningView, meta: { requiresAuth: true } },
+      { path: 'map', name: 'explore-map', component: ExploreMapView, meta: { public: true } },
+      ...discoveryRoutes,
+      { path: 'city/:city', name: 'city-detail', component: CityDetailView, meta: { public: true } },
+      { path: 'trip-history', name: 'trip-history', component: TripHistoryView, meta: { requiresAuth: true } },
+      { path: 'trip/:id', name: 'trip-detail', component: TripDetailView, meta: { requiresAuth: true } },
+      { path: 'ai-lab', name: 'ai-lab', component: AiInspirationView, meta: { requiresAuth: true } },
+      { path: 'favorites', name: 'favorites', component: UserLibraryView, meta: { resourceKey: 'favorites', title: '我的收藏', requiresAuth: true } },
+      { path: 'travel-notes', name: 'travel-notes', component: UserLibraryView, meta: { resourceKey: 'travel-notes', title: '旅行笔记', requiresAuth: true } },
+      { path: 'ai-records', name: 'ai-records', component: UserLibraryView, meta: { resourceKey: 'ai-records', title: '灵感足迹', requiresAuth: true } },
+      { path: 'profile', name: 'profile', component: UserProfileView, meta: { requiresAuth: true } },
+    ],
   },
+  { path: '/login', name: 'user-login', component: LoginView, meta: { portal: 'user', public: true } },
+  { path: '/admin/login', name: 'admin-login', component: LoginView, meta: { portal: 'admin', public: true } },
   {
-    path: '/attractions',
-    name: 'attractions',
-    component: ResourceCrudView,
-    meta: {
-      resourceKey: 'attractions',
-      title: '景点清单',
-      description: '收藏想打卡的景点，规划时更容易排进日程。',
-      fields: ['id', 'city_id', 'name', 'category', 'rating', 'price', 'tags', 'status'],
-      fieldLabels,
-    },
+    path: '/admin',
+    component: AdminLayout,
+    meta: { admin: true, requiresAuth: true },
+    children: [
+      { path: '', name: 'admin-dashboard', component: AdminDashboardView },
+      { path: 'settings', name: 'admin-settings', component: AdminSettingsView },
+      { path: 'ai-tools', name: 'admin-ai-tools', component: AiLabView },
+      ...adminResources,
+    ],
   },
-  {
-    path: '/hotels',
-    name: 'hotels',
-    component: ResourceCrudView,
-    meta: {
-      resourceKey: 'hotels',
-      title: '住哪里',
-      description: '浏览住宿选项与价位，找到睡得安心的那一晚。',
-      fields: ['id', 'city_id', 'name', 'category', 'rating', 'price_range', 'tags', 'status'],
-      fieldLabels,
-    },
-  },
-  {
-    path: '/restaurants',
-    name: 'restaurants',
-    component: ResourceCrudView,
-    meta: {
-      resourceKey: 'restaurants',
-      title: '吃什么',
-      description: '本地味道与人气馆子，让行程不只有走路。',
-      fields: ['id', 'city_id', 'name', 'cuisine', 'rating', 'average_cost', 'tags', 'status'],
-      fieldLabels,
-    },
-  },
-  { path: '/trip-history', name: 'trip-history', component: TripHistoryView },
-  { path: '/ai-lab', name: 'ai-lab', component: AiLabView },
-  {
-    path: '/favorites',
-    name: 'favorites',
-    component: ResourceCrudView,
-    meta: {
-      resourceKey: 'favorites',
-      title: '我的收藏',
-      description: '你盯上的城市、景点都在这里，方便下次规划直接复用。',
-      fields: ['id', 'user_id', 'target_type', 'target_id', 'note'],
-      fieldLabels,
-    },
-  },
-  {
-    path: '/travel-notes',
-    name: 'travel-notes',
-    component: ResourceCrudView,
-    meta: {
-      resourceKey: 'travel-notes',
-      title: '旅行笔记',
-      description: '记下路上的片段，也能一键让 AI 帮你提炼亮点。',
-      fields: ['id', 'user_id', 'city_id', 'attraction_id', 'title', 'visibility', 'status'],
-      fieldLabels,
-    },
-  },
-  {
-    path: '/ai-records',
-    name: 'ai-records',
-    component: ResourceCrudView,
-    meta: {
-      resourceKey: 'ai-records',
-      title: '分析足迹',
-      description: '回顾你用过的视觉识别、舒适度评估和文本分析。',
-      fields: ['id', 'user_id', 'analysis_type', 'target_type', 'target_id', 'status'],
-      fieldLabels,
-      canToggleStatus: false,
-    },
-  },
-  { path: '/trip/:id', name: 'trip-detail', component: TripDetailView },
+  { path: '/:pathMatch(.*)*', redirect: '/' },
 ];
 
 const router = createRouter({
@@ -134,6 +105,23 @@ const router = createRouter({
   scrollBehavior() {
     return { top: 0 };
   },
+});
+
+router.beforeEach((to) => {
+  const isAdmin = to.matched.some((route) => route.meta.admin);
+  const requiresAuth = to.matched.some((route) => route.meta.requiresAuth);
+  if (!requiresAuth) return true;
+  if (!authSession.isLoggedIn()) {
+    return { path: isAdmin ? '/admin/login' : '/login', query: { redirect: to.fullPath } };
+  }
+  if (isAdmin && !authSession.hasRole('admin')) {
+    authSession.clear();
+    return { path: '/admin/login', query: { reason: 'role' } };
+  }
+  if (!isAdmin && authSession.hasRole('admin')) {
+    return '/admin';
+  }
+  return true;
 });
 
 export default router;

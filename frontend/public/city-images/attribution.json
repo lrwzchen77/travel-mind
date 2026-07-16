@@ -1,0 +1,346 @@
+{
+  "generatedAt": "2026-07-15T12:32:29.642Z",
+  "images": [
+    {
+      "city": "北京",
+      "file": "beijing.jpg",
+      "commonsTitle": "File:Skyline of Beijing CBD with B-5906 approaching (20211016171955) (1).jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Skyline_of_Beijing_CBD_with_B-5906_approaching_(20211016171955)_(1).jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/2/2d/Skyline_of_Beijing_CBD_with_B-5906_approaching_%2820211016171955%29_%281%29.jpg",
+      "author": "N509FZ",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0"
+    },
+    {
+      "city": "天津",
+      "file": "tianjin.jpg",
+      "commonsTitle": "File:Tianjin Eye and Tianjin.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Tianjin_Eye_and_Tianjin.jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/8/81/Tianjin_Eye_and_Tianjin.jpg",
+      "author": "KangTyngrwey",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "city": "石家庄",
+      "file": "shijiazhuang.jpg",
+      "commonsTitle": "File:Liberation Square, Shijiazhuang.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Liberation_Square,_Shijiazhuang.jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/b/b6/Liberation_Square%2C_Shijiazhuang.jpg",
+      "author": "E2568",
+      "license": "CC0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+    },
+    {
+      "city": "太原",
+      "file": "taiyuan.jpg",
+      "commonsTitle": "File:Taiyuan20190430.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Taiyuan20190430.jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/7/7c/Taiyuan20190430.jpg",
+      "author": "xiquinhosilva",
+      "license": "CC BY 2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
+    },
+    {
+      "city": "呼和浩特",
+      "file": "hohhot.jpg",
+      "commonsTitle": "File:Dazhao (Wuliang) Temple in Hohhot1.JPG",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Dazhao_(Wuliang)_Temple_in_Hohhot1.JPG",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/2/2f/Dazhao_%28Wuliang%29_Temple_in_Hohhot1.JPG",
+      "author": "兜兜",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+    },
+    {
+      "city": "沈阳",
+      "file": "shenyang.jpg",
+      "commonsTitle": "File:沈阳浑河大桥天际线.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:%E6%B2%88%E9%98%B3%E6%B5%91%E6%B2%B3%E5%A4%A7%E6%A1%A5%E5%A4%A9%E9%99%85%E7%BA%BF.jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/a/a2/%E6%B2%88%E9%98%B3%E6%B5%91%E6%B2%B3%E5%A4%A7%E6%A1%A5%E5%A4%A9%E9%99%85%E7%BA%BF.jpg",
+      "author": "KangTyngrwey",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "city": "长春",
+      "file": "changchun.jpg",
+      "commonsTitle": "File:Xinmin Avenue 20251101.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Xinmin_Avenue_20251101.jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/b/b0/Xinmin_Avenue_20251101.jpg",
+      "author": "JacobLyu",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "city": "哈尔滨",
+      "file": "harbin.jpg",
+      "commonsTitle": "File:26935-Harbin (29661238117).jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:26935-Harbin_(29661238117).jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/9/94/26935-Harbin_%2829661238117%29.jpg",
+      "author": "xiquinhosilva",
+      "license": "CC BY 2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
+    },
+    {
+      "city": "上海",
+      "file": "shanghai.jpg",
+      "commonsTitle": "File:Pudong Shanghai November 2017 panorama.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Pudong_Shanghai_November_2017_panorama.jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/d/df/Pudong_Shanghai_November_2017_panorama.jpg",
+      "author": "King of Hearts",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "city": "南京",
+      "file": "nanjing.jpg",
+      "commonsTitle": "File:南京总统府西花厅2024.3.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:%E5%8D%97%E4%BA%AC%E6%80%BB%E7%BB%9F%E5%BA%9C%E8%A5%BF%E8%8A%B1%E5%8E%852024.3.jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/f/fd/%E5%8D%97%E4%BA%AC%E6%80%BB%E7%BB%9F%E5%BA%9C%E8%A5%BF%E8%8A%B1%E5%8E%852024.3.jpg",
+      "author": "ScareCriterion12",
+      "license": "CC0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+    },
+    {
+      "city": "杭州",
+      "file": "hangzhou.jpg",
+      "commonsTitle": "File:20201012从钱塘江江面上空观看钱江新城 2.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:20201012%E4%BB%8E%E9%92%B1%E5%A1%98%E6%B1%9F%E6%B1%9F%E9%9D%A2%E4%B8%8A%E7%A9%BA%E8%A7%82%E7%9C%8B%E9%92%B1%E6%B1%9F%E6%96%B0%E5%9F%8E_2.jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/7/78/20201012%E4%BB%8E%E9%92%B1%E5%A1%98%E6%B1%9F%E6%B1%9F%E9%9D%A2%E4%B8%8A%E7%A9%BA%E8%A7%82%E7%9C%8B%E9%92%B1%E6%B1%9F%E6%96%B0%E5%9F%8E_2.jpg",
+      "author": "MasaneMiyaPA",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "city": "合肥",
+      "file": "hefei.jpg",
+      "commonsTitle": "File:天鹅湖.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:%E5%A4%A9%E9%B9%85%E6%B9%96.jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/9/91/%E5%A4%A9%E9%B9%85%E6%B9%96.jpg",
+      "author": "钉钉",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "city": "福州",
+      "file": "fuzhou.jpg",
+      "commonsTitle": "File:Fuzhou Taixi CBD.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Fuzhou_Taixi_CBD.jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/7/7c/Fuzhou_Taixi_CBD.jpg",
+      "author": "Listwiseafford",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "city": "南昌",
+      "file": "nanchang.jpg",
+      "commonsTitle": "File:Nanchang Skyline.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Nanchang_Skyline.jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/8/82/Nanchang_Skyline.jpg",
+      "author": "Akira CA",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "city": "济南",
+      "file": "jinan.jpg",
+      "commonsTitle": "File:China Jinan 5196975.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:China_Jinan_5196975.jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/4/4b/China_Jinan_5196975.jpg",
+      "author": "Ermell",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "city": "郑州",
+      "file": "zhengzhou.jpg",
+      "commonsTitle": "File:Zhengzhou CBDcity.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Zhengzhou_CBDcity.jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/d/de/Zhengzhou_CBDcity.jpg",
+      "author": "白诗棋",
+      "license": "CC0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+    },
+    {
+      "city": "武汉",
+      "file": "wuhan.jpg",
+      "commonsTitle": "File:Revolution of 1911 Museum.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Revolution_of_1911_Museum.jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/b/b1/Revolution_of_1911_Museum.jpg",
+      "author": "Doraemon.tvb",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+    },
+    {
+      "city": "长沙",
+      "file": "changsha.jpg",
+      "commonsTitle": "File:爱晚亭（秋-侧面）.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:%E7%88%B1%E6%99%9A%E4%BA%AD%EF%BC%88%E7%A7%8B-%E4%BE%A7%E9%9D%A2%EF%BC%89.jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/c/cc/%E7%88%B1%E6%99%9A%E4%BA%AD%EF%BC%88%E7%A7%8B-%E4%BE%A7%E9%9D%A2%EF%BC%89.jpg",
+      "author": "Junchong",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "city": "广州",
+      "file": "guangzhou.jpg",
+      "commonsTitle": "File:Canton Tower 20241027.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Canton_Tower_20241027.jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/2/24/Canton_Tower_20241027.jpg",
+      "author": "Tim Wu",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "city": "南宁",
+      "file": "nanning.jpg",
+      "commonsTitle": "File:Skyline of China-ASEAN Business Center in Qingxiu District.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Skyline_of_China-ASEAN_Business_Center_in_Qingxiu_District.jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/7/72/Skyline_of_China-ASEAN_Business_Center_in_Qingxiu_District.jpg",
+      "author": "EditQ",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "city": "海口",
+      "file": "haikou.jpg",
+      "commonsTitle": "File:Altstadt von Haikou (Hainan).jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Altstadt_von_Haikou_(Hainan).jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/3/3e/Altstadt_von_Haikou_%28Hainan%29.jpg",
+      "author": "Yolanda Yao",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "city": "重庆",
+      "file": "chongqing.jpg",
+      "commonsTitle": "File:Chongqing Nightscape.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Chongqing_Nightscape.jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/6/67/Chongqing_Nightscape.jpg",
+      "author": "Jay Huang",
+      "license": "CC BY 2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
+    },
+    {
+      "city": "成都",
+      "file": "chengdu.jpg",
+      "commonsTitle": "File:雪山下的成都市天际线 Chengdu skyline with snow capped mountains.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:%E9%9B%AA%E5%B1%B1%E4%B8%8B%E7%9A%84%E6%88%90%E9%83%BD%E5%B8%82%E5%A4%A9%E9%99%85%E7%BA%BF_Chengdu_skyline_with_snow_capped_mountains.jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/7/74/%E9%9B%AA%E5%B1%B1%E4%B8%8B%E7%9A%84%E6%88%90%E9%83%BD%E5%B8%82%E5%A4%A9%E9%99%85%E7%BA%BF_Chengdu_skyline_with_snow_capped_mountains.jpg",
+      "author": "FISU",
+      "license": "CC BY 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
+    },
+    {
+      "city": "贵阳",
+      "file": "guiyang.jpg",
+      "commonsTitle": "File:Guizhou Financial City District.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Guizhou_Financial_City_District.jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/f/fc/Guizhou_Financial_City_District.jpg",
+      "author": "Ryedamien",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "city": "昆明",
+      "file": "kunming.jpg",
+      "commonsTitle": "File:五华区与盘龙区天际线 - 航拍 - 2025-05-16 03.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:%E4%BA%94%E5%8D%8E%E5%8C%BA%E4%B8%8E%E7%9B%98%E9%BE%99%E5%8C%BA%E5%A4%A9%E9%99%85%E7%BA%BF_-_%E8%88%AA%E6%8B%8D_-_2025-05-16_03.jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/e/e2/%E4%BA%94%E5%8D%8E%E5%8C%BA%E4%B8%8E%E7%9B%98%E9%BE%99%E5%8C%BA%E5%A4%A9%E9%99%85%E7%BA%BF_-_%E8%88%AA%E6%8B%8D_-_2025-05-16_03.jpg",
+      "author": "瑞丽江的河水",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "city": "拉萨",
+      "file": "lhasa.jpg",
+      "commonsTitle": "File:Potala palace21.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Potala_palace21.jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/e/e9/Potala_palace21.jpg",
+      "author": "Antoine Taveneaux",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+    },
+    {
+      "city": "西安",
+      "file": "xian.jpg",
+      "commonsTitle": "File:西安钟楼2020 (1).jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:%E8%A5%BF%E5%AE%89%E9%92%9F%E6%A5%BC2020_(1).jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/4/44/%E8%A5%BF%E5%AE%89%E9%92%9F%E6%A5%BC2020_%281%29.jpg",
+      "author": "ScareCriterion12",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "city": "兰州",
+      "file": "lanzhou.jpg",
+      "commonsTitle": "File:Lanzhou City Planning Exhibition Hall.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Lanzhou_City_Planning_Exhibition_Hall.jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/4/48/Lanzhou_City_Planning_Exhibition_Hall.jpg",
+      "author": "Pieceofmetalwork",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "city": "西宁",
+      "file": "xining.jpg",
+      "commonsTitle": "File:Xining skyline.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Xining_skyline.jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/e/e2/Xining_skyline.jpg",
+      "author": "NoGhost",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "city": "银川",
+      "file": "yinchuan.jpg",
+      "commonsTitle": "File:Skyline of Jinfeng District, Yinchuan (53724463112).jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Skyline_of_Jinfeng_District,_Yinchuan_(53724463112).jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/2/2b/Skyline_of_Jinfeng_District%2C_Yinchuan_%2853724463112%29.jpg",
+      "author": "xiquinhosilva",
+      "license": "CC BY 2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
+    },
+    {
+      "city": "乌鲁木齐",
+      "file": "urumqi.jpg",
+      "commonsTitle": "File:Urumqi Skyline July 2019.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Urumqi_Skyline_July_2019.jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/a/a8/Urumqi_Skyline_July_2019.jpg",
+      "author": "Albertaont",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "city": "台北",
+      "file": "taipei.jpg",
+      "commonsTitle": "File:Taipei skyline sunset.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Taipei_skyline_sunset.jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/4/41/Taipei_skyline_sunset.jpg",
+      "author": "Ludovic Lubeigt",
+      "license": "CC BY-SA 2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
+    },
+    {
+      "city": "香港",
+      "file": "hong-kong.jpg",
+      "commonsTitle": "File:Hong Kong Skyline - Dec 2007.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Hong_Kong_Skyline_-_Dec_2007.jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/8/8f/Hong_Kong_Skyline_-_Dec_2007.jpg",
+      "author": "Diliff",
+      "license": "CC BY 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
+    },
+    {
+      "city": "澳门",
+      "file": "macau.jpg",
+      "commonsTitle": "File:The Center of Macau Peninsula Night View.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:The_Center_of_Macau_Peninsula_Night_View.jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/1/12/The_Center_of_Macau_Peninsula_Night_View.jpg",
+      "author": "Charlie fong",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    }
+  ],
+  "failures": []
+}

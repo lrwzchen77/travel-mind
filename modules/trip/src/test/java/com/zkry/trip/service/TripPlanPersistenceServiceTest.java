@@ -6,6 +6,8 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
 
 import com.zkry.common.json.utils.JsonUtils;
 import com.zkry.trip.dto.Attraction;
@@ -46,6 +48,21 @@ class TripPlanPersistenceServiceTest {
         assertThat(copiedId).isPositive();
         assertThat(copiedId).isNotEqualTo(9001L);
         verify(jdbcTemplate, atLeast(4)).update(anyString(), any(MapSqlParameterSource.class));
+    }
+
+    @Test
+    void scopesTripReadsAndDeletesToCurrentUser() {
+        NamedParameterJdbcTemplate jdbcTemplate = org.mockito.Mockito.mock(NamedParameterJdbcTemplate.class);
+        TripPlanResponse response = response("plan-1");
+        when(jdbcTemplate.queryForList(contains("user_id = :userId"), eq(Map.of("id", 9001L, "userId", 1001L))))
+            .thenReturn(List.of(Map.of("raw_plan_json", JsonUtils.toJsonString(response))));
+        when(jdbcTemplate.update(contains("user_id = :userId"), any(MapSqlParameterSource.class))).thenReturn(0);
+        TripPlanPersistenceService service = new TripPlanPersistenceService(jdbcTemplate);
+
+        assertThat(service.detail(9001L, 1001L).data().city()).isEqualTo("Hangzhou");
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.delete(9001L, 2002L))
+            .isInstanceOf(com.zkry.common.core.exception.BizException.class)
+            .hasMessage("行程不存在或无权操作。");
     }
 
     private TripRequest request() {

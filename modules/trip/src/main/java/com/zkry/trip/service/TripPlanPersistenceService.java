@@ -60,9 +60,18 @@ public class TripPlanPersistenceService {
     }
 
     public TripPlanResponse detail(long tripId) {
+        return detailQuery(tripId, null);
+    }
+
+    public TripPlanResponse detail(long tripId, long userId) {
+        return detailQuery(tripId, userId);
+    }
+
+    private TripPlanResponse detailQuery(long tripId, Long userId) {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-            "SELECT * FROM tm_trip_plan WHERE id = :id AND deleted = 0 LIMIT 1",
-            Map.of("id", tripId));
+            "SELECT * FROM tm_trip_plan WHERE id = :id AND deleted = 0"
+                + (userId == null ? "" : " AND user_id = :userId") + " LIMIT 1",
+            userId == null ? Map.of("id", tripId) : Map.of("id", tripId, "userId", userId));
         if (rows.isEmpty()) {
             throw new BizException("行程不存在或已删除。");
         }
@@ -76,7 +85,7 @@ public class TripPlanPersistenceService {
 
     @Transactional
     public long copy(long tripId, long userId) {
-        TripPlanResponse original = detail(tripId);
+        TripPlanResponse original = detail(tripId, userId);
         TripPlanResponse copied = withPlanId(original, "copy-" + tripId);
         return save(userId, copied, requestFromPlan(copied.data()));
     }
@@ -88,6 +97,16 @@ public class TripPlanPersistenceService {
             new MapSqlParameterSource().addValue("id", tripId));
         if (updated == 0) {
             throw new BizException("行程不存在或已删除。");
+        }
+    }
+
+    @Transactional
+    public void delete(long tripId, long userId) {
+        int updated = jdbcTemplate.update(
+            "UPDATE tm_trip_plan SET deleted = 1 WHERE id = :id AND user_id = :userId AND deleted = 0",
+            new MapSqlParameterSource().addValue("id", tripId).addValue("userId", userId));
+        if (updated == 0) {
+            throw new BizException("行程不存在或无权操作。");
         }
     }
 

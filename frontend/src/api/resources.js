@@ -6,32 +6,44 @@ function unwrap(response) {
 
 export function createResourceApi(client = http) {
   return {
+    discover(resourceKey, params = {}) {
+      return client.get(`/public/resources/${resourceKey}`, { params }).then(unwrap);
+    },
     list(resourceKey, params = {}) {
-      return client.get(`/${resourceKey}`, { params }).then(unwrap);
+      return client.get(`/admin/resources/${resourceKey}`, { params }).then(unwrap);
     },
     detail(resourceKey, id) {
-      return client.get(`/${resourceKey}/${id}`).then(unwrap);
+      return client.get(`/admin/resources/${resourceKey}/${id}`).then(unwrap);
     },
     create(resourceKey, payload) {
-      return client.post(`/${resourceKey}`, payload).then(unwrap);
+      return client.post(`/admin/resources/${resourceKey}`, payload).then(unwrap);
     },
     update(resourceKey, id, payload) {
-      return client.put(`/${resourceKey}/${id}`, payload).then(unwrap);
+      return client.put(`/admin/resources/${resourceKey}/${id}`, payload).then(unwrap);
     },
     updateStatus(resourceKey, id, status) {
-      return client.put(`/${resourceKey}/${id}/status`, null, { params: { status } }).then(unwrap);
+      return client.put(`/admin/resources/${resourceKey}/${id}/status`, null, { params: { status } }).then(unwrap);
     },
     remove(resourceKey, id) {
-      return client.delete(`/${resourceKey}/${id}`).then(unwrap);
+      return client.delete(`/admin/resources/${resourceKey}/${id}`).then(unwrap);
     },
-    getProfile(userId = 1001) {
-      return client.get('/users/profile', { params: { userId } }).then(unwrap);
+    userList(resourceKey, params = {}) {
+      return client.get(`/user/library/${resourceKey}`, { params }).then(unwrap);
     },
-    updateProfile(userId = 1001, payload) {
-      return client.put('/users/profile', payload, { params: { userId } }).then(unwrap);
+    userCreate(resourceKey, payload) {
+      return client.post(`/user/library/${resourceKey}`, payload).then(unwrap);
     },
-    tripHistory(limit = 8) {
-      return client.get('/trip/history', { params: { limit } }).then(unwrap);
+    userUpdate(resourceKey, id, payload) {
+      return client.put(`/user/library/${resourceKey}/${id}`, payload).then(unwrap);
+    },
+    userRemove(resourceKey, id) {
+      return client.delete(`/user/library/${resourceKey}/${id}`).then(unwrap);
+    },
+    getProfile() {
+      return client.get('/user/profile').then(unwrap);
+    },
+    updateProfile(payload) {
+      return client.put('/user/profile', payload).then(unwrap);
     },
   };
 }

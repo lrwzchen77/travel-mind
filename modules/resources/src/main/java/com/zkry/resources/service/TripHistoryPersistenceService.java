@@ -13,9 +13,9 @@ public class TripHistoryPersistenceService {
         this.crudResourceService = crudResourceService;
     }
 
-    public PageResult<Map<String, Object>> history(int limit) {
+    public PageResult<Map<String, Object>> history(long userId, int limit) {
         int pageSize = Math.max(1, Math.min(limit, 100));
-        return crudResourceService.list("trip-plans", ResourceSearchCriteria.of(null, null, null, null, null, null, 1,
-            pageSize));
+        return crudResourceService.list("trip-plans", ResourceSearchCriteria.of(
+            null, null, null, null, null, null, userId, null, null, null, null, null, 1, pageSize));
     }
 }

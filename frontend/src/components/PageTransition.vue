@@ -1,13 +1,13 @@
 <script setup>
-import { RouterView, useRoute } from 'vue-router';
-
-const route = useRoute();
+import { RouterView } from 'vue-router';
 </script>
 
 <template>
-  <RouterView v-slot="{ Component }">
+  <RouterView v-slot="{ Component, route }">
     <Transition name="page" mode="out-in">
-      <component :is="Component" :key="route.path" />
+      <div :key="route.path" class="page-transition-shell">
+        <component :is="Component" />
+      </div>
     </Transition>
   </RouterView>
 </template>
