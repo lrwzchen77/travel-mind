@@ -113,7 +113,7 @@ onMounted(load);
         <span v-else>{{ post.city || '旅行社区' }}</span>
         <em>{{ topicLabel[post.topic] || '旅行分享' }}</em>
       </RouterLink>
-      <div class="community-card-body"><p class="community-card-meta">{{ post.city || '目的地待补充' }} · {{ post.author || '旅行者' }}</p><RouterLink :to="`/inspirations/${post.id}`"><h2>{{ post.title }}</h2></RouterLink><p>{{ excerpt(post) }}</p><div class="chip-row"><span v-for="tag in String(post.tags || '').split(/[,，、\s]+/).filter(Boolean).slice(0, 3)" :key="tag" class="chip">{{ tag }}</span></div><RouterLink class="text-link" :to="`/inspirations/${post.id}`">查看并引用 →</RouterLink></div>
+      <div class="community-card-body"><p class="community-card-meta">{{ post.city || '目的地待补充' }} · {{ post.author || '旅行者' }}</p><RouterLink :to="`/inspirations/${post.id}`"><h2>{{ post.title }}</h2></RouterLink><p>{{ excerpt(post) }}</p><div class="chip-row"><span v-for="tag in String(post.tags || '').split(/[,，、\s]+/).filter(Boolean).slice(0, 3)" :key="tag" class="chip">{{ tag }}</span></div><p class="community-card-meta" aria-label="互动数据">♥ {{ post.like_count || 0 }} · 评论 {{ post.comment_count || 0 }}</p><RouterLink class="text-link" :to="`/inspirations/${post.id}`">查看并引用 →</RouterLink></div>
     </article>
   </div>
 </template>

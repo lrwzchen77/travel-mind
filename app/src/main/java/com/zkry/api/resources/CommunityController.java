@@ -34,7 +34,14 @@ public class CommunityController {
 
     @GetMapping("/api/public/inspirations/{id}")
     public R<Map<String, Object>> post(@PathVariable long id) {
-        return R.ok(communityService.post(id, null));
+        return R.ok(communityService.post(id, viewerId()));
+    }
+
+    @GetMapping("/api/public/inspirations/{postId}/comments")
+    public R<PageResult<Map<String, Object>>> comments(@PathVariable long postId,
+                                                       @RequestParam(defaultValue = "1") int pageNum,
+                                                       @RequestParam(defaultValue = "20") int pageSize) {
+        return R.ok(communityService.comments(postId, viewerId(), pageNum, pageSize));
     }
 
     @GetMapping("/api/user/inspirations/posts")
@@ -65,5 +72,30 @@ public class CommunityController {
     public R<Void> removeFromBag(@PathVariable long postId) {
         communityService.removeFromBag(LoginHelper.getUserId(), postId);
         return R.ok();
+    }
+
+    @PostMapping("/api/user/inspirations/{postId}/likes")
+    public R<Map<String, Object>> like(@PathVariable long postId) {
+        return R.ok(communityService.like(LoginHelper.getUserId(), postId));
+    }
+
+    @DeleteMapping("/api/user/inspirations/{postId}/likes")
+    public R<Map<String, Object>> unlike(@PathVariable long postId) {
+        return R.ok(communityService.unlike(LoginHelper.getUserId(), postId));
+    }
+
+    @PostMapping("/api/user/inspirations/{postId}/comments")
+    public R<Map<String, Object>> createComment(@PathVariable long postId, @RequestBody Map<String, Object> payload) {
+        return R.ok(communityService.createComment(LoginHelper.getUserId(), postId, payload));
+    }
+
+    @DeleteMapping("/api/user/inspirations/comments/{commentId}")
+    public R<Void> deleteComment(@PathVariable long commentId) {
+        communityService.deleteComment(LoginHelper.getUserId(), commentId);
+        return R.ok();
+    }
+
+    private Long viewerId() {
+        return LoginHelper.isLogin() ? LoginHelper.getUserId() : null;
     }
 }

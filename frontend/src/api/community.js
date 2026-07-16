@@ -12,6 +12,11 @@ export function createCommunityApi(client = http) {
   return {
     posts(params = {}) { return client.get('/public/inspirations', { params }).then(unwrap); },
     post(id) { return client.get(`/public/inspirations/${id}`).then(unwrap); },
+    comments(id, params = {}) { return client.get(`/public/inspirations/${id}/comments`, { params }).then(unwrap); },
+    like(id) { return client.post(`/user/inspirations/${id}/likes`).then(unwrap); },
+    unlike(id) { return client.delete(`/user/inspirations/${id}/likes`).then(unwrap); },
+    createComment(id, content) { return client.post(`/user/inspirations/${id}/comments`, { content }).then(unwrap); },
+    deleteComment(id) { return client.delete(`/user/inspirations/comments/${id}`).then(unwrap); },
     myPosts(params = {}) { return client.get('/user/inspirations/posts', { params }).then(unwrap); },
     createPost(payload) { return client.post('/user/inspirations/posts', payload).then(unwrap); },
     bag() { return client.get('/user/inspirations/bag').then(unwrap); },

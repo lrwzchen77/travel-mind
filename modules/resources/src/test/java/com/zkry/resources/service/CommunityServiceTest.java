@@ -56,14 +56,20 @@ class CommunityServiceTest {
     }
 
     @Test
-    void unpublishedContentCannotEnterAnInspirationBag() {
+    void unpublishedContentCannotBeCollectedLikedOrCommented() {
         NamedParameterJdbcTemplate jdbc = org.mockito.Mockito.mock(NamedParameterJdbcTemplate.class);
         when(jdbc.queryForList(contains("SELECT n.id, n.user_id"), any(Map.class))).thenReturn(List.of());
         CommunityService service = new CommunityService(jdbc);
 
         assertThatThrownBy(() -> service.addToBag(1001L, 7001L, "must"))
             .isInstanceOf(BizException.class).hasMessage("社区分享不存在或暂不可见。");
+        assertThatThrownBy(() -> service.like(1001L, 7001L))
+            .isInstanceOf(BizException.class).hasMessage("社区分享不存在或暂不可见。");
+        assertThatThrownBy(() -> service.createComment(1001L, 7001L, Map.of("content", "看起来不错")))
+            .isInstanceOf(BizException.class).hasMessage("社区分享不存在或暂不可见。");
         verify(jdbc, never()).update(contains("tm_inspiration_item"), any(Map.class));
+        verify(jdbc, never()).update(contains("tm_travel_note_like"), any(Map.class));
+        verify(jdbc, never()).update(contains("tm_travel_note_comment"), any(Map.class));
     }
 
     @Test
@@ -80,5 +86,53 @@ class CommunityServiceTest {
         assertThat(params.getValue().getValue("userId")).isEqualTo(1001L);
         assertThat(params.getValue().getValue("limit")).isEqualTo(30);
         assertThat(params.getValue().getValue("offset")).isEqualTo(0);
+    }
+
+    @Test
+    void repeatedLikesAreSafeAndUnlikeIsScopedToCurrentUser() {
+        NamedParameterJdbcTemplate jdbc = org.mockito.Mockito.mock(NamedParameterJdbcTemplate.class);
+        when(jdbc.queryForList(contains("SELECT n.id, n.title"), any(Map.class)))
+            .thenReturn(List.of(Map.of("id", 7001L)));
+        when(jdbc.queryForObject(contains("WHERE travel_note_id = :postId"), any(Map.class), eq(Long.class)))
+            .thenReturn(1L);
+        CommunityService service = new CommunityService(jdbc);
+
+        service.like(1001L, 7001L);
+        service.like(1001L, 7001L);
+        service.unlike(1001L, 7001L);
+
+        verify(jdbc, times(2)).update(contains("INSERT IGNORE INTO tm_travel_note_like"),
+            eq(Map.of("postId", 7001L, "userId", 1001L)));
+        verify(jdbc).update(contains("DELETE FROM tm_travel_note_like"),
+            eq(Map.of("postId", 7001L, "userId", 1001L)));
+    }
+
+    @Test
+    void blankOrOversizedCommentsAreRejectedBeforeInsert() {
+        NamedParameterJdbcTemplate jdbc = org.mockito.Mockito.mock(NamedParameterJdbcTemplate.class);
+        when(jdbc.queryForList(contains("SELECT n.id, n.title"), any(Map.class)))
+            .thenReturn(List.of(Map.of("id", 7001L)));
+        CommunityService service = new CommunityService(jdbc);
+
+        assertThatThrownBy(() -> service.createComment(1001L, 7001L, Map.of("content", "  ")))
+            .isInstanceOf(BizException.class).hasMessage("请填写评论内容。");
+        assertThatThrownBy(() -> service.createComment(1001L, 7001L, Map.of("content", "x".repeat(1001))))
+            .isInstanceOf(BizException.class).hasMessage("content 内容过长。");
+        verify(jdbc, never()).update(contains("INSERT INTO tm_travel_note_comment"), any(Map.class));
+    }
+
+    @Test
+    void onlyTheCommentOwnerCanDeleteFromPublishedPosts() {
+        NamedParameterJdbcTemplate jdbc = org.mockito.Mockito.mock(NamedParameterJdbcTemplate.class);
+        when(jdbc.update(contains("UPDATE tm_travel_note_comment"), any(Map.class))).thenReturn(1, 0);
+        CommunityService service = new CommunityService(jdbc);
+
+        service.deleteComment(1001L, 9001L);
+        assertThatThrownBy(() -> service.deleteComment(1002L, 9001L))
+            .isInstanceOf(BizException.class).hasMessage("评论不存在或无权删除。");
+
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        verify(jdbc, times(2)).update(sql.capture(), any(Map.class));
+        assertThat(sql.getValue()).contains("cm.user_id = :userId", "n.visibility = 'public'", "n.status = 1");
     }
 }
