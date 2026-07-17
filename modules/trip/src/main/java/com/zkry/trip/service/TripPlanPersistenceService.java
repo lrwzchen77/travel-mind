@@ -193,7 +193,8 @@ public class TripPlanPersistenceService {
 
     private TripPlan withSources(TripPlan plan, List<com.zkry.trip.dto.InspirationSource> sources) {
         return new TripPlan(plan.city(), plan.cities(), plan.start_date(), plan.end_date(), plan.days(), plan.weather_info(),
-            plan.overall_suggestions(), plan.budget(), sources == null ? List.of() : List.copyOf(sources));
+            plan.overall_suggestions(), plan.budget(), sources == null ? List.of() : List.copyOf(sources),
+            plan.public_data() == null ? List.of() : plan.public_data());
     }
 
     private TripRequest requestFromPlan(TripPlan plan) {

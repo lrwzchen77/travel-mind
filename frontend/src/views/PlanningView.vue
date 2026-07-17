@@ -11,6 +11,7 @@ import {
   waitForTripTask,
 } from '../api/tripTask.js';
 import TravelMap3D from '../components/map/AsyncTravelMap3D.vue';
+import PublicTravelDataPanel from '../components/PublicTravelDataPanel.vue';
 import { consumerText } from '../data/consumerText.js';
 import { supportedPlanningCities, supportsPlanning } from '../data/planningSupport.js';
 
@@ -485,6 +486,8 @@ onUnmounted(() => taskAbortController?.abort());
           </div>
         </article>
       </div>
+
+      <PublicTravelDataPanel v-if="result?.data?.public_data?.length" :items="result.data.public_data" />
 
       <div v-if="!result && !loading" class="empty-state">
         <strong>行程还是空白的</strong>

@@ -7,6 +7,8 @@ import static org.mockito.Mockito.when;
 
 import com.zkry.trip.dto.TripPlanResponse;
 import com.zkry.trip.dto.TripRequest;
+import com.zkry.map.dto.PublicTravelSnapshot;
+import com.zkry.map.service.PublicTravelDataService;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -44,7 +46,9 @@ class DemoTripPlannerServiceTest {
             }
             return List.of();
         });
-        DemoTripPlannerService planner = new DemoTripPlannerService(jdbcTemplate, new TripPlanReviewer());
+        PublicTravelDataService publicDataService = org.mockito.Mockito.mock(PublicTravelDataService.class);
+        when(publicDataService.collect(anyString())).thenReturn(PublicTravelSnapshot.empty());
+        DemoTripPlannerService planner = new DemoTripPlannerService(jdbcTemplate, new TripPlanReviewer(), publicDataService);
 
         TripPlanResponse response = planner.plan("demo-1", request());
 
@@ -55,6 +59,13 @@ class DemoTripPlannerServiceTest {
         assertThat(response.data().days().get(0).attractions()).isNotEmpty();
         assertThat(response.data().days().get(0).meals()).isNotEmpty();
         assertThat(response.data().budget().total()).isGreaterThan(0);
+        assertThat(response.data().public_data()).extracting("data_kind")
+            .containsOnly("demo_reference");
+        assertThat(response.data().public_data()).allSatisfy(item -> assertThat(item.updated_at()).isBlank());
+        assertThat(response.data().public_data().get(0).detail()).contains("未接入同行人数计价");
+
+        when(publicDataService.collect(anyString())).thenThrow(new IllegalStateException("public services offline"));
+        assertThat(planner.plan("demo-2", request()).success()).isTrue();
     }
 
     private TripRequest request() {

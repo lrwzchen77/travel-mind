@@ -56,6 +56,7 @@ export function createTravelMindStyle() {
       openmaptiles: {
         type: 'vector',
         url: `${assetBaseUrl}/planet`,
+        attribution: '<a href="https://openfreemap.org/">OpenFreeMap</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
       },
     },
     glyphs: `${assetBaseUrl}/fonts/{fontstack}/{range}.pbf`,

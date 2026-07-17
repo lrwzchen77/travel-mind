@@ -160,7 +160,9 @@ public class TripAiPlannerService {
             days,
             normalizeWeather(plan.weather_info(), days, mapContext),
             isBlank(plan.overall_suggestions()) ? "AI 已生成行程，建议根据实际营业时间二次确认。" : plan.overall_suggestions(),
-            budget
+            budget,
+            plan.inspiration_sources() == null ? List.of() : plan.inspiration_sources(),
+            List.of()
         );
     }
 

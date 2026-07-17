@@ -174,10 +174,10 @@ public class TripTaskService {
                 log.info("[TripTask] 外部配置不完整，启用 MySQL Demo Planner taskId={} missing={}", taskId, missingRuntimeSettings());
                 pause();
                 update(taskId, TripTaskStatus.PROCESSING, TripTaskStage.TRAVEL_RESEARCH, 24,
-                    "外部配置不完整，正在读取本地 MySQL 旅行资源库...", null, null);
+                    "正在读取本地行程资源和免费公开数据...", null, null);
                 pause();
                 update(taskId, TripTaskStatus.PROCESSING, TripTaskStage.PLANNING, 85,
-                    "正在使用本地资源库生成结构化演示行程...", null, null);
+                    "正在整理公开天气、地点与演示参考预算...", null, null);
                 response = demoTripPlannerService.plan(taskId, request);
             }
             TripPlanReviewer.ReviewOutcome review = tripPlanReviewer.review(response.data(), request);

@@ -1,6 +1,10 @@
 package com.zkry.trip.service;
 
 import com.zkry.common.core.exception.BizException;
+import com.zkry.map.dto.MapWeatherForecast;
+import com.zkry.map.dto.PublicDataItem;
+import com.zkry.map.dto.PublicTravelSnapshot;
+import com.zkry.map.service.PublicTravelDataService;
 import com.zkry.trip.dto.Attraction;
 import com.zkry.trip.dto.Budget;
 import com.zkry.trip.dto.CityStay;
@@ -17,18 +21,27 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
 public class DemoTripPlannerService {
 
+    private static final Logger log = LoggerFactory.getLogger(DemoTripPlannerService.class);
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final TripPlanReviewer reviewer;
+    private final PublicTravelDataService publicTravelDataService;
 
-    public DemoTripPlannerService(NamedParameterJdbcTemplate jdbcTemplate, TripPlanReviewer reviewer) {
+    public DemoTripPlannerService(
+        NamedParameterJdbcTemplate jdbcTemplate,
+        TripPlanReviewer reviewer,
+        PublicTravelDataService publicTravelDataService
+    ) {
         this.jdbcTemplate = jdbcTemplate;
         this.reviewer = reviewer;
+        this.publicTravelDataService = publicTravelDataService;
     }
 
     public TripPlanResponse plan(String planId, TripRequest request) {
@@ -44,6 +57,7 @@ public class DemoTripPlannerService {
         List<Map<String, Object>> hotels = queryHotels(cityId, primaryCity);
         List<Map<String, Object>> restaurants = queryRestaurants(cityId, primaryCity);
         List<Map<String, Object>> notes = queryNotes(cityId);
+        PublicTravelSnapshot publicData = collectPublicData(primaryCity);
 
         int daysCount = request.safeTravelDays();
         LocalDate startDate = parseDate(request.start_date());
@@ -66,7 +80,7 @@ public class DemoTripPlannerService {
             hotelCost += hotel.estimated_cost() == null ? 0 : hotel.estimated_cost();
             mealCost += meals.stream().mapToInt(item -> item.estimated_cost() == null ? 0 : item.estimated_cost()).sum();
             transportCost += 40;
-            weather.add(new WeatherInfo(date, primaryCity, "多云", "晴", 30, 23, "东风", "3级"));
+            weather.add(weatherFor(date, primaryCity, publicData.safeWeather()));
             days.add(new DayPlan(
                 date,
                 i,
@@ -83,6 +97,25 @@ public class DemoTripPlannerService {
         }
         Budget budget = new Budget(attractionCost, hotelCost, mealCost, transportCost, 0,
             attractionCost + hotelCost + mealCost + transportCost);
+        List<PublicDataItem> publicItems = new ArrayList<>(publicData.safeItems());
+        publicItems.add(new PublicDataItem(
+            "行程内演示预算约 ¥" + budget.total(),
+            "仅按当前本地演示资源估算，未接入同行人数计价及铁路、航班、酒店、门票的实时价格和库存。",
+            "Travel Mind 本地演示资料",
+            "",
+            "demo_reference",
+            false,
+            ""
+        ));
+        publicItems.add(new PublicDataItem(
+            "铁路票价与余票请到 12306 核验",
+            "平台不查询、不缓存铁路余票，也不提供购票或退改签服务。",
+            "铁路 12306",
+            "",
+            "demo_reference",
+            false,
+            "https://www.12306.cn/index/"
+        ));
         TripPlan plan = new TripPlan(
             primaryCity,
             cityNames,
@@ -90,14 +123,34 @@ public class DemoTripPlannerService {
             startDate.plusDays(daysCount - 1L).toString(),
             days,
             weather,
-            "Demo Planner 基于本地资源库生成，建议出发前复核营业时间、预约要求和天气变化。",
-            budget
+            "当前为演示规划，预算未接入实时交通、价格和库存，请勿作为预订依据。",
+            budget,
+            List.of(),
+            publicItems
         );
         TripPlanReviewer.ReviewOutcome outcome = reviewer.review(plan, request);
         if (!outcome.passed()) {
             throw new BizException("Demo 行程质检未通过：" + String.join("；", outcome.issues()));
         }
         return TripPlanResponseFactory.fromPlan(planId, plan);
+    }
+
+    private PublicTravelSnapshot collectPublicData(String city) {
+        try {
+            return publicTravelDataService.collect(city);
+        } catch (Exception ex) {
+            log.info("免费公开数据暂不可用，继续生成本地演示行程 city={} reason={}", city, ex.getMessage());
+            return PublicTravelSnapshot.empty();
+        }
+    }
+
+    private WeatherInfo weatherFor(String date, String city, List<MapWeatherForecast> forecasts) {
+        return forecasts.stream()
+            .filter(item -> date.equals(item.date()))
+            .findFirst()
+            .map(item -> new WeatherInfo(date, city, item.dayWeather(), item.nightWeather(), item.dayTemp(),
+                item.nightTemp(), item.windDirection(), item.windPower()))
+            .orElseGet(() -> new WeatherInfo(date, city, "出发前确认", "出发前确认", null, null, "", ""));
     }
 
     private Map<String, Object> findCity(String cityName) {

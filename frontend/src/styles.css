@@ -1978,6 +1978,26 @@ pre {
 .trust-note { margin: 0 0 18px; padding: 12px 14px; border: 1px solid #eed9aa; border-radius: 12px; background: #fff9e9; color: #74551f; font-size: 13px; line-height: 1.6; }
 .trip-summary > .trust-note { grid-column: 1 / -1; }
 
+.public-data-panel { margin: 20px 0; }
+.public-data-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.public-data-grid article { padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255, 255, 255, 0.72); }
+.public-data-grid h3 { margin: 10px 0 6px; font-size: 16px; }
+.public-data-grid p { margin: 0 0 10px; color: var(--ink-soft); line-height: 1.65; }
+.public-data-grid small { display: block; color: var(--muted); line-height: 1.5; }
+.public-data-grid a { display: inline-block; margin-top: 10px; color: var(--coral-deep); font-weight: 700; text-decoration: none; }
+.public-data-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 12px; }
+.public-data-kind--live { background: #e6f7ed; color: #23643c; }
+.public-data-kind--open_data { background: #eaf2ff; color: #315b8c; }
+.public-data-kind--route_estimate { background: #f2edff; color: #654b96; }
+.public-data-kind--demo_reference { background: #fff0e8; color: #8b4b2f; }
+.public-data-license, .public-data-unavailable { margin: 14px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.public-data-unavailable { padding: 10px 12px; border-radius: 10px; background: #fff7df; color: #74551f; }
+
+@media (max-width: 720px) {
+  .public-data-grid { grid-template-columns: 1fr; }
+  .public-data-meta { align-items: flex-start; }
+}
+
 .planner-map-block > summary,
 .planner-more > summary,
 .vision-disclosure > summary {

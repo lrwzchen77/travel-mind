@@ -5,6 +5,7 @@ import { tripApi } from '../api/trip.js';
 import { aiApi } from '../api/ai.js';
 import { memoryApi } from '../api/memory.js';
 import TravelMap3D from '../components/map/AsyncTravelMap3D.vue';
+import PublicTravelDataPanel from '../components/PublicTravelDataPanel.vue';
 import { consumerText } from '../data/consumerText.js';
 import { currentTripDayIndex, tripCalendar } from '../utils/tripDeparture.js';
 
@@ -257,6 +258,8 @@ onMounted(load);
 
   <p v-if="error" class="error-line">{{ error }}</p>
   <p v-if="detail" class="trust-note">AI 推荐 · 未预订。行程中的地点、价格、库存、营业时间和预约要求可能变动，出发前请向服务方复核。</p>
+
+  <PublicTravelDataPanel v-if="plan.public_data?.length" :items="plan.public_data" />
 
   <section v-if="days.length" class="trip-route-section" aria-labelledby="trip-route-title">
     <div class="section-head">

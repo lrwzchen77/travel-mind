@@ -10,6 +10,7 @@ import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 
 import com.zkry.common.json.utils.JsonUtils;
+import com.zkry.map.dto.PublicDataItem;
 import com.zkry.trip.dto.Attraction;
 import com.zkry.trip.dto.Budget;
 import com.zkry.trip.dto.DayPlan;
@@ -82,6 +83,7 @@ class TripPlanPersistenceServiceTest {
         verify(jdbcTemplate).update(contains("INSERT INTO tm_trip_plan"), params.capture());
         TripPlanResponse stored = JsonUtils.parseObject(String.valueOf(params.getValue().getValue("rawPlanJson")), TripPlanResponse.class);
         assertThat(stored.data().inspiration_sources()).singleElement().extracting(InspirationSource::intent).isEqualTo("must");
+        assertThat(stored.data().public_data()).singleElement().extracting(PublicDataItem::data_kind).isEqualTo("live");
     }
 
     private TripRequest request() {
@@ -96,7 +98,9 @@ class TripPlanPersistenceServiceTest {
                 List.of(new Attraction("West Lake", "Hangzhou", null, 180, "湖景步行", "nature", 4.9, "", 0)),
                 List.of(new Meal("午餐", "湖滨餐厅", "Hangzhou", null, "本地菜", 80)))
         ), List.of(new WeatherInfo("2026-08-01", "Hangzhou", "晴", "多云", 31, 24, "东风", "3级")),
-            "注意防晒。", new Budget(0, 600, 80, 40, 0, 720));
+            "注意防晒。", new Budget(0, 600, 80, 40, 0, 720), List.of(), List.of(
+                new PublicDataItem("当前天气", "杭州 31°C", "Open-Meteo", "2026-08-01T10:00:00+08:00", "live", false, "")
+            ));
         return TripPlanResponseFactory.fromPlan(planId, plan);
     }
 }
