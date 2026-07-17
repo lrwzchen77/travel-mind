@@ -64,6 +64,7 @@ onUnmounted(() => observer?.disconnect());
 
 defineExpose({
   flyToCity: (...args) => inner.value?.flyToCity?.(...args),
+  flyToPoint: (...args) => inner.value?.flyToPoint?.(...args),
   toggleOrbit: (...args) => inner.value?.toggleOrbit?.(...args),
   stopOrbit: (...args) => inner.value?.stopOrbit?.(...args),
 });

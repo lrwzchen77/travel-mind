@@ -207,7 +207,7 @@ onMounted(load);
       <h2>不必一次看完所有攻略</h2>
       <RouterLink v-if="planningAvailable" class="btn-link btn-coral" :to="planningLink">按这些偏好规划</RouterLink>
       <span v-else class="btn-link btn-ghost" aria-disabled="true">完整规划待开放</span>
-      <RouterLink class="btn-link btn-ghost" :to="{ path: '/map', query: { city: cityName } }">在立体地图中查看</RouterLink>
+      <RouterLink class="btn-link btn-ghost" :to="{ path: '/map', query: { city: cityName } }">在地图情报中查看</RouterLink>
     </aside>
   </div>
 </template>

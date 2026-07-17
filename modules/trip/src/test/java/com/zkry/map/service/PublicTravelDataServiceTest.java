@@ -22,7 +22,7 @@ class PublicTravelDataServiceTest {
                 if ("overpass.kumi.systems".equals(uri.getHost())) throw new IOException("busy");
                 if ("overpass-api.de".equals(uri.getHost())) return placesJson();
                 if ("router.project-osrm.org".equals(uri.getHost())) {
-                    return "{\"routes\":[{\"distance\":8400,\"duration\":1500}]}";
+                    return "{\"routes\":[{\"distance\":8400,\"duration\":1500,\"geometry\":{\"coordinates\":[[120.1485,30.242],[120.1012,30.2411]]}}]}";
                 }
                 throw new IOException("unexpected host");
             }
@@ -39,6 +39,12 @@ class PublicTravelDataServiceTest {
         assertThat(first.items().get(3).title()).contains("HGH");
         assertThat(second.weather()).isEqualTo(first.weather());
         assertThat(second.items().subList(0, 3)).isEqualTo(first.items().subList(0, 3));
+        var map = service.collectMap("杭州");
+        assertThat(map.places()).hasSize(4).extracting("kind")
+            .containsExactly("attraction", "attraction", "hotel", "restaurant");
+        assertThat(map.route().geometry()).hasSize(2);
+        assertThat(map.airport().code()).isEqualTo("HGH");
+        assertThat(map.availability().weather()).isEqualTo("available");
         assertThat(calls).containsExactly(
             "api.open-meteo.com", "overpass.kumi.systems", "overpass-api.de", "router.project-osrm.org"
         );

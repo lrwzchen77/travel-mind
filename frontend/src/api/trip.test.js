@@ -24,6 +24,7 @@ describe('trip API client', () => {
     const payload = { city: 'Hangzhou', travel_days: 2 };
 
     await api.submitPlan(payload);
+    await api.publicMap('杭州');
     await api.status('task1');
     await api.detail(9001);
     await api.copy(9001);
@@ -35,6 +36,7 @@ describe('trip API client', () => {
     await api.history(10);
 
     expect(http.post).toHaveBeenCalledWith('/user/trip/plan', payload);
+    expect(http.get).toHaveBeenCalledWith('/public/travel-map', { params: { city: '杭州' }, timeout: 20000 });
     expect(http.get).toHaveBeenCalledWith('/user/trip/status/task1');
     expect(http.get).toHaveBeenCalledWith('/user/trip/9001');
     expect(http.post).toHaveBeenCalledWith('/user/trip/9001/copy');

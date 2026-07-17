@@ -3,7 +3,7 @@
  * MapLibre + 可配置瓦片镜像
  * 首帧优先展示，标注与 3D 渐进增强，并按设备能力控制渲染开销。
  */
-import { onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';
 import { findDestination, geoDestinations } from '../../data/geoDestinations.js';
 import { buildFlightArc, sampleArc } from '../../map/flightPath.js';
 import { detectMapPerformanceProfile } from '../../map/performance.js';
@@ -22,9 +22,12 @@ const props = defineProps({
   autoOrbit: { type: Boolean, default: false },
   compact: { type: Boolean, default: false },
   interactive: { type: Boolean, default: true },
+  publicData: { type: Object, default: null },
+  selectedPlaceIds: { type: Array, default: () => [] },
+  selectableCities: { type: Array, default: () => [] },
 });
 
-const emit = defineEmits(['city-change', 'ready', 'error']);
+const emit = defineEmits(['city-change', 'point-select', 'ready', 'error']);
 
 const containerRef = ref(null);
 const mapRef = shallowRef(null);
@@ -39,6 +42,9 @@ const flyProgress = ref(0);
 /** 样式首帧可用后即展示，瓦片和增强图层继续渐进加载。 */
 const mapRevealed = ref(false);
 const performanceProfile = detectMapPerformanceProfile();
+const mapDestinations = computed(() => props.selectableCities.length
+  ? geoDestinations.filter((item) => props.selectableCities.includes(item.city))
+  : geoDestinations);
 
 /** @type {Map<string, import('maplibre-gl').Marker>} */
 const cityMarkers = new Map();
@@ -66,7 +72,7 @@ function setPrimaryPin(city) {
 
 function ensureCityMarkers(map) {
   if (cityMarkers.size || !maplibregl) return;
-  geoDestinations.forEach((dest) => {
+  mapDestinations.value.forEach((dest) => {
     const el = document.createElement('button');
     el.type = 'button';
     el.className = 'map-pin';
@@ -83,6 +89,113 @@ function ensureCityMarkers(map) {
     cityMarkers.set(dest.city, marker);
   });
   setPrimaryPin(activeCity.value);
+}
+
+function publicPlacesFc() {
+  const selected = new Set(props.selectedPlaceIds);
+  return {
+    type: 'FeatureCollection',
+    features: (props.publicData?.places || []).map((place) => ({
+      type: 'Feature',
+      properties: { id: place.id, name: place.name, kind: place.kind, selected: selected.has(place.id) },
+      geometry: { type: 'Point', coordinates: [place.longitude, place.latitude] },
+    })),
+  };
+}
+
+function publicRouteFc() {
+  const coordinates = (props.publicData?.route?.geometry || [])
+    .map((point) => [point.longitude, point.latitude])
+    .filter(([lng, lat]) => Number.isFinite(lng) && Number.isFinite(lat));
+  return coordinates.length >= 2 ? lineFc(coordinates) : emptyFc();
+}
+
+function publicAirportFc() {
+  const airport = props.publicData?.airport;
+  if (!airport || !Number.isFinite(airport.longitude) || !Number.isFinite(airport.latitude)) return emptyFc();
+  return {
+    type: 'FeatureCollection',
+    features: [{
+      type: 'Feature',
+      properties: { code: airport.code, name: airport.name },
+      geometry: { type: 'Point', coordinates: [airport.longitude, airport.latitude] },
+    }],
+  };
+}
+
+function updatePublicSources(map = mapRef.value) {
+  if (!map || !mapStyleReady) return;
+  setSrc(map, 'public-pois', publicPlacesFc());
+  setSrc(map, 'public-route', publicRouteFc());
+  setSrc(map, 'public-airports', publicAirportFc());
+}
+
+function ensurePublicSources(map) {
+  if (map.getSource('public-pois')) {
+    updatePublicSources(map);
+    return;
+  }
+  map.addSource('public-pois', { type: 'geojson', data: publicPlacesFc() });
+  map.addSource('public-route', { type: 'geojson', data: publicRouteFc() });
+  map.addSource('public-airports', { type: 'geojson', data: publicAirportFc() });
+
+  map.addLayer({
+    id: 'public-route-outline', type: 'line', source: 'public-route',
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-color': '#fffaf1', 'line-width': 8, 'line-opacity': 0.92 },
+  });
+  map.addLayer({
+    id: 'public-route-line', type: 'line', source: 'public-route',
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-color': MAP_THEME.coral, 'line-width': 4, 'line-opacity': 0.96 },
+  });
+  map.addLayer({
+    id: 'public-poi-dots', type: 'circle', source: 'public-pois',
+    paint: {
+      'circle-radius': ['case', ['get', 'selected'], 9, 6],
+      'circle-color': ['match', ['get', 'kind'], 'hotel', '#0f6674', 'restaurant', '#ba4d2d', '#e87022'],
+      'circle-stroke-color': '#fffaf1',
+      'circle-stroke-width': ['case', ['get', 'selected'], 4, 2],
+    },
+  });
+  map.addLayer({
+    id: 'public-poi-labels', type: 'symbol', source: 'public-pois', minzoom: 11,
+    layout: {
+      'text-field': ['get', 'name'], 'text-font': ['Noto Sans Bold'], 'text-size': 12,
+      'text-offset': [0, 1.25], 'text-anchor': 'top', 'text-allow-overlap': false,
+    },
+    paint: { 'text-color': '#23333b', 'text-halo-color': '#fffaf1', 'text-halo-width': 1.5 },
+  });
+  map.addLayer({
+    id: 'public-airport-dot', type: 'circle', source: 'public-airports',
+    paint: { 'circle-radius': 8, 'circle-color': '#173f50', 'circle-stroke-color': '#fffaf1', 'circle-stroke-width': 3 },
+  });
+  map.addLayer({
+    id: 'public-airport-label', type: 'symbol', source: 'public-airports',
+    layout: {
+      'text-field': ['concat', '✈ ', ['get', 'code']], 'text-font': ['Noto Sans Bold'],
+      'text-size': 12, 'text-offset': [0, 1.35], 'text-anchor': 'top',
+    },
+    paint: { 'text-color': '#173f50', 'text-halo-color': '#fffaf1', 'text-halo-width': 1.5 },
+  });
+
+  map.on('click', 'public-poi-dots', (event) => {
+    const feature = event.features?.[0];
+    if (!feature) return;
+    const [longitude, latitude] = feature.geometry.coordinates;
+    emit('point-select', { ...feature.properties, longitude, latitude });
+  });
+  map.on('mouseenter', 'public-poi-dots', () => { map.getCanvas().style.cursor = 'pointer'; });
+  map.on('mouseleave', 'public-poi-dots', () => { map.getCanvas().style.cursor = ''; });
+}
+
+function flyToPoint(point) {
+  if (!mapRef.value || !Number.isFinite(point?.longitude) || !Number.isFinite(point?.latitude)) return;
+  stopOrbit();
+  mapRef.value.easeTo({
+    center: [point.longitude, point.latitude], zoom: Math.max(mapRef.value.getZoom(), 14.2),
+    pitch: Math.min(58, performanceProfile.maxPitch), duration: performanceProfile.reducedMotion ? 0 : 700,
+  });
 }
 
 function clearPois() {
@@ -521,6 +634,7 @@ onMounted(async () => {
       ensureFlightSources(map);
       ensureCityMarkers(map);
       addPoiMarkers(map, dest);
+      ensurePublicSources(map);
       tryEnable3dBuildings(map);
     };
 
@@ -613,7 +727,13 @@ watch(
   },
 );
 
-defineExpose({ flyToCity, toggleOrbit, stopOrbit });
+watch(
+  () => [props.publicData, props.selectedPlaceIds],
+  () => updatePublicSources(),
+  { deep: true },
+);
+
+defineExpose({ flyToCity, flyToPoint, toggleOrbit, stopOrbit });
 </script>
 
 <template>
@@ -677,7 +797,7 @@ defineExpose({ flyToCity, toggleOrbit, stopOrbit });
           @change="selectCity"
         >
           <option
-            v-for="item in geoDestinations"
+            v-for="item in mapDestinations"
             :key="item.city"
             :value="item.city"
           >

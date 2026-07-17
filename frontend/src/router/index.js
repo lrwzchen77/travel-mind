@@ -121,7 +121,7 @@ const router = createRouter({
 });
 
 const pageTitles = {
-  dashboard: '旅行灵感', planning: '规划行程', 'explore-map': '立体地图', inspirations: '旅行社区',
+  dashboard: '旅行灵感', planning: '规划行程', 'explore-map': '地图情报', inspirations: '旅行社区',
   'inspiration-detail': '旅行分享', 'my-posts': '我的分享', 'inspiration-bag': '我的灵感包', assistant: '旅行助手',
   attractions: '去哪玩', hotels: '住哪里', restaurants: '吃什么', cities: '发现城市',
   'trip-history': '我的行程', 'trip-detail': '行程详情', memories: '旅行记录', 'memory-detail': '旅行回忆',

@@ -22,7 +22,7 @@ export const accountNav = [
 /** 页面内或行动按钮入口，仍属于用户可达的产品路径。 */
 export const auxiliaryNav = [
   { path: '/planning', label: '生成行程' },
-  { path: '/map', label: '立体地图' },
+  { path: '/map', label: '地图情报' },
   { path: '/ai-lab', label: 'AI 内容解读' },
 ];
 
