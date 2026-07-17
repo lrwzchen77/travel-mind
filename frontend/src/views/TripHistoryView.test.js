@@ -14,6 +14,8 @@ describe('行程册', () => {
     await flushPromises();
     expect(wrapper.text()).toContain('已规划');
     expect(history).toHaveBeenCalledWith(20);
+    expect(wrapper.get('.journey-photo-card img').attributes('src')).toBe('/city-images/hangzhou.jpg');
+    expect(wrapper.get('.journey-photo-card').attributes('aria-label')).toBe('打开杭州');
 
     history.mockResolvedValueOnce({ items: [{ id: 1, status: 'saved' }, { id: 2, status: 'COMPLETED' }], total: 2 });
     await wrapper.get('.load-more button').trigger('click');

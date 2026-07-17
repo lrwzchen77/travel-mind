@@ -61,6 +61,9 @@ describe('旅行社区页', () => {
     expect(mocks.posts).toHaveBeenCalledWith({ keyword: '', city: '杭州', topic: '', pageNum: 1, pageSize: 24 });
     expect(wrapper.text()).toContain('西湖边的慢行路线');
     expect(wrapper.text()).toContain('1 篇旅行者分享');
+    expect(wrapper.get('.travel-photo-tile img').attributes('src')).toBe('/city-images/hangzhou.jpg');
+    expect(wrapper.get('.travel-photo-tile img').attributes('alt')).toBe('杭州旅行风景参考图');
+    expect(wrapper.get('.travel-photo-link').attributes('aria-label')).toBe('查看西湖边的慢行路线');
 
     const filter = wrapper.find('.community-filter');
     const [keyword, city] = filter.findAll('input');
