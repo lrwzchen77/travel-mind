@@ -31,4 +31,14 @@ describe('memory API', () => {
     expect(memoryImageUrl('https://example.com/a.jpg')).toBe('https://example.com/a.jpg');
     expect(memoryImageUrl('/uploads/a.jpg')).toBe('http://localhost:8080/uploads/a.jpg');
   });
+
+  it('reports how many photos were associated before a partial batch failure', async () => {
+    const failure = new Error('second upload failed');
+    const client = { post: vi.fn().mockResolvedValue({ data: { data: { id: 31 } } }) };
+    const uploader = { image: vi.fn().mockResolvedValueOnce({ url: '/uploads/one.jpg' }).mockRejectedValueOnce(failure) };
+    const api = createMemoryApi(client, uploader);
+
+    await expect(api.addPhotos(3001, [{ name: 'one.jpg' }, { name: 'two.jpg' }])).rejects.toMatchObject({ addedCount: 1 });
+    expect(client.post).toHaveBeenCalledTimes(1);
+  });
 });

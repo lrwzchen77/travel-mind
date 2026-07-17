@@ -53,7 +53,7 @@ describe('行程详情新增能力', () => {
     await flushPromises();
 
     expect(mocks.createMemory).toHaveBeenCalledWith('9001');
-    expect(mocks.push).toHaveBeenCalledWith('/memories/3001');
+    expect(mocks.push).toHaveBeenCalledWith({ path: '/memories/3001', query: { update: '1' } });
   });
 
   it('shows a usable departure route and persists its checklist', async () => {

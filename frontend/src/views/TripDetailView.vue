@@ -182,9 +182,9 @@ async function createMemory() {
   error.value = '';
   try {
     const created = await memoryApi.createFromTrip(route.params.id);
-    router.push(`/memories/${created.id}`);
+    router.push({ path: `/memories/${created.id}`, query: { update: '1' } });
   } catch (err) {
-    error.value = err?.message || '旅行回忆没有生成，请稍后重试。';
+    error.value = err?.message || '这趟旅行暂时没记录下来，请稍后重试。';
   } finally {
     busy.value = '';
   }
@@ -239,7 +239,7 @@ onMounted(load);
     </div>
     <div v-if="detail" class="trip-hero-actions">
       <button type="button" class="btn-coral" :disabled="busy === 'memory'" @click="createMemory">
-        {{ busy === 'memory' ? '生成中…' : '生成旅行回忆' }}
+        {{ busy === 'memory' ? '正在记录…' : '记录这趟旅行' }}
       </button>
       <button type="button" class="btn-ghost" @click="departureMode = !departureMode">
         {{ departureMode ? '收起出发模式' : '进入出发模式' }}

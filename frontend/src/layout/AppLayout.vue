@@ -14,6 +14,7 @@ const userInitial = computed(() => String(currentUser.value?.name || '旅').trim
 const menuOpen = ref(false);
 const accountOpen = ref(false);
 const scrolled = ref(false);
+const showInspirationBag = computed(() => currentUser.value && !/^\/memories(?:\/|$)/.test(route.path));
 
 function closeMenus() {
   menuOpen.value = false;
@@ -139,7 +140,7 @@ onUnmounted(() => {
       <PageTransition />
     </main>
 
-    <InspirationBagFloat v-if="currentUser" />
+    <InspirationBagFloat v-if="showInspirationBag" />
 
     <footer class="site-footer">
       <div class="site-footer-inner">

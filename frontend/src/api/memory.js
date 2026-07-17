@@ -12,9 +12,17 @@ export function createMemoryApi(client = http, uploader = uploadApi) {
     detail(memoryId) { return client.get(`/user/memories/${memoryId}`).then(unwrap); },
     async addPhotos(memoryId, files) {
       const added = [];
-      for (const file of files) {
-        const upload = await uploader.image(file);
-        added.push(await client.post(`/user/memories/${memoryId}/items/photos`, { url: upload.url }).then(unwrap));
+      try {
+        for (const file of files) {
+          const upload = await uploader.image(file);
+          added.push(await client.post(`/user/memories/${memoryId}/items/photos`, { url: upload.url }).then(unwrap));
+        }
+      } catch (error) {
+        if (error && typeof error === 'object') {
+          error.addedCount = added.length;
+          throw error;
+        }
+        throw Object.assign(new Error('照片上传失败'), { addedCount: added.length });
       }
       return added;
     },
