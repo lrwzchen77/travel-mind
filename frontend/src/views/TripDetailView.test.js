@@ -4,7 +4,7 @@ import TripDetailView from './TripDetailView.vue';
 
 const mocks = vi.hoisted(() => ({
   addExpense: vi.fn(), chat: vi.fn(), copy: vi.fn(), detail: vi.fn(), expenses: vi.fn(), remove: vi.fn(), removeExpense: vi.fn(),
-  tripComfort: vi.fn(), push: vi.fn(), route: { params: { id: '9001' } },
+  createMemory: vi.fn(), tripComfort: vi.fn(), push: vi.fn(), route: { params: { id: '9001' } },
 }));
 
 vi.mock('../api/trip.js', () => ({ tripApi: {
@@ -12,6 +12,7 @@ vi.mock('../api/trip.js', () => ({ tripApi: {
   remove: mocks.remove, removeExpense: mocks.removeExpense,
 } }));
 vi.mock('../api/ai.js', () => ({ aiApi: { tripComfort: mocks.tripComfort } }));
+vi.mock('../api/memory.js', () => ({ memoryApi: { createFromTrip: mocks.createMemory } }));
 vi.mock('../components/map/AsyncTravelMap3D.vue', () => ({ default: { template: '<div class="map-stub" />' } }));
 vi.mock('vue-router', () => ({
   RouterLink: { props: ['to'], template: '<a :data-to="typeof to === \'string\' ? to : to.path"><slot /></a>' },
@@ -41,13 +42,24 @@ beforeEach(() => {
   mocks.tripComfort.mockResolvedValue({ result_json: { data: { comfort_score: 88, risk_level: 'low', suggestions: [], daily_risks: [] } } });
   mocks.expenses.mockResolvedValue(expenseSummary);
   mocks.addExpense.mockResolvedValue(expenseSummary);
+  mocks.createMemory.mockResolvedValue({ id: 3001 });
 });
 
 describe('行程详情新增能力', () => {
+  it('creates an idempotent memory from this trip and opens it', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+    await wrapper.get('.trip-hero-actions .btn-coral').trigger('click');
+    await flushPromises();
+
+    expect(mocks.createMemory).toHaveBeenCalledWith('9001');
+    expect(mocks.push).toHaveBeenCalledWith('/memories/3001');
+  });
+
   it('shows a usable departure route and persists its checklist', async () => {
     const wrapper = mountPage();
     await flushPromises();
-    await wrapper.get('.trip-hero-actions button').trigger('click');
+    await wrapper.get('.trip-hero-actions .btn-ghost').trigger('click');
 
     const navigation = wrapper.get('.trip-departure-stop');
     expect(navigation.attributes('href')).toContain('uri.amap.com/search?keyword=');
@@ -84,7 +96,7 @@ describe('行程详情新增能力', () => {
     const wrapper = mountPage();
     await flushPromises();
     expect(wrapper.text()).toContain('杭州');
-    await wrapper.get('.trip-hero-actions button').trigger('click');
+    await wrapper.get('.trip-hero-actions .btn-ghost').trigger('click');
     expect(wrapper.findAll('.trip-departure-check').length).toBeGreaterThan(0);
   });
 
@@ -137,7 +149,7 @@ describe('行程详情新增能力', () => {
   it('puts the daily route and map before budget tools', async () => {
     const wrapper = mountPage();
     await flushPromises();
-    await wrapper.get('.trip-hero-actions button').trigger('click');
+    await wrapper.get('.trip-hero-actions .btn-ghost').trigger('click');
     const html = wrapper.html();
 
     expect(html.indexOf('trip-route-section')).toBeLessThan(html.indexOf('trip-departure glass-panel'));

@@ -2,12 +2,22 @@ package com.zkry.resources.service;
 
 import com.zkry.common.core.domain.PageResult;
 import com.zkry.common.core.exception.BizException;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.UUID;
+import java.util.regex.Pattern;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -19,6 +29,11 @@ public class CommunityService {
 
     private static final List<String> TOPICS = List.of("food", "stay", "play", "route", "tip");
     private static final List<String> INTENTS = List.of("must", "priority", "reference");
+    private static final Pattern PRIVATE_DETAIL = Pattern.compile(
+        "(?:经度|纬度|GPS|坐标)|(?:[零一二三四五六七八九十百千万两]+|\\d+(?:\\.\\d+)?)\\s*(?:元|块|人民币)|[¥￥]\\s*\\d|[-+]?\\d{1,3}\\.\\d{4,}\\s*[,，]\\s*[-+]?\\d{1,3}\\.\\d{4,}",
+        Pattern.CASE_INSENSITIVE);
+    private static final int MAX_PUBLIC_COVER_EDGE = 16_384;
+    private static final long MAX_PUBLIC_COVER_PIXELS = 40_000_000L;
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
     public CommunityService(NamedParameterJdbcTemplate jdbcTemplate) {
@@ -102,6 +117,47 @@ public class CommunityService {
             .addValue("status", status).addValue("topic", topic)
             .addValue("coverImage", text(payload, "cover_image", 500)).addValue("tags", text(payload, "tags", 255)));
         return Map.of("id", id, "title", title, "visibility", visibility, "status", status);
+    }
+
+    /** 从本人私有记忆生成脱敏公开副本；公开帖子不保留 memory/item/evidence 关联。 */
+    @Transactional
+    public Map<String, Object> publishMemory(long userId, long memoryId, Map<String, Object> payload) {
+        Map<String, Object> memory = jdbcTemplate.queryForList("""
+                SELECT title, destination_city FROM tm_trip_memory
+                WHERE id = :memoryId AND user_id = :userId AND visibility = 'private' LIMIT 1
+                """, Map.of("memoryId", memoryId, "userId", userId)).stream().findFirst()
+            .orElseThrow(() -> new BizException("旅行记忆不存在或无权发布。"));
+        String title = optionalPublicText(payload, "title", 128, String.valueOf(memory.get("title")));
+        String note = optionalPublicText(payload, "note", 600, "");
+        String tags = optionalPublicText(payload, "tags", 200, "");
+        List<Map<String, Object>> facts = jdbcTemplate.queryForList("""
+                SELECT item_type, day_index, place_name, ai_caption
+                FROM tm_trip_memory_item
+                WHERE memory_id = :memoryId AND status = 'ready' AND item_type IN ('place', 'photo')
+                ORDER BY COALESCE(day_index, 2147483647), sort_order, id LIMIT 30
+                """, Map.of("memoryId", memoryId));
+        String content = publicContent(memory, note, facts);
+        Path sanitizedCover = null;
+        try {
+            Object photoId = payload == null ? null : payload.get("photo_item_id");
+            if (photoId != null) {
+                sanitizedCover = sanitizedCover(userId, memoryId, positiveId(photoId, "公开封面选择无效。"));
+            }
+            Map<String, Object> post = new LinkedHashMap<>(createPost(userId, Map.of(
+                "title", title,
+                "content", content,
+                "topic", "route",
+                "city", String.valueOf(memory.get("destination_city")),
+                "visibility", "public",
+                "cover_image", sanitizedCover == null ? "" : "/uploads/" + sanitizedCover.getFileName(),
+                "tags", joinTags(tags, "真实行程")
+            )));
+            post.put("cover_image", sanitizedCover == null ? "" : "/uploads/" + sanitizedCover.getFileName());
+            return post;
+        } catch (RuntimeException ex) {
+            if (sanitizedCover != null) try { Files.deleteIfExists(sanitizedCover); } catch (IOException ignored) { }
+            throw ex;
+        }
     }
 
     public PageResult<Map<String, Object>> myPosts(long userId, int pageNum, int pageSize) {
@@ -277,6 +333,102 @@ public class CommunityService {
         if (!hasText(city)) return null;
         return jdbcTemplate.queryForList("SELECT id FROM tm_city WHERE name = :name AND deleted = 0 LIMIT 1", Map.of("name", city))
             .stream().findFirst().map(row -> ((Number) row.get("id")).longValue()).orElse(null);
+    }
+
+    private String optionalPublicText(Map<String, Object> payload, String key, int max, String fallback) {
+        String value = text(payload, key, max);
+        if (value.isBlank()) value = fallback;
+        if (PRIVATE_DETAIL.matcher(value).find()) {
+            throw new BizException("公开内容不能包含消费金额、精确坐标或 GPS 信息。");
+        }
+        return value;
+    }
+
+    private String publicContent(Map<String, Object> memory, String note, List<Map<String, Object>> facts) {
+        List<String> lines = new ArrayList<>();
+        lines.add("来自真实行程 · 已由旅行者确认公开");
+        if (!note.isBlank()) lines.add(note);
+        for (Map<String, Object> fact : facts) {
+            String place = String.valueOf(fact.get("place_name") == null ? "" : fact.get("place_name")).trim();
+            String caption = "photo".equals(fact.get("item_type"))
+                ? String.valueOf(fact.get("ai_caption") == null ? "" : fact.get("ai_caption")).trim() : "";
+            String safe = !place.isBlank() ? place : caption;
+            if (safe.isBlank() || PRIVATE_DETAIL.matcher(safe).find()) continue;
+            Object day = fact.get("day_index");
+            lines.add("- " + (day == null ? "旅行片段" : "Day " + day) + " · " + safe);
+        }
+        if (lines.size() == (note.isBlank() ? 1 : 2)) {
+            lines.add("- " + memory.get("destination_city") + "旅行片段");
+        }
+        return String.join("\n\n", lines);
+    }
+
+    private Path sanitizedCover(long userId, long memoryId, long photoId) {
+        Map<String, Object> photo = jdbcTemplate.queryForList("""
+                SELECT i.source_url FROM tm_trip_memory_item i
+                JOIN tm_trip_memory m ON m.id = i.memory_id AND m.user_id = :userId
+                WHERE i.id = :photoId AND i.memory_id = :memoryId AND i.item_type = 'photo' AND i.status = 'ready'
+                LIMIT 1
+                """, Map.of("userId", userId, "memoryId", memoryId, "photoId", photoId)).stream().findFirst()
+            .orElseThrow(() -> new BizException("公开封面不属于当前记忆册。"));
+        String sourceUrl = String.valueOf(photo.get("source_url"));
+        String name = Path.of(sourceUrl).getFileName().toString();
+        Path directory = Path.of(System.getProperty("user.dir"), "uploads").toAbsolutePath().normalize();
+        Path source = directory.resolve(name).normalize();
+        Path target = directory.resolve(UUID.randomUUID() + ".png");
+        if (!source.startsWith(directory) || !Files.isRegularFile(source)) throw new BizException("公开封面文件不存在。");
+        BufferedImage image = readPublicCover(source);
+        try {
+            if (!ImageIO.write(image, "png", target.toFile())) throw new IOException("PNG writer unavailable");
+            return target;
+        } catch (IOException ex) {
+            try { Files.deleteIfExists(target); } catch (IOException ignored) { }
+            throw new BizException("公开封面处理失败，请换一张照片。");
+        }
+    }
+
+    private BufferedImage readPublicCover(Path source) {
+        try (ImageInputStream input = ImageIO.createImageInputStream(source.toFile())) {
+            if (input == null) throw new BizException("这张照片无法安全去除位置信息，请选择 JPG 或 PNG。");
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(input);
+            if (!readers.hasNext()) throw new BizException("这张照片无法安全去除位置信息，请选择 JPG 或 PNG。");
+            ImageReader reader = readers.next();
+            try {
+                reader.setInput(input, true, true);
+                validatePublicCoverDimensions(reader.getWidth(0), reader.getHeight(0));
+                return reader.read(0);
+            } finally {
+                reader.dispose();
+            }
+        } catch (IOException ex) {
+            throw new BizException("这张照片无法安全去除位置信息，请选择 JPG 或 PNG。");
+        }
+    }
+
+    static void validatePublicCoverDimensions(int width, int height) {
+        if (width <= 0 || height <= 0 || width > MAX_PUBLIC_COVER_EDGE || height > MAX_PUBLIC_COVER_EDGE
+            || (long) width * height > MAX_PUBLIC_COVER_PIXELS) {
+            throw new BizException("公开封面尺寸过大，请选择不超过 4000 万像素的图片。");
+        }
+    }
+
+    private long positiveId(Object value, String message) {
+        String text = String.valueOf(value).trim();
+        if (!text.matches("[0-9]+")) throw new BizException(message);
+        try {
+            long id = Long.parseLong(text);
+            if (id <= 0) throw new BizException(message);
+            return id;
+        } catch (NumberFormatException ex) {
+            throw new BizException(message);
+        }
+    }
+
+    private String joinTags(String tags, String required) {
+        LinkedHashSet<String> values = new LinkedHashSet<>();
+        for (String tag : tags.split("[,，、\\s]+")) if (!tag.isBlank()) values.add(tag);
+        values.add(required);
+        return String.join("，", values);
     }
 
     private String required(Map<String, Object> payload, String key, int max, String message) {

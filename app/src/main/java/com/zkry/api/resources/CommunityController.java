@@ -55,6 +55,11 @@ public class CommunityController {
         return R.ok(communityService.createPost(LoginHelper.getUserId(), payload));
     }
 
+    @PostMapping("/api/user/memories/{memoryId}/publish")
+    public R<Map<String, Object>> publishMemory(@PathVariable long memoryId, @RequestBody Map<String, Object> payload) {
+        return R.ok(communityService.publishMemory(LoginHelper.getUserId(), memoryId, payload));
+    }
+
     @GetMapping("/api/user/inspirations/bag")
     public R<PageResult<Map<String, Object>>> bag() {
         return R.ok(communityService.bag(LoginHelper.getUserId()));

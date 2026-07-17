@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter, RouterLink } from 'vue-router';
 import { tripApi } from '../api/trip.js';
 import { aiApi } from '../api/ai.js';
+import { memoryApi } from '../api/memory.js';
 import TravelMap3D from '../components/map/AsyncTravelMap3D.vue';
 import { currentTripDayIndex, tripCalendar } from '../utils/tripDeparture.js';
 
@@ -176,6 +177,19 @@ async function copyPlan() {
   }
 }
 
+async function createMemory() {
+  busy.value = 'memory';
+  error.value = '';
+  try {
+    const created = await memoryApi.createFromTrip(route.params.id);
+    router.push(`/memories/${created.id}`);
+  } catch (err) {
+    error.value = err?.message || '旅行回忆没有生成，请稍后重试。';
+  } finally {
+    busy.value = '';
+  }
+}
+
 async function deletePlan() {
   if (!window.confirm('确定丢掉这趟行程吗？删了就找不回来了。')) return;
   busy.value = 'delete';
@@ -224,6 +238,9 @@ onMounted(load);
       <p v-else-if="!detail" class="lead">正在打开这趟行程…</p>
     </div>
     <div v-if="detail" class="trip-hero-actions">
+      <button type="button" class="btn-coral" :disabled="busy === 'memory'" @click="createMemory">
+        {{ busy === 'memory' ? '生成中…' : '生成旅行回忆' }}
+      </button>
       <button type="button" class="btn-ghost" @click="departureMode = !departureMode">
         {{ departureMode ? '收起出发模式' : '进入出发模式' }}
       </button>

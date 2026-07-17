@@ -19,6 +19,7 @@ describe('application shell contracts', () => {
       '/planning',
       '/map',
       '/ai-lab',
+      '/memories',
       '/inspiration-bag',
       '/my-posts',
       '/favorites',
@@ -29,7 +30,7 @@ describe('application shell contracts', () => {
       '首页', '旅行灵感', '先问 AI', '目的地', '我的行程',
     ]);
     expect(auxiliaryNav.map((item) => item.label)).toEqual(['生成行程', '立体地图', 'AI 内容解读']);
-    expect(accountNav.map((item) => item.label)).toEqual(['我的灵感包', '我的分享', '我的收藏', '我的笔记', '旅行偏好']);
+    expect(accountNav.map((item) => item.label)).toEqual(['我的旅行记忆', '我的灵感包', '我的分享', '我的收藏', '我的笔记', '旅行偏好']);
   });
 
   it('registers router paths for all navigation entries', () => {
@@ -44,6 +45,7 @@ describe('application shell contracts', () => {
       expect(routePaths).toContain(item.path);
     }
     expect(routePaths).toContain('/trip/:id');
+    expect(routePaths).toContain('/memories/:id');
     expect(routePaths).toContain('/city/:city');
     expect(routePaths).toContain('/attractions');
     expect(routePaths).toContain('/hotels');

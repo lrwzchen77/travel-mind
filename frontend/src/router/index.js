@@ -17,6 +17,8 @@ import UserLibraryView from '../views/UserLibraryView.vue';
 import LoginView from '../views/LoginView.vue';
 import CommunityView from '../views/CommunityView.vue';
 import MyPostsView from '../views/MyPostsView.vue';
+import MemoryListView from '../views/MemoryListView.vue';
+import MemoryDetailView from '../views/MemoryDetailView.vue';
 import InspirationDetailView from '../views/InspirationDetailView.vue';
 import InspirationBagView from '../views/InspirationBagView.vue';
 import AssistantView from '../views/AssistantView.vue';
@@ -85,6 +87,8 @@ export const routes = [
       { path: 'city/:city', name: 'city-detail', component: CityDetailView, meta: { public: true } },
       { path: 'trip-history', name: 'trip-history', component: TripHistoryView, meta: { requiresAuth: true } },
       { path: 'trip/:id', name: 'trip-detail', component: TripDetailView, meta: { requiresAuth: true } },
+      { path: 'memories', name: 'memories', component: MemoryListView, meta: { requiresAuth: true } },
+      { path: 'memories/:id', name: 'memory-detail', component: MemoryDetailView, meta: { requiresAuth: true } },
       { path: 'ai-lab', name: 'ai-lab', component: AiInspirationView, meta: { requiresAuth: true } },
       { path: 'favorites', name: 'favorites', component: UserLibraryView, meta: { resourceKey: 'favorites', title: '我的收藏', requiresAuth: true } },
       { path: 'travel-notes', name: 'travel-notes', component: UserLibraryView, meta: { resourceKey: 'travel-notes', title: '旅行笔记', requiresAuth: true } },

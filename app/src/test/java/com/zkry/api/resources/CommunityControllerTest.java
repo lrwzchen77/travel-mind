@@ -21,6 +21,7 @@ class CommunityControllerTest {
             login.when(LoginHelper::getUserId).thenReturn(1001L);
             controller.myPosts(1, 20);
             controller.create(payload);
+            controller.publishMemory(3001L, Map.of("title", "杭州回忆"));
             controller.bag();
             controller.addToBag(Map.of("post_id", 7001L, "intent", "must"));
             controller.removeFromBag(7001L);
@@ -32,6 +33,7 @@ class CommunityControllerTest {
 
         verify(service).myPosts(1001L, 1, 20);
         verify(service).createPost(1001L, payload);
+        verify(service).publishMemory(1001L, 3001L, Map.of("title", "杭州回忆"));
         verify(service).bag(1001L);
         verify(service).addToBag(1001L, 7001L, "must");
         verify(service).removeFromBag(1001L, 7001L);
