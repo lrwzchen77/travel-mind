@@ -1,4 +1,6 @@
 .community-filter { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(120px, .45fr) minmax(120px, .35fr) auto; gap: 10px; padding: 14px; }
+.community-filter label { min-width: 0; }
+.my-post-meta .is-rejected { background: #fff0ed; color: var(--danger); }
 .community-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
 .community-card { overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--paper); box-shadow: var(--shadow-soft); }
 .community-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-card); }

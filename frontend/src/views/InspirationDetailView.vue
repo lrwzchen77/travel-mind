@@ -13,24 +13,30 @@ const loading = ref(false);
 const error = ref('');
 const message = ref('');
 const interactionError = ref('');
+const shareError = ref('');
 const comments = ref([]);
+const commentsPage = ref(1);
+const commentsTotal = ref(0);
 const commentsLoading = ref(false);
 const comment = ref('');
 const submitting = ref(false);
 const topicLabel = { food: '吃什么', stay: '住哪里', play: '去哪玩', route: '路线', tip: '避坑' };
 const cover = computed(() => post.value?.cover_image || cityImageByName[post.value?.city] || '');
+const hasMoreComments = computed(() => comments.value.length < commentsTotal.value);
 
 async function load() {
   loading.value = true;
   try { post.value = await communityApi.post(route.params.id); await loadComments(); } catch (err) { error.value = err?.message || '这篇社区分享暂时不可见。'; } finally { loading.value = false; }
 }
 
-async function loadComments() {
+async function loadComments(pageNum = 1) {
   commentsLoading.value = true;
   try {
-    const data = await communityApi.comments(route.params.id, { pageSize: 50 });
-    comments.value = data.records || [];
-    if (post.value) post.value.comment_count = data.total ?? comments.value.length;
+    const data = await communityApi.comments(route.params.id, { pageNum, pageSize: 50 });
+    comments.value = pageNum === 1 ? (data.records || []) : [...comments.value, ...(data.records || [])];
+    commentsPage.value = pageNum;
+    commentsTotal.value = data.total ?? comments.value.length;
+    if (post.value) post.value.comment_count = commentsTotal.value;
   }
   catch (err) { interactionError.value = err?.message || '评论暂时没有加载出来。'; }
   finally { commentsLoading.value = false; }
@@ -64,6 +70,7 @@ async function removeComment(item) {
   try {
     await communityApi.deleteComment(item.id);
     comments.value = comments.value.filter(({ id }) => id !== item.id);
+    commentsTotal.value = Math.max(0, commentsTotal.value - 1);
     post.value.comment_count = Math.max(0, Number(post.value.comment_count || 0) - 1);
   } catch (err) { interactionError.value = err?.message || '评论删除失败。'; }
 }
@@ -71,6 +78,20 @@ async function removeComment(item) {
 async function addToBag() {
   if (!authSession.isLoggedIn()) { router.push({ path: '/login', query: { redirect: route.fullPath } }); return; }
   try { await communityApi.addToBag(post.value.id, intent.value); message.value = '已加入灵感包，可以带去生成行程。'; } catch (err) { error.value = err?.message || '加入灵感包失败。'; }
+}
+
+async function sharePost() {
+  shareError.value = '';
+  const data = { title: post.value.title, text: `分享一篇旅行经验：${post.value.title}`, url: window.location.href };
+  try {
+    if (navigator.share) await navigator.share(data);
+    else if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(data.url);
+      message.value = '链接已复制，可以发给同行人。';
+    } else throw new Error('当前浏览器不支持分享或复制链接。');
+  } catch (err) {
+    if (err?.name !== 'AbortError') shareError.value = err?.message || '分享失败，请稍后再试。';
+  }
 }
 
 onMounted(load);
@@ -81,8 +102,19 @@ onMounted(load);
   <p v-if="error" class="error-line">{{ error }}</p>
   <article v-if="post" class="inspiration-detail">
     <img v-if="cover" class="inspiration-detail-cover" :src="cover" :alt="post.title" />
-    <div class="inspiration-detail-copy"><p class="eyebrow">{{ topicLabel[post.topic] || '旅行分享' }} · {{ post.city || '目的地' }}</p><h1>{{ post.title }}</h1><p class="inspiration-author">{{ post.author || '旅行者' }} 分享 · {{ post.create_time || '近期' }}</p><div class="chip-row"><span v-for="tag in String(post.tags || '').split(/[,，、\s]+/).filter(Boolean)" :key="tag" class="chip">{{ tag }}</span></div><p class="inspiration-content">{{ post.content }}</p><section class="community-interactions" aria-labelledby="comments-title"><div class="community-interaction-head"><h2 id="comments-title">旅行者评论（{{ post.comment_count || 0 }}）</h2><button type="button" class="btn-ghost like-button" :aria-pressed="Boolean(post.liked_by_me)" @click="toggleLike">{{ post.liked_by_me ? '已赞' : '点赞' }} · {{ post.like_count || 0 }}</button></div><form class="comment-form" @submit.prevent="publishComment"><label for="comment">说点对后来旅行者有用的话</label><textarea id="comment" v-model="comment" maxlength="1000" rows="3" required placeholder="分享补充信息或真实体验…" /><button class="btn-coral" type="submit" :disabled="submitting">{{ submitting ? '发布中…' : '发布评论' }}</button></form><p v-if="interactionError" class="error-line" role="alert">{{ interactionError }}</p><p v-if="commentsLoading" class="empty-state">正在加载评论…</p><div v-else-if="!comments.length" class="empty-state empty-state--card">还没有评论，来分享第一条有用信息吧。</div><ol v-else class="comment-list"><li v-for="item in comments" :key="item.id"><div><strong>{{ item.author || '旅行者' }}</strong><time>{{ item.create_time || '刚刚' }}</time></div><p>{{ item.content }}</p><button v-if="item.is_mine" type="button" class="text-link" :aria-label="`删除 ${item.author || '我的'} 的评论`" @click="removeComment(item)">删除</button></li></ol></section></div>
-  <aside class="inspiration-action glass-panel"><p class="eyebrow">引用到这趟旅行</p><h2>把这份体验带进行程</h2><label class="field-label" for="intent">怎么参考它</label><select id="intent" v-model="intent"><option value="must">必须安排</option><option value="priority">优先参考</option><option value="reference">仅作参考 / 避坑</option></select><button type="button" class="btn-coral" @click="addToBag">加入灵感包</button><RouterLink class="btn-link btn-ghost" :to="{ path: '/assistant', query: { inspirationIds: post.id } }">先问 AI 怎么取舍</RouterLink><p v-if="message" class="success-line">{{ message }}</p></aside>
+    <div class="inspiration-detail-copy">
+      <p class="eyebrow">{{ topicLabel[post.topic] || '旅行分享' }} · {{ post.city || '目的地' }}</p><h1>{{ post.title }}</h1><p class="inspiration-author">{{ post.author || '旅行者' }} 分享 · {{ post.create_time || '近期' }}</p><div class="chip-row"><span v-for="tag in String(post.tags || '').split(/[,，、\s]+/).filter(Boolean)" :key="tag" class="chip">{{ tag }}</span></div><p class="inspiration-content">{{ post.content }}</p>
+      <section class="community-interactions" aria-labelledby="comments-title">
+        <div class="community-interaction-head"><h2 id="comments-title">旅行者评论（{{ post.comment_count || 0 }}）</h2><button type="button" class="btn-ghost like-button" :aria-pressed="Boolean(post.liked_by_me)" @click="toggleLike">{{ post.liked_by_me ? '已赞' : '点赞' }} · {{ post.like_count || 0 }}</button></div>
+        <form class="comment-form" @submit.prevent="publishComment"><label for="comment">说点对后来旅行者有用的话</label><textarea id="comment" v-model="comment" maxlength="1000" rows="3" required placeholder="分享补充信息或真实体验…" /><button class="btn-coral" type="submit" :disabled="submitting">{{ submitting ? '发布中…' : '发布评论' }}</button></form>
+        <p v-if="interactionError" class="error-line" role="alert">{{ interactionError }}</p>
+        <p v-if="commentsLoading && !comments.length" class="empty-state">正在加载评论…</p>
+        <div v-else-if="!comments.length" class="empty-state empty-state--card">还没有评论，来分享第一条有用信息吧。</div>
+        <ol v-else class="comment-list"><li v-for="item in comments" :key="item.id"><div><strong>{{ item.author || '旅行者' }}</strong><time>{{ item.create_time || '刚刚' }}</time></div><p>{{ item.content }}</p><button v-if="item.is_mine" type="button" class="text-link" :aria-label="`删除 ${item.author || '我的'} 的评论`" @click="removeComment(item)">删除</button></li></ol>
+        <div v-if="hasMoreComments" class="load-more"><button type="button" class="btn-ghost" :disabled="commentsLoading" @click="loadComments(commentsPage + 1)">{{ commentsLoading ? '正在加载…' : `加载更多评论（还有 ${commentsTotal - comments.length} 条）` }}</button></div>
+      </section>
+    </div>
+  <aside class="inspiration-action glass-panel"><p class="eyebrow">引用到这趟旅行</p><h2>把这份体验带进行程</h2><label class="field-label" for="intent">怎么参考它</label><select id="intent" v-model="intent"><option value="must">必须安排</option><option value="priority">优先参考</option><option value="reference">仅作参考 / 避坑</option></select><button type="button" class="btn-coral" @click="addToBag">加入灵感包</button><RouterLink class="btn-link btn-ghost" :to="{ path: '/assistant', query: { inspirationIds: post.id } }">先问 AI 怎么取舍</RouterLink><button type="button" class="btn-ghost share-post" @click="sharePost">分享给同行人</button><p v-if="message" class="success-line">{{ message }}</p><p v-if="shareError" class="error-line" role="alert">{{ shareError }}</p></aside>
   </article>
   <div v-else-if="loading" class="empty-state">正在打开社区分享…</div>
 </template>

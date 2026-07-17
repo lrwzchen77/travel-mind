@@ -43,4 +43,15 @@ describe('用户端布局', () => {
     expect(wrapper.find('[data-testid="inspiration-bag-float"]').exists()).toBe(true);
     wrapper.unmount();
   });
+
+  it('在城市和行程详情中保持对应主导航激活', () => {
+    mocks.route.path = '/city/杭州';
+    let wrapper = mount(AppLayout);
+    expect(wrapper.findAll('.top-link').find((link) => link.text() === '目的地').classes()).toContain('is-active');
+    wrapper.unmount();
+
+    mocks.route.path = '/trip/123';
+    wrapper = mount(AppLayout);
+    expect(wrapper.findAll('.top-link').find((link) => link.text() === '我的行程').classes()).toContain('is-active');
+  });
 });

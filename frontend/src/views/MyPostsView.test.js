@@ -18,7 +18,7 @@ describe('我的分享页', () => {
   it('shows owned posts and their publish states', async () => {
     const wrapper = mount(MyPostsView);
     await flushPromises();
-    expect(myPosts).toHaveBeenCalledWith({ pageSize: 30 });
+    expect(myPosts).toHaveBeenCalledWith({ pageNum: 1, pageSize: 30 });
     expect(wrapper.text()).toContain('1篇已发布');
     expect(wrapper.text()).toContain('1篇审核中');
     expect(wrapper.text()).toContain('仅自己可见');

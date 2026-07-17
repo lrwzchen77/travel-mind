@@ -24,13 +24,14 @@ describe('application shell contracts', () => {
       '/my-posts',
       '/favorites',
       '/travel-notes',
+      '/ai-records',
       '/profile',
     ]);
     expect(primaryNav.map((item) => item.label)).toEqual([
       '首页', '旅行灵感', '先问 AI', '目的地', '我的行程',
     ]);
     expect(auxiliaryNav.map((item) => item.label)).toEqual(['生成行程', '立体地图', 'AI 内容解读']);
-    expect(accountNav.map((item) => item.label)).toEqual(['旅行记录', '我的灵感包', '我的分享', '我的收藏', '我的笔记', '旅行偏好']);
+    expect(accountNav.map((item) => item.label)).toEqual(['旅行记录', '我的灵感包', '我的分享', '我的收藏', '我的笔记', 'AI 内容解读', '灵感足迹', '旅行偏好']);
   });
 
   it('registers router paths for all navigation entries', () => {

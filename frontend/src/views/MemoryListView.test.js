@@ -26,6 +26,8 @@ describe('旅行记录列表', () => {
     const wrapper = mount(MemoryListView);
     await flushPromises();
 
+    expect(mocks.list).toHaveBeenCalledWith({ pageNum: 1, pageSize: 30 });
+
     expect(wrapper.text()).toContain('旅行记录');
     expect(wrapper.text()).toContain('杭州 · 8月3日更新');
     expect(wrapper.text()).toContain('打开后可以准备查找旅行细节');

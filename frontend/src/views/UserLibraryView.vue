@@ -6,6 +6,8 @@ import { cityImageByName } from '../data/cityImages.js';
 
 const route = useRoute();
 const items = ref([]);
+const total = ref(0);
+const page = ref(1);
 const loading = ref(false);
 const error = ref('');
 const message = ref('');
@@ -49,6 +51,7 @@ const pageCopy = computed(() => {
 });
 
 const canCreate = computed(() => resourceKey.value === 'travel-notes');
+const hasMore = computed(() => items.value.length < total.value);
 
 function itemKind(item) {
   if (resourceKey.value === 'favorites') {
@@ -81,12 +84,22 @@ function favoriteCityLink(item) {
   return `/city/${encodeURIComponent(item.note || '')}`;
 }
 
-async function load() {
+function reuseLink(item) {
+  const note = resourceKey.value === 'ai-records'
+    ? `参考之前的 AI 灵感：${itemBody(item)}`
+    : `希望参考我收藏的${itemKind(item)}：${itemTitle(item)}`;
+  return { path: '/planning', query: { note: note.slice(0, 500) } };
+}
+
+async function load(pageNum = 1) {
   loading.value = true;
   error.value = '';
   message.value = '';
   try {
-    items.value = (await resourceApi.userList(resourceKey.value, { pageSize: 30 })).records || [];
+    const data = await resourceApi.userList(resourceKey.value, { pageNum, pageSize: 30 });
+    items.value = pageNum === 1 ? (data.records || []) : [...items.value, ...(data.records || [])];
+    total.value = data.total || items.value.length;
+    page.value = pageNum;
   } catch (err) {
     error.value = err?.message || '加载失败，请稍后再试';
   } finally {
@@ -96,6 +109,7 @@ async function load() {
 
 async function create() {
   try {
+    const submittedVisibility = form.visibility;
     await resourceApi.userCreate(resourceKey.value, {
       title: form.title,
       content: form.content,
@@ -104,7 +118,7 @@ async function create() {
     });
     Object.assign(form, { title: '', content: '', visibility: 'private' });
     composing.value = false;
-    message.value = '笔记已保存';
+    message.value = submittedVisibility === 'public' ? '笔记已保存并标记为公开，但不会自动发布到旅行社区。' : '笔记已保存';
     await load();
   } catch (err) {
     error.value = err?.message || '保存失败';
@@ -137,7 +151,7 @@ onMounted(load);
 
   <div class="section-head">
     <div>
-      <h2>{{ loading ? '正在打开…' : pageCopy.count(items.length) }}</h2>
+      <h2>{{ loading && !items.length ? '正在打开…' : pageCopy.count(total) }}</h2>
     </div>
     <button
       v-if="canCreate"
@@ -176,7 +190,7 @@ onMounted(load);
       <label class="field-label" for="note-vis">谁能看见</label>
       <select id="note-vis" v-model="form.visibility">
         <option value="private">仅自己可见</option>
-        <option value="public">公开分享</option>
+        <option value="public">公开标记（不会自动发布到社区）</option>
       </select>
     </div>
     <div class="actions">
@@ -230,7 +244,9 @@ onMounted(load);
       <template v-else>
         <h2>{{ itemTitle(item) }}</h2>
         <p>{{ itemBody(item) }}</p>
+        <RouterLink v-if="resourceKey === 'favorites' || resourceKey === 'ai-records'" class="text-link" :to="reuseLink(item)">带去规划 →</RouterLink>
       </template>
     </article>
   </div>
+  <div v-if="hasMore" class="load-more"><button type="button" class="btn-ghost" :disabled="loading" @click="load(page + 1)">{{ loading ? '正在加载…' : `加载更多（还有 ${total - items.length} 项）` }}</button></div>
 </template>

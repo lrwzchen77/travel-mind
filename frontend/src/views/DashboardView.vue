@@ -9,6 +9,7 @@ import {
 import { useReveal } from '../composables/useReveal.js';
 import TravelMap3D from '../components/map/AsyncTravelMap3D.vue';
 import { cityImageByName } from '../data/cityImages.js';
+import { supportsPlanning } from '../data/planningSupport.js';
 
 const root = ref(null);
 const cityIndex = ref(0);
@@ -55,7 +56,7 @@ onUnmounted(() => {
           </span>
         </h1>
         <div class="hero-actions">
-          <RouterLink class="btn-link btn-coral btn-glow" to="/planning">
+          <RouterLink class="btn-link btn-coral btn-glow" :to="{ path: '/planning', query: { city: rotatingCities[cityIndex] } }">
             开始规划我的行程
             <span class="btn-arrow" aria-hidden="true">→</span>
           </RouterLink>
@@ -139,9 +140,10 @@ onUnmounted(() => {
           <strong>当前镜头：{{ mapCity }}</strong>
         </div>
         <div class="actions">
-          <RouterLink class="btn-link btn-coral" :to="{ path: '/planning', query: { city: mapCity } }">
+          <RouterLink v-if="supportsPlanning(mapCity)" class="btn-link btn-coral" :to="{ path: '/planning', query: { city: mapCity } }">
             规划 {{ mapCity }}
           </RouterLink>
+          <RouterLink v-else class="btn-link btn-coral" :to="`/city/${encodeURIComponent(mapCity)}`">先浏览 {{ mapCity }}</RouterLink>
           <RouterLink class="btn-link btn-ghost" to="/map">打开立体地图</RouterLink>
         </div>
       </div>

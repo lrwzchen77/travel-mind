@@ -120,6 +120,21 @@ const router = createRouter({
   },
 });
 
+const pageTitles = {
+  dashboard: '旅行灵感', planning: '规划行程', 'explore-map': '立体地图', inspirations: '旅行社区',
+  'inspiration-detail': '旅行分享', 'my-posts': '我的分享', 'inspiration-bag': '我的灵感包', assistant: '旅行助手',
+  attractions: '去哪玩', hotels: '住哪里', restaurants: '吃什么', cities: '发现城市',
+  'trip-history': '我的行程', 'trip-detail': '行程详情', memories: '旅行记录', 'memory-detail': '旅行回忆',
+  'ai-lab': 'AI 内容解读', favorites: '我的收藏', 'travel-notes': '旅行笔记', 'ai-records': '灵感足迹', profile: '旅行偏好',
+  'user-login': '旅行账号登录', 'admin-login': '运营登录',
+};
+
+router.afterEach((to) => {
+  const title = to.name === 'city-detail' ? `${String(to.params.city || '')}旅行`
+    : (to.meta.title || pageTitles[to.name] || 'Travel Mind');
+  document.title = title === 'Travel Mind' ? '旅行灵感 · Travel Mind' : `${title} · Travel Mind`;
+});
+
 router.beforeEach((to) => {
   const isAdmin = to.matched.some((route) => route.meta.admin);
   const requiresAuth = to.matched.some((route) => route.meta.requiresAuth);

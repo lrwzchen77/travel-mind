@@ -11,6 +11,8 @@ import {
   waitForTripTask,
 } from '../api/tripTask.js';
 import TravelMap3D from '../components/map/AsyncTravelMap3D.vue';
+import { consumerText } from '../data/consumerText.js';
+import { supportedPlanningCities, supportsPlanning } from '../data/planningSupport.js';
 
 const router = useRouter();
 const route = useRoute();
@@ -33,12 +35,17 @@ function localDate(offsetDays = 0) {
 }
 
 const form = reactive({
+  origin: '',
   city: '杭州',
   start_date: localDate(7),
   travel_days: 2,
   transportation: '公共交通',
   accommodation: '舒适型酒店',
   budget: '3000',
+  budget_scope: '整单预算',
+  include_transport: true,
+  adults: 2,
+  children: 0,
   preferences: ['湖景', '美食', '轻松'],
   free_text_input: '节奏轻松，适合第一次到杭州。',
   language: 'zh',
@@ -58,6 +65,8 @@ const days = computed(() => result.value?.data?.days || []);
 const budget = computed(() => result.value?.data?.budget || {});
 const progress = computed(() => Number(task.value?.progress || 0));
 const taskStatus = computed(() => normalizeTripTaskStatus(task.value?.status));
+const citySupported = computed(() => supportsPlanning(form.city));
+const resultSuggestion = computed(() => consumerText(result.value?.data?.overall_suggestions) || '已排好重点安排');
 
 const statusLabel = computed(() => {
   const map = {
@@ -80,6 +89,9 @@ function togglePref(tag) {
 
 function setCompanion(value) {
   companion.value = value;
+  if (value === '独自') Object.assign(form, { adults: 1, children: 0 });
+  if (value === '情侣') Object.assign(form, { adults: 2, children: 0 });
+  if (value === '带孩子') form.children = Math.max(1, Number(form.children) || 0);
   form.free_text_input = form.free_text_input.replace(/^同行人：.*(?:\n|$)/m, '').trim();
   appendNote(`同行人：${value}`);
 }
@@ -130,7 +142,7 @@ function restoreDraft() {
 }
 
 function applyQuery() {
-  const directFields = ['city', 'start_date', 'travel_days', 'transportation', 'accommodation', 'budget'];
+  const directFields = ['origin', 'city', 'start_date', 'travel_days', 'transportation', 'accommodation', 'budget', 'adults', 'children'];
   for (const field of directFields) {
     if (route.query[field] != null && String(route.query[field]).trim()) form[field] = String(route.query[field]);
   }
@@ -151,12 +163,53 @@ function applyQuery() {
   for (const preference of requestedPreferences) {
     if (prefOptions.includes(preference) && !form.preferences.includes(preference)) form.preferences.push(preference);
   }
+  if (['整单预算', '人均预算'].includes(String(route.query.budget_scope))) form.budget_scope = String(route.query.budget_scope);
+  if (route.query.include_transport != null) form.include_transport = String(route.query.include_transport) !== 'false';
+}
+
+function planningConstraints() {
+  return [
+    `出发地：${form.origin.trim()}`,
+    `同行人数：${Number(form.adults)} 位成人、${Number(form.children)} 位儿童`,
+    `预算口径：${form.budget_scope}，${form.include_transport ? '包含' : '不包含'}往返大交通`,
+  ].join('\n');
 }
 
 async function submit() {
   const travelDays = Number(form.travel_days);
   if (!form.city.trim()) {
     error.value = '请填写目的地城市';
+    return;
+  }
+  if (!citySupported.value) {
+    error.value = `当前只对 ${supportedPlanningCities.join('、')} 开放完整吃住玩规划。${form.city.trim()} 的真实资源还在补充，本次不会用占位商户生成行程。`;
+    return;
+  }
+  if (!form.origin.trim()) {
+    error.value = '请填写出发城市';
+    return;
+  }
+  if (form.origin.trim().length > 60 || form.city.trim().length > 60) {
+    error.value = '出发地和目的地请控制在 60 个字以内';
+    return;
+  }
+  const adults = Number(form.adults);
+  const children = Number(form.children);
+  if (!Number.isInteger(adults) || adults < 1 || adults > 20 || !Number.isInteger(children) || children < 0 || children > 20) {
+    error.value = '请填写 1 至 20 位成人、0 至 20 位儿童';
+    return;
+  }
+  const budgetValue = Number(form.budget);
+  if (!['整单预算', '人均预算'].includes(form.budget_scope)) {
+    error.value = '请选择预算口径';
+    return;
+  }
+  if (form.budget !== '' && (!Number.isFinite(budgetValue) || budgetValue < 0 || budgetValue > 100000000)) {
+    error.value = '预算请填写 0 至 1 亿元之间的金额';
+    return;
+  }
+  if (form.free_text_input.length > 1500) {
+    error.value = '补充要求请控制在 1500 个字以内';
     return;
   }
   if (!Number.isInteger(travelDays) || travelDays < 1 || travelDays > 30) {
@@ -183,11 +236,13 @@ async function submit() {
   error.value = '';
   result.value = null;
   try {
+    const { origin, adults: adultCount, children: childCount, budget_scope, include_transport, ...acceptedFields } = form;
     const payload = {
-      ...form,
+      ...acceptedFields,
       end_date: endDate.value,
       travel_days: travelDays,
       preferences: [...form.preferences],
+      free_text_input: [form.free_text_input.trim(), planningConstraints()].filter(Boolean).join('\n'),
     };
     task.value = await tripApi.submitPlan(payload);
     const finalState = await waitForTripTask({
@@ -255,29 +310,53 @@ onUnmounted(() => taskAbortController?.abort());
 
       <div class="field-row">
         <div>
-          <label class="field-label">想去哪座城</label>
-          <input v-model="form.city" placeholder="例如：杭州、成都、厦门" />
+          <label class="field-label" for="planning-origin">从哪里出发</label>
+          <input id="planning-origin" v-model.trim="form.origin" maxlength="60" placeholder="例如：上海" required />
         </div>
         <div>
-          <label class="field-label">玩几天</label>
-          <input v-model.number="form.travel_days" type="number" min="1" max="30" placeholder="2" required />
+          <label class="field-label" for="planning-city">想去哪座城</label>
+          <input id="planning-city" v-model.trim="form.city" maxlength="60" aria-describedby="planning-city-support" placeholder="例如：杭州、北京、成都" required />
+          <small id="planning-city-support" class="panel-hint" :class="{ 'support-warning': form.city && !citySupported }">当前完整支持：杭州、北京、成都。其他城市可先浏览，真实资源补齐后再开放规划。</small>
         </div>
       </div>
 
       <div class="field-row">
         <div>
-          <label class="field-label">出发日期</label>
-          <input v-model="form.start_date" type="date" :min="today" required />
+          <label class="field-label" for="planning-days">玩几天</label>
+          <input id="planning-days" v-model.number="form.travel_days" type="number" min="1" max="30" placeholder="2" required />
         </div>
-        <div>
-          <label class="field-label">预计返程</label>
-          <input :value="endDate" type="date" readonly aria-label="根据出发日期和游玩天数自动计算的返程日期" />
+        <div class="traveller-counts">
+          <span class="field-label">同行人数</span>
+          <div class="field-row">
+            <label><small>成人</small><input id="planning-adults" v-model.number="form.adults" type="number" min="1" max="20" required /></label>
+            <label><small>儿童</small><input id="planning-children" v-model.number="form.children" type="number" min="0" max="20" required /></label>
+          </div>
         </div>
       </div>
 
-      <div>
-        <label class="field-label">大概预算（元）</label>
-        <input v-model="form.budget" type="number" min="0" step="100" placeholder="例如 3000" />
+      <div class="field-row">
+        <div>
+          <label class="field-label" for="planning-start-date">出发日期</label>
+          <input id="planning-start-date" v-model="form.start_date" type="date" :min="today" required />
+        </div>
+        <div>
+          <label class="field-label" for="planning-end-date">预计返程</label>
+          <input id="planning-end-date" :value="endDate" type="date" readonly />
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div>
+          <label class="field-label" for="planning-budget">大概预算（元）</label>
+          <input id="planning-budget" v-model="form.budget" type="number" min="0" step="100" placeholder="例如 3000" />
+        </div>
+        <div>
+          <label class="field-label" for="planning-budget-scope">预算口径</label>
+          <select id="planning-budget-scope" v-model="form.budget_scope">
+            <option>整单预算</option><option>人均预算</option>
+          </select>
+          <label class="planner-check"><input v-model="form.include_transport" type="checkbox" /> 包含往返大交通</label>
+        </div>
       </div>
 
       <div>
@@ -302,12 +381,12 @@ onUnmounted(() => taskAbortController?.abort());
         <div class="planner-more-fields">
           <div class="field-row">
             <div>
-              <label class="field-label">怎么出门</label>
-              <input v-model="form.transportation" placeholder="公共交通 / 自驾 / 打车" />
+              <label class="field-label" for="planning-transport">到达后怎么走</label>
+              <input id="planning-transport" v-model="form.transportation" maxlength="100" placeholder="公共交通 / 自驾 / 打车" />
             </div>
             <div>
-              <label class="field-label">住哪里</label>
-              <input v-model="form.accommodation" placeholder="舒适型酒店 / 民宿" />
+              <label class="field-label" for="planning-accommodation">住哪里</label>
+              <input id="planning-accommodation" v-model="form.accommodation" maxlength="100" placeholder="舒适型酒店 / 民宿" />
             </div>
           </div>
 
@@ -329,9 +408,11 @@ onUnmounted(() => taskAbortController?.abort());
           </div>
 
           <div>
-            <label class="field-label">还有什么想补充的</label>
+            <label class="field-label" for="planning-notes">还有什么想补充的</label>
             <textarea
+              id="planning-notes"
               v-model="form.free_text_input"
+              maxlength="1500"
               rows="3"
               spellcheck="false"
               placeholder="例如：第一次去、想少走路、爱吃辣…"
@@ -368,6 +449,7 @@ onUnmounted(() => taskAbortController?.abort());
       </p>
 
       <div v-if="result" class="trip-summary" style="margin-top: 20px;">
+        <p class="trust-note">以下为 AI 规划建议，不代表已预订。价格、库存、营业与预约信息请在出发前向服务方复核。</p>
         <article class="trip-summary-card">
           <span>目的地</span>
           <strong>{{ result.data.city }}</strong>
@@ -381,7 +463,7 @@ onUnmounted(() => taskAbortController?.abort());
         <article class="trip-summary-card">
           <span>日程</span>
           <strong>{{ days.length }} 天</strong>
-          <p>{{ result.data.overall_suggestions || '已排好重点安排' }}</p>
+          <p>{{ resultSuggestion }}</p>
         </article>
       </div>
 

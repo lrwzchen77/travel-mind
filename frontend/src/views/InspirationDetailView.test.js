@@ -34,7 +34,7 @@ describe('社区分享互动', () => {
     await flushPromises();
 
     expect(mocks.post).toHaveBeenCalledWith('7001');
-    expect(mocks.comments).toHaveBeenCalledWith('7001', { pageSize: 50 });
+    expect(mocks.comments).toHaveBeenCalledWith('7001', { pageNum: 1, pageSize: 50 });
     expect(wrapper.text()).toContain('点赞 · 2');
     expect(wrapper.text()).toContain('傍晚更舒服');
 
@@ -61,5 +61,18 @@ describe('社区分享互动', () => {
     await flushPromises();
     expect(mocks.createComment).toHaveBeenCalledWith(7001, '补充公交信息');
     expect(wrapper.find('.comment-list button').text()).toBe('删除');
+  });
+
+  it('浏览器无系统分享时复制当前链接', async () => {
+    const writeText = vi.fn().mockResolvedValue();
+    Object.defineProperty(navigator, 'share', { value: undefined, configurable: true });
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    const wrapper = mount(InspirationDetailView);
+    await flushPromises();
+    await wrapper.get('.share-post').trigger('click');
+    await flushPromises();
+
+    expect(writeText).toHaveBeenCalledWith(window.location.href);
+    expect(wrapper.text()).toContain('链接已复制');
   });
 });

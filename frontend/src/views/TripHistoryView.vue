@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { tripApi } from '../api/trip.js';
 
@@ -7,32 +7,36 @@ const items = ref([]);
 const total = ref(0);
 const error = ref('');
 const loading = ref(false);
+const limit = ref(20);
+const hasMore = computed(() => items.value.length < total.value);
 
 const statusMap = {
-  COMPLETED: '已完成',
-  DRAFT: '草稿',
-  SAVED: '已保存',
-  ACTIVE: '进行中',
+  COMPLETED: '已结束',
+  DRAFT: '待完善',
+  SAVED: '已规划',
+  ACTIVE: '旅行中',
   ARCHIVED: '已归档',
 };
 
 function statusLabel(status) {
-  return statusMap[status] || '行程';
+  return statusMap[String(status || '').toUpperCase()] || '已规划';
 }
 
 function statusClass(status) {
+  status = String(status || '').toUpperCase();
   if (status === 'COMPLETED' || status === 'SAVED') return 'badge-ok';
   if (status === 'DRAFT' || status === 'ACTIVE') return 'badge-warn';
   return 'badge-muted';
 }
 
-async function load() {
+async function load(nextLimit = limit.value) {
   loading.value = true;
   error.value = '';
   try {
-    const data = await tripApi.history(20);
+    const data = await tripApi.history(nextLimit);
     items.value = data.items || [];
     total.value = data.total || items.value.length;
+    limit.value = nextLimit;
   } catch (err) {
     error.value = err?.message || '暂时打不开行程册，检查网络后再试';
   } finally {
@@ -100,4 +104,5 @@ onMounted(load);
       </div>
     </RouterLink>
   </div>
+  <div v-if="hasMore" class="load-more"><button type="button" class="btn-ghost" :disabled="loading" @click="load(limit + 20)">{{ loading ? '正在加载…' : `加载更多（还有 ${total - items.length} 份）` }}</button></div>
 </template>

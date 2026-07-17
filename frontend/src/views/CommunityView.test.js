@@ -58,7 +58,7 @@ describe('旅行社区页', () => {
     const wrapper = mountPage();
     await flushPromises();
 
-    expect(mocks.posts).toHaveBeenCalledWith({ keyword: '', city: '杭州', topic: '', pageSize: 24 });
+    expect(mocks.posts).toHaveBeenCalledWith({ keyword: '', city: '杭州', topic: '', pageNum: 1, pageSize: 24 });
     expect(wrapper.text()).toContain('西湖边的慢行路线');
     expect(wrapper.text()).toContain('1 篇旅行者分享');
 
@@ -70,7 +70,21 @@ describe('旅行社区页', () => {
     await filter.trigger('submit');
     await flushPromises();
 
-    expect(mocks.posts).toHaveBeenLastCalledWith({ keyword: '日落', city: '苏州', topic: 'play', pageSize: 24 });
+    expect(mocks.posts).toHaveBeenLastCalledWith({ keyword: '日落', city: '苏州', topic: 'play', pageNum: 1, pageSize: 24 });
+  });
+
+  it('总数超过当前页时可继续加载且不丢已有内容', async () => {
+    mocks.posts
+      .mockResolvedValueOnce({ records: [firstPost], total: 2 })
+      .mockResolvedValueOnce({ records: [{ ...firstPost, id: 8, title: '第二篇' }], total: 2 });
+    const wrapper = mountPage();
+    await flushPromises();
+    await wrapper.get('.load-more button').trigger('click');
+    await flushPromises();
+
+    expect(mocks.posts).toHaveBeenLastCalledWith({ keyword: '', city: '杭州', topic: '', pageNum: 2, pageSize: 24 });
+    expect(wrapper.text()).toContain('西湖边的慢行路线');
+    expect(wrapper.text()).toContain('第二篇');
   });
 
   it('未登录时带当前地址跳转登录页', async () => {
@@ -131,7 +145,7 @@ describe('旅行社区页', () => {
     });
     expect(mocks.posts).toHaveBeenCalledTimes(2);
     expect(wrapper.find('.community-compose').exists()).toBe(false);
-    expect(wrapper.text()).toContain('已提交发布；审核通过后会出现在旅行社区。');
+    expect(wrapper.text()).toContain('已保存为仅自己可见，不会进入旅行社区。');
 
     await openComposer(wrapper);
     const resetComposer = wrapper.find('.community-compose');

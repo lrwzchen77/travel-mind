@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { useRouter, useRoute, RouterLink } from 'vue-router';
 import TravelMap3D from '../components/map/AsyncTravelMap3D.vue';
 import { findDestination, geoDestinations } from '../data/geoDestinations.js';
+import { supportsPlanning } from '../data/planningSupport.js';
 
 const router = useRouter();
 const route = useRoute();
@@ -53,7 +54,8 @@ function pick(city) {
           <li v-for="poi in dest.pois" :key="poi.name">{{ poi.name }}</li>
         </ul>
         <div class="actions" style="margin-top: 16px;">
-          <button type="button" class="btn-coral" @click="planHere">去规划这程</button>
+          <button v-if="supportsPlanning(selected)" type="button" class="btn-coral" @click="planHere">去规划这程</button>
+          <RouterLink v-else class="btn-link btn-coral" :to="`/city/${encodeURIComponent(selected)}`">先浏览这座城</RouterLink>
           <RouterLink class="btn-link btn-ghost" to="/cities">发现更多城市</RouterLink>
         </div>
       </aside>

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-15T12:32:29.642Z",
+  "generatedAt": "2026-07-17T04:11:53.895Z",
   "images": [
     {
       "city": "北京",
@@ -132,6 +132,16 @@
       "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
     },
     {
+      "city": "厦门",
+      "file": "xiamen.jpg",
+      "commonsTitle": "File:Xiamen night cityscape 2018 - Flickr - Jaykhuang.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Xiamen_night_cityscape_2018_-_Flickr_-_Jaykhuang.jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/5/51/Xiamen_night_cityscape_2018_-_Flickr_-_Jaykhuang.jpg",
+      "author": "Jay Huang from Pleasanton, USA",
+      "license": "CC BY 2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
+    },
+    {
       "city": "南昌",
       "file": "nanchang.jpg",
       "commonsTitle": "File:Nanchang Skyline.jpg",
@@ -150,6 +160,26 @@
       "author": "Ermell",
       "license": "CC BY-SA 4.0",
       "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "city": "青岛",
+      "file": "qingdao.jpg",
+      "commonsTitle": "File:Qingdao (31424840488).jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Qingdao_(31424840488).jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/9/99/Qingdao_%2831424840488%29.jpg",
+      "author": "Dan Nevill from Seattle, WA, United States",
+      "license": "CC BY 2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
+    },
+    {
+      "city": "桂林",
+      "file": "guilin.jpg",
+      "commonsTitle": "File:Xiangshan Scenic Area 89468-Guilin (31130832628).jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Xiangshan_Scenic_Area_89468-Guilin_(31130832628).jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/b/bb/Xiangshan_Scenic_Area_89468-Guilin_%2831130832628%29.jpg",
+      "author": "xiquinhosilva",
+      "license": "CC BY 2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
     },
     {
       "city": "郑州",
@@ -250,6 +280,26 @@
       "author": "瑞丽江的河水",
       "license": "CC BY-SA 4.0",
       "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+    },
+    {
+      "city": "大理",
+      "file": "dali.jpg",
+      "commonsTitle": "File:Chongsheng Temple (11050634113).jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Chongsheng_Temple_(11050634113).jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/f/ff/Chongsheng_Temple_%2811050634113%29.jpg",
+      "author": "Andrew and Annemarie",
+      "license": "CC BY-SA 2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
+    },
+    {
+      "city": "丽江",
+      "file": "lijiang.jpg",
+      "commonsTitle": "File:Black Dragon 黑龙潭 (5496141333).jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Black_Dragon_%E9%BB%91%E9%BE%99%E6%BD%AD_(5496141333).jpg",
+      "originalFile": "https://upload.wikimedia.org/wikipedia/commons/1/12/Black_Dragon_%E9%BB%91%E9%BE%99%E6%BD%AD_%285496141333%29.jpg",
+      "author": "Miltos Gikas from Lutsa, Attiki, Greece",
+      "license": "CC BY 2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
     },
     {
       "city": "拉萨",

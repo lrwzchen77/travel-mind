@@ -10,6 +10,7 @@ const route = useRoute();
 const router = useRouter();
 const posts = ref([]);
 const total = ref(0);
+const page = ref(1);
 const loading = ref(false);
 const error = ref('');
 const message = ref('');
@@ -21,6 +22,7 @@ const topics = [
   ['food', '吃什么'], ['stay', '住哪里'], ['play', '去哪玩'], ['route', '路线'], ['tip', '避坑'],
 ];
 const topicLabel = computed(() => Object.fromEntries(topics));
+const hasMore = computed(() => posts.value.length < total.value);
 
 function cover(post) {
   return post.cover_image || cityImageByName[post.city] || '';
@@ -31,12 +33,13 @@ function excerpt(post) {
   return text.length > 96 ? `${text.slice(0, 96)}…` : text;
 }
 
-async function load() {
+async function load(pageNum = 1) {
   loading.value = true;
   error.value = '';
   try {
-    const data = await communityApi.posts({ ...filters, pageSize: 24 });
-    posts.value = data.records || [];
+    const data = await communityApi.posts({ ...filters, pageNum, pageSize: 24 });
+    posts.value = pageNum === 1 ? (data.records || []) : [...posts.value, ...(data.records || [])];
+    page.value = pageNum;
     total.value = data.total || posts.value.length;
   } catch (err) {
     error.value = err?.message || '旅行社区暂时没有加载出来。';
@@ -56,36 +59,38 @@ function startPublish() {
 async function publish() {
   error.value = '';
   try {
+    const submittedVisibility = form.visibility;
     await communityApi.createPost(form);
     Object.assign(form, { title: '', city: filters.city, topic: 'route', tags: '', cover_image: '', content: '', visibility: 'public' });
     composing.value = false;
-    message.value = '已提交发布；审核通过后会出现在旅行社区。';
+    message.value = submittedVisibility === 'public' ? '已提交发布；审核通过后会出现在旅行社区。' : '已保存为仅自己可见，不会进入旅行社区。';
     await load();
   } catch (err) {
     error.value = err?.message || '发布失败，请稍后再试。';
   }
 }
 
-onMounted(load);
+onMounted(() => load());
 </script>
 
 <template>
   <section class="page-intro community-intro">
     <p class="eyebrow">旅行社区</p>
-    <h1>每个人的真实旅行，值得被看见</h1>
+    <h1>每个人的旅行经验，值得被看见</h1>
+    <p class="lead">社区内容可能来自用户经验或演示数据，不代表平台已核验价格、营业和安全信息。</p>
     <div class="actions">
       <RouterLink class="btn-link btn-coral" to="/assistant">先问 AI 怎么取舍</RouterLink>
       <button type="button" class="btn-ghost" @click="startPublish">{{ composing ? '收起发布' : '发布我的分享' }}</button>
     </div>
   </section>
 
-  <form class="community-filter glass-panel" @submit.prevent="load">
-    <input v-model="filters.keyword" placeholder="搜城市、店名、路线或避坑关键词" />
-    <input v-model="filters.city" placeholder="城市，例如杭州" />
-    <select v-model="filters.topic">
+  <form class="community-filter glass-panel" @submit.prevent="load()">
+    <label><span class="visually-hidden">搜索关键词</span><input v-model="filters.keyword" placeholder="搜城市、店名、路线或避坑关键词" /></label>
+    <label><span class="visually-hidden">筛选城市</span><input v-model="filters.city" placeholder="城市，例如杭州" /></label>
+    <label><span class="visually-hidden">内容类型</span><select v-model="filters.topic">
       <option value="">全部类型</option>
       <option v-for="[value, label] in topics" :key="value" :value="value">{{ label }}</option>
-    </select>
+    </select></label>
     <button class="btn-coral" type="submit" :disabled="loading">{{ loading ? '正在找…' : '找灵感' }}</button>
   </form>
 
@@ -116,4 +121,5 @@ onMounted(load);
       <div class="community-card-body"><p class="community-card-meta">{{ post.city || '目的地待补充' }} · {{ post.author || '旅行者' }}</p><RouterLink :to="`/inspirations/${post.id}`"><h2>{{ post.title }}</h2></RouterLink><p>{{ excerpt(post) }}</p><div class="chip-row"><span v-for="tag in String(post.tags || '').split(/[,，、\s]+/).filter(Boolean).slice(0, 3)" :key="tag" class="chip">{{ tag }}</span></div><p class="community-card-meta" aria-label="互动数据">♥ {{ post.like_count || 0 }} · 评论 {{ post.comment_count || 0 }}</p><RouterLink class="text-link" :to="`/inspirations/${post.id}`">查看并引用 →</RouterLink></div>
     </article>
   </div>
+  <div v-if="hasMore" class="load-more"><button type="button" class="btn-ghost" :disabled="loading" @click="load(page + 1)">{{ loading ? '正在加载…' : `加载更多（还有 ${total - posts.length} 篇）` }}</button></div>
 </template>

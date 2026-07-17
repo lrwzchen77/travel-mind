@@ -6,6 +6,7 @@ import { authSession } from '../auth/session.js';
 import { cityImageByName } from '../data/cityImages.js';
 import VisionInspirationPanel from '../components/VisionInspirationPanel.vue';
 import { useFavorites } from '../composables/useFavorites.js';
+import { consumerText } from '../data/consumerText.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -56,15 +57,15 @@ const resourceMeta = computed(() => {
 
 function subtitle(item) {
   if (resourceKey.value === 'cities') return [item.province, item.country].filter(Boolean).join(' · ') || '目的地';
-  if (resourceKey.value === 'restaurants') return [item.cuisine, item.category].filter(Boolean).join(' · ') || '本地味道';
-  return item.category || item.tags || '旅行推荐';
+  if (resourceKey.value === 'restaurants') return [item.cuisine, item.category].filter(Boolean).map(consumerText).join(' · ') || '本地味道';
+  return consumerText(item.category || item.tags || '旅行推荐');
 }
 
 function detail(item) {
   if (resourceKey.value === 'cities') return item.description || `${item.name}，值得慢慢逛一逛`;
   if (resourceKey.value === 'hotels') {
     const score = item.rating ? `${item.rating} 分` : '评分待补充';
-    const price = item.price_range || '价位待确认';
+    const price = consumerText(item.price_range) || '价位待确认';
     return `${score} · ${price}`;
   }
   if (resourceKey.value === 'restaurants') {
@@ -96,9 +97,9 @@ function planLink(item) {
   const city = item.city_name || item.city || route.query.city || '';
   const query = {
     resourceType: resourceKey.value,
-    resourceName: item.name,
+    resourceName: consumerText(item.name),
     cityId: item.city_id,
-    note: `希望${actions[resourceKey.value]}：${item.name}${city ? `（${city}）` : ''}，类型：${labels[resourceKey.value]}。`,
+    note: `希望${actions[resourceKey.value]}：${consumerText(item.name)}${city ? `（${city}）` : ''}，类型：${labels[resourceKey.value]}。`,
   };
   if (city) query.city = city;
   return { path: '/planning', query };
@@ -242,7 +243,7 @@ onMounted(() => {
           decoding="async"
         />
         <span class="discovery-tag">{{ subtitle(item) }}</span>
-        <strong>{{ item.name }}</strong>
+        <strong>{{ consumerText(item.name) }}</strong>
       </component>
       <div class="discovery-body">
         <p>{{ detail(item) }}</p>
@@ -251,7 +252,7 @@ onMounted(() => {
             v-for="tag in String(item.tags).split(/[,，、\s]+/).filter(Boolean).slice(0, 3)"
             :key="tag"
             class="chip"
-          >{{ tag }}</span>
+          >{{ consumerText(tag) }}</span>
         </div>
         <div class="discovery-actions">
           <button

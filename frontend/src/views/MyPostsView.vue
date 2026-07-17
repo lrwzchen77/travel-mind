@@ -5,17 +5,22 @@ import { communityApi } from '../api/community.js';
 import { cityImageByName } from '../data/cityImages.js';
 
 const posts = ref([]);
+const total = ref(0);
+const page = ref(1);
 const loading = ref(false);
 const error = ref('');
 const topicLabel = { food: '吃什么', stay: '住哪里', play: '去哪玩', route: '路线', tip: '避坑' };
 
 const publishedCount = computed(() => posts.value.filter((post) => post.visibility === 'public' && Number(post.status) === 1).length);
 const pendingCount = computed(() => posts.value.filter((post) => post.visibility === 'public' && Number(post.status) === 0).length);
+const rejectedCount = computed(() => posts.value.filter((post) => post.visibility === 'public' && ![0, 1].includes(Number(post.status))).length);
+const hasMore = computed(() => posts.value.length < total.value);
 
 function status(post) {
   if (post.visibility !== 'public') return { label: '仅自己可见', hint: '这篇内容没有投递到旅行社区。', class: 'is-private' };
   if (Number(post.status) === 1) return { label: '已发布', hint: '旅行者现在可以搜索和引用这篇分享。', class: 'is-published' };
-  return { label: '审核中', hint: '审核通过后会出现在旅行社区。', class: 'is-pending' };
+  if (Number(post.status) === 0) return { label: '审核中', hint: '审核通过后会出现在旅行社区。', class: 'is-pending' };
+  return { label: '未通过', hint: '当前暂不支持直接编辑，请根据社区规则重新发布，或联系服务提供方了解原因。', class: 'is-rejected' };
 }
 
 function cover(post) {
@@ -27,12 +32,14 @@ function excerpt(post) {
   return text.length > 100 ? `${text.slice(0, 100)}…` : text;
 }
 
-async function load() {
+async function load(pageNum = 1) {
   loading.value = true;
   error.value = '';
   try {
-    const data = await communityApi.myPosts({ pageSize: 30 });
-    posts.value = data.records || [];
+    const data = await communityApi.myPosts({ pageNum, pageSize: 30 });
+    posts.value = pageNum === 1 ? (data.records || []) : [...posts.value, ...(data.records || [])];
+    total.value = data.total || posts.value.length;
+    page.value = pageNum;
   } catch (err) {
     error.value = err?.message || '暂时打不开你的分享。';
   } finally {
@@ -51,9 +58,10 @@ onMounted(load);
   </section>
 
   <section class="my-post-summary glass-panel">
-    <div><strong>{{ posts.length }}</strong><span>篇全部分享</span></div>
-    <div><strong>{{ publishedCount }}</strong><span>篇已发布</span></div>
-    <div><strong>{{ pendingCount }}</strong><span>篇审核中</span></div>
+    <div><strong>{{ total }}</strong><span>篇全部分享</span></div>
+    <div><strong>{{ publishedCount }}</strong><span>篇{{ hasMore ? '当前已加载的' : '' }}已发布</span></div>
+    <div><strong>{{ pendingCount }}</strong><span>篇{{ hasMore ? '当前已加载的' : '' }}审核中</span></div>
+    <div v-if="rejectedCount"><strong>{{ rejectedCount }}</strong><span>篇{{ hasMore ? '当前已加载的' : '' }}未通过</span></div>
     <RouterLink class="btn-link btn-coral" to="/inspirations">发布新的分享</RouterLink>
   </section>
 
@@ -73,7 +81,9 @@ onMounted(load);
         <h2 v-else>{{ post.title }}</h2>
         <p>{{ post.city || '目的地待补充' }} · {{ excerpt(post) }}</p>
         <small>{{ status(post).hint }}</small>
+        <RouterLink v-if="status(post).class === 'is-rejected'" class="text-link" to="/inspirations">重新发布 →</RouterLink>
       </div>
     </article>
   </div>
+  <div v-if="hasMore" class="load-more"><button type="button" class="btn-ghost" :disabled="loading" @click="load(page + 1)">{{ loading ? '正在加载…' : `加载更多（还有 ${total - posts.length} 篇）` }}</button></div>
 </template>

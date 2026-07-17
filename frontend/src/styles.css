@@ -1961,6 +1961,22 @@ pre {
   margin: 24px 0 4px;
   padding-bottom: 18px;
 }
+.footer-disclosures { flex-basis: 100%; display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, .12); }
+.footer-disclosures details { color: inherit; font-size: 12px; }
+.footer-disclosures summary { cursor: pointer; font-weight: 700; }
+.footer-disclosures p { max-width: 900px; margin: 8px 0 0; line-height: 1.7; }
+.load-more { display: flex; justify-content: center; margin: 24px 0; }
+.load-more button { min-height: 44px; }
+.visually-hidden { position: absolute !important; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.community-filter label { min-width: 0; }
+
+.traveller-counts .field-row { grid-template-columns: 1fr 1fr; }
+.traveller-counts small { display: block; margin-bottom: 4px; color: var(--muted); }
+.support-warning { color: var(--danger); }
+.planner-check { display: flex; gap: 7px; align-items: center; margin-top: 8px; color: var(--ink-soft); font-size: 13px; }
+.planner-check input { width: auto; }
+.trust-note { margin: 0 0 18px; padding: 12px 14px; border: 1px solid #eed9aa; border-radius: 12px; background: #fff9e9; color: #74551f; font-size: 13px; line-height: 1.6; }
+.trip-summary > .trust-note { grid-column: 1 / -1; }
 
 .planner-map-block > summary,
 .planner-more > summary,
@@ -5391,6 +5407,10 @@ pre {
 .trip-departure-check input { margin-top: 3px; accent-color: var(--ocean); }
 .trip-departure-check.is-done span { color: var(--muted); text-decoration: line-through; }
 
+.login-help { margin-top: 14px; color: var(--muted); font-size: 12px; line-height: 1.65; }
+.login-help summary { color: var(--ink-soft); cursor: pointer; font-weight: 700; }
+.login-help p { margin: 8px 0 0; }
+
 .trip-check-head {
   display: flex;
   align-items: flex-start;
@@ -5640,6 +5660,20 @@ pre {
   .city-resource-list a { justify-self: start; }
   .library-city-favorite { grid-template-columns: 88px minmax(0, 1fr); }
   .library-city-favorite img { width: 88px; }
+  .trip-departure-head,
+  .trip-departure-grid { flex-direction: column; }
+  .trip-departure-head > button,
+  .trip-departure-grid > div { width: 100%; }
+  .chip-choice { min-height: 44px; }
+  .trip-expense-form { grid-template-columns: 1fr 1fr; }
+  .trip-expense-form input[aria-label="花费内容"] { grid-column: 1 / -1; grid-row: 1; }
+  .trip-expense-form button { grid-column: 1 / -1; min-height: 44px; }
+  .trip-expense-list article { grid-template-columns: 1fr auto; gap: 5px 10px; padding: 14px 0; }
+  .trip-expense-list article > span,
+  .trip-expense-list article > time { grid-column: 1; }
+  .trip-expense-list article > b,
+  .trip-expense-list article > button { grid-column: 2; grid-row: 1; }
+  .trip-expense-list article > button { grid-row: 2 / span 2; min-height: 44px; }
   .trip-check-head { align-items: flex-start; }
   .trip-check-layout { grid-template-columns: 1fr; gap: 18px; }
   .trip-suggestion-list { padding: 18px 0 0; border-top: 1px solid var(--line); border-left: 0; }

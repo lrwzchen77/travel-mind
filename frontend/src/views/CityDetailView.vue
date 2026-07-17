@@ -5,6 +5,8 @@ import { resourceApi } from '../api/resources.js';
 import { cityImageByName } from '../data/cityImages.js';
 import { findDestination } from '../data/geoDestinations.js';
 import { useFavorites } from '../composables/useFavorites.js';
+import { consumerText } from '../data/consumerText.js';
+import { supportsPlanning } from '../data/planningSupport.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -17,6 +19,7 @@ const destination = computed(() => findDestination(cityName.value));
 const cover = computed(() => cityImageByName[cityName.value] || '');
 const { busyKey, isFavorite, loadFavorites, toggleFavorite } = useFavorites();
 const resourceCount = computed(() => Object.values(resources.value).reduce((sum, items) => sum + items.length, 0));
+const planningAvailable = computed(() => supportsPlanning(cityName.value));
 
 const preferences = computed(() => {
   const text = `${destination.value.tag} ${destination.value.blurb}`;
@@ -89,20 +92,20 @@ function resourcePlanningLink(item, type) {
       city: cityName.value,
       cityId: city.value?.id,
       resourceType: type,
-      resourceName: item.name,
-      note: `希望${actions[type]}：${item.name}（${cityName.value}）。`,
+      resourceName: consumerText(item.name),
+      note: `希望${actions[type]}：${consumerText(item.name)}（${cityName.value}）。`,
     },
   };
 }
 
 function resourceFacts(item, type) {
   if (type === 'attractions') return [
-    item.address,
+    consumerText(item.address),
     item.price != null ? `门票约 ¥${item.price}` : '',
-    item.opening_hours ? `开放时间 ${item.opening_hours}` : '',
+    item.opening_hours ? `开放时间 ${consumerText(item.opening_hours)}` : '',
   ].filter(Boolean);
-  if (type === 'hotels') return [item.address, item.price_range].filter(Boolean);
-  return [item.address, item.average_cost != null ? `人均约 ¥${item.average_cost}` : ''].filter(Boolean);
+  if (type === 'hotels') return [item.address, item.price_range].filter(Boolean).map(consumerText);
+  return [consumerText(item.address), item.average_cost != null ? `人均约 ¥${item.average_cost}` : ''].filter(Boolean);
 }
 
 onMounted(load);
@@ -120,7 +123,8 @@ onMounted(load);
       <strong>{{ destination.tag }}</strong>
       <span>{{ city?.description || destination.blurb }}</span>
       <div class="actions">
-        <RouterLink class="btn-link btn-coral" :to="planningLink">规划这座城</RouterLink>
+        <RouterLink v-if="planningAvailable" class="btn-link btn-coral" :to="planningLink">规划这座城</RouterLink>
+        <span v-else class="btn-link btn-light" aria-disabled="true">完整规划待开放</span>
         <button
           type="button"
           class="btn-light city-favorite-btn"
@@ -132,6 +136,7 @@ onMounted(load);
   </section>
 
   <p v-if="error" class="error-line">{{ error }}</p>
+  <p v-if="!planningAvailable" class="trust-note">这座城当前可浏览城市灵感，但吃、住、玩真实资源尚未补齐，因此暂不开放完整规划，避免生成占位商户。</p>
 
   <section class="city-decision-strip" aria-label="城市决策线索">
     <div>
@@ -175,13 +180,14 @@ onMounted(load);
         <div v-if="resources[section.key].length" class="city-resource-list">
           <article v-for="item in resources[section.key]" :key="item.id">
             <div>
-              <h3>{{ item.name }}</h3>
-              <p v-if="item.description">{{ item.description }}</p>
+              <h3>{{ consumerText(item.name) }}</h3>
+              <p v-if="item.description">{{ consumerText(item.description) }}</p>
               <ul v-if="resourceFacts(item, section.key).length">
                 <li v-for="fact in resourceFacts(item, section.key)" :key="fact">{{ fact }}</li>
               </ul>
             </div>
-            <RouterLink :to="resourcePlanningLink(item, section.key)">带去规划 →</RouterLink>
+            <RouterLink v-if="planningAvailable" :to="resourcePlanningLink(item, section.key)">带去规划 →</RouterLink>
+            <span v-else class="panel-hint">信息仅供浏览</span>
           </article>
         </div>
         <p v-else class="panel-hint">这部分信息还在补充，可以在规划时直接写下你的要求。</p>
@@ -199,7 +205,8 @@ onMounted(load);
     <aside class="city-detail-aside">
       <p class="eyebrow">下一步</p>
       <h2>不必一次看完所有攻略</h2>
-      <RouterLink class="btn-link btn-coral" :to="planningLink">按这些偏好规划</RouterLink>
+      <RouterLink v-if="planningAvailable" class="btn-link btn-coral" :to="planningLink">按这些偏好规划</RouterLink>
+      <span v-else class="btn-link btn-ghost" aria-disabled="true">完整规划待开放</span>
       <RouterLink class="btn-link btn-ghost" :to="{ path: '/map', query: { city: cityName } }">在立体地图中查看</RouterLink>
     </aside>
   </div>

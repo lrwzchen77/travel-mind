@@ -5,6 +5,7 @@ import { tripApi } from '../api/trip.js';
 import { aiApi } from '../api/ai.js';
 import { memoryApi } from '../api/memory.js';
 import TravelMap3D from '../components/map/AsyncTravelMap3D.vue';
+import { consumerText } from '../data/consumerText.js';
 import { currentTripDayIndex, tripCalendar } from '../utils/tripDeparture.js';
 
 const route = useRoute();
@@ -233,7 +234,7 @@ onMounted(load);
       <h1>{{ plan.city || '行程详情' }}</h1>
       <p v-if="plan.start_date || plan.end_date" class="lead">
         {{ plan.start_date || '待定' }} — {{ plan.end_date || '待定' }}
-        <template v-if="plan.overall_suggestions"> · {{ plan.overall_suggestions }}</template>
+        <template v-if="plan.overall_suggestions"> · {{ consumerText(plan.overall_suggestions) }}</template>
       </p>
       <p v-else-if="!detail" class="lead">正在打开这趟行程…</p>
     </div>
@@ -255,6 +256,7 @@ onMounted(load);
   </section>
 
   <p v-if="error" class="error-line">{{ error }}</p>
+  <p v-if="detail" class="trust-note">AI 推荐 · 未预订。行程中的地点、价格、库存、营业时间和预约要求可能变动，出发前请向服务方复核。</p>
 
   <section v-if="days.length" class="trip-route-section" aria-labelledby="trip-route-title">
     <div class="section-head">
@@ -312,7 +314,7 @@ onMounted(load);
       <div>
         <h3>现在去哪</h3>
         <a v-for="stop in departureStops" :key="`${stop.type}-${stop.name}`" class="trip-departure-stop" :href="mapLink(stop)" target="_blank" rel="noreferrer">
-          <span>{{ stop.type }}</span><strong>{{ stop.name }}</strong><small>{{ stop.address || departureDay.city || plan.city }} · 去导航 →</small>
+          <span>{{ stop.type }}</span><strong>{{ stop.name }}</strong><small>AI 建议 · 未预订 · {{ stop.address || departureDay.city || plan.city }} · 去导航 →</small>
         </a>
         <p v-if="!departureStops.length" class="trip-departure-empty">今天还没有具体停靠点，可以先问 AI 调整。</p>
       </div>
@@ -377,8 +379,8 @@ onMounted(load);
     <p v-if="expenseError" class="error-line">{{ expenseError }}</p>
     <form class="trip-expense-form" @submit.prevent="addExpense">
       <select v-model="expenseForm.category" aria-label="花费分类"><option value="transport">交通</option><option value="stay">住宿</option><option value="food">餐饮</option><option value="ticket">门票</option><option value="shopping">购物</option><option value="other">其他</option></select>
-      <input v-model.trim="expenseForm.title" required maxlength="128" placeholder="例如：西湖边午餐" />
-      <input v-model="expenseForm.amount" required type="number" min="0.01" max="1000000" step="0.01" inputmode="decimal" placeholder="金额" />
+      <input v-model.trim="expenseForm.title" required maxlength="128" aria-label="花费内容" placeholder="例如：西湖边午餐" />
+      <input v-model="expenseForm.amount" required type="number" min="0.01" max="1000000" step="0.01" inputmode="decimal" aria-label="花费金额" placeholder="金额" />
       <input v-model="expenseForm.spent_on" type="date" aria-label="消费日期" />
       <button type="submit" class="btn-coral" :disabled="busy === 'expense'">{{ busy === 'expense' ? '记账中…' : '记一笔' }}</button>
     </form>

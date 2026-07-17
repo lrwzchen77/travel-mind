@@ -1,11 +1,14 @@
 <script setup>
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { memoryApi, memoryImageUrl } from '../api/memory.js';
 
 const memories = ref([]);
+const total = ref(0);
+const page = ref(1);
 const loading = ref(false);
 const error = ref('');
+const hasMore = computed(() => memories.value.length < total.value);
 
 function actionHint(memory) {
   if (memory.generation_status === 'failed') return '上次整理没有完成，打开后可以重新整理';
@@ -20,12 +23,14 @@ function updatedAt(value) {
   return match ? `${Number(match[2])}月${Number(match[3])}日更新` : '等待第一次更新';
 }
 
-async function load() {
+async function load(pageNum = 1) {
   loading.value = true;
   error.value = '';
   try {
-    const data = await memoryApi.list({ pageSize: 30 });
-    memories.value = data.records || [];
+    const data = await memoryApi.list({ pageNum, pageSize: 30 });
+    memories.value = pageNum === 1 ? (data.records || []) : [...memories.value, ...(data.records || [])];
+    total.value = data.total || memories.value.length;
+    page.value = pageNum;
   } catch (err) {
     error.value = err?.message || '暂时打不开旅行记录。';
   } finally {
@@ -70,4 +75,5 @@ onMounted(load);
       </div>
     </RouterLink>
   </div>
+  <div v-if="hasMore" class="load-more"><button type="button" class="btn-ghost" :disabled="loading" @click="load(page + 1)">{{ loading ? '正在加载…' : `加载更多（还有 ${total - memories.length} 篇）` }}</button></div>
 </template>

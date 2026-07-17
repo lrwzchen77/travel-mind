@@ -11,6 +11,9 @@ const form = reactive({ username: '', password: '' });
 const loading = ref(false);
 const error = ref('');
 const cityIndex = ref(0);
+const demoCredentialText = import.meta.env.DEV
+  ? '本地演示默认账号为 demo_user、密码为 travel123；如果已修改环境配置，以实际配置为准。'
+  : '';
 
 const cities = ['杭州', '成都', '厦门', '西安', '大理', '青岛'];
 
@@ -157,6 +160,16 @@ onUnmounted(() => {
             <span aria-hidden="true">→</span>
           </button>
         </form>
+
+        <details class="login-help">
+          <summary>第一次来？查看登录说明</summary>
+          <p>当前版本还未开放注册和找回密码，请使用已有账号或联系服务提供方。<template v-if="demoCredentialText">{{ demoCredentialText }}</template></p>
+        </details>
+
+        <details class="login-help">
+          <summary>服务边界、用户协议与隐私说明</summary>
+          <p>本产品提供旅行信息整理和 AI 规划建议，不直接完成酒店、门票或交通预订。价格、库存和营业信息以实际服务方为准。登录后会保存账号信息、行程、偏好及你主动上传的内容，用于提供规划和回忆功能；未经你确认，私密旅行记录不会发布到社区。演示环境请勿上传身份证件、支付凭证等敏感信息。</p>
+        </details>
 
         <div class="login-switch">
           <RouterLink to="/">先逛逛目的地</RouterLink>

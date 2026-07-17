@@ -31,6 +31,12 @@ function onScroll() {
   scrolled.value = window.scrollY > 12;
 }
 
+function isNavActive(path) {
+  if (route.path === path || (path !== '/' && route.path.startsWith(path))) return true;
+  return (path === '/cities' && route.path.startsWith('/city/'))
+    || (path === '/trip-history' && route.path.startsWith('/trip/'));
+}
+
 async function logout() {
   await authApi.logout('user');
   currentUser.value = null;
@@ -87,9 +93,7 @@ onUnmounted(() => {
             :to="item.path"
             class="top-link"
             :class="{
-              'is-active':
-                route.path === item.path
-                || (item.path !== '/' && route.path.startsWith(item.path)),
+              'is-active': isNavActive(item.path),
             }"
             @click="closeMenus"
           >
@@ -153,6 +157,10 @@ onUnmounted(() => {
           <RouterLink to="/trip-history">我的行程</RouterLink>
           <RouterLink to="/cities">发现城市</RouterLink>
           <RouterLink to="/assistant">先问 AI</RouterLink>
+        </div>
+        <div class="footer-disclosures">
+          <details id="service-terms"><summary>服务边界与用户协议</summary><p>Travel Mind 提供旅行信息整理和 AI 规划建议，不直接完成酒店、门票或交通预订。价格、库存、营业和预约要求以实际服务方为准。使用规划结果前，请根据自身健康、天气和当地规定作出判断。</p></details>
+          <details id="privacy-notice"><summary>隐私与内容公开说明</summary><p>账号信息、行程、偏好和你主动上传的内容用于提供规划与回忆功能。旅行记录默认仅自己可见；只有在你确认发布并通过审核后，内容才会进入社区。演示环境请勿上传证件、支付凭证等敏感信息。当前版本尚未开放账号自助注销，如需处理数据，请联系服务提供方。</p></details>
         </div>
       </div>
     </footer>

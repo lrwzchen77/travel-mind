@@ -14,6 +14,8 @@ export const accountNav = [
   { path: '/my-posts', label: '我的分享' },
   { path: '/favorites', label: '我的收藏' },
   { path: '/travel-notes', label: '我的笔记' },
+  { path: '/ai-lab', label: 'AI 内容解读' },
+  { path: '/ai-records', label: '灵感足迹' },
   { path: '/profile', label: '旅行偏好' },
 ];
 
@@ -25,10 +27,10 @@ export const auxiliaryNav = [
 ];
 
 /** 扁平列表，供路由/测试校验。 */
-export const navigationItems = [...primaryNav, ...auxiliaryNav, ...accountNav];
+export const navigationItems = [...new Map([...primaryNav, ...auxiliaryNav, ...accountNav].map((item) => [item.path, item])).values()];
 
 /** 首页轮播/高亮城市名 */
-export const rotatingCities = ['杭州', '成都', '厦门', '西安', '大理', '青岛', '丽江', '桂林'];
+export const rotatingCities = ['杭州', '成都', '北京'];
 
 /** 首页推荐目的地 */
 export const featuredDestinations = [
