@@ -50,6 +50,15 @@ const mapDestinations = computed(() => props.selectableCities.length
 const cityMarkers = new Map();
 /** @type {import('maplibre-gl').Marker[]} */
 const poiMarkers = [];
+/** @type {import('maplibre-gl').Marker[]} */
+const publicMarkers = [];
+
+const PUBLIC_MARKER_ICONS = {
+  attraction: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="17.5" cy="6.5" r="2.5"/><path d="M3 19 9.5 8l3.2 5 2.4-3.5L21 19H3Z"/></svg>',
+  hotel: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11V6h5a4 4 0 0 1 4 4v1h7v8h-2v-2H6v2H4v-8Zm3-3v3h4v-1a2 2 0 0 0-2-2H7Z"/></svg>',
+  restaurant: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v7M3.5 3v5.5A2.5 2.5 0 0 0 6 11v10M8.5 3v5.5A2.5 2.5 0 0 1 6 11M16 3v18M16 3c3 2 4.5 5 4 9h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  airport: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 14 1.5-1.5 5 1L14 9l-9-4 2-2 11 2 2-2c.8-.8 2.2-.8 3 0s.8 2.2 0 3l-2 2-2 11-2 2-4-9-4.5 4.5 1 5L8 23l-3-6-2-3Z"/></svg>',
+};
 
 let maplibregl = null;
 let orbitRaf = 0;
@@ -128,6 +137,38 @@ function updatePublicSources(map = mapRef.value) {
   setSrc(map, 'public-pois', publicPlacesFc());
   setSrc(map, 'public-route', publicRouteFc());
   setSrc(map, 'public-airports', publicAirportFc());
+  syncPublicMarkers(map);
+}
+
+function clearPublicMarkers() {
+  while (publicMarkers.length) publicMarkers.pop().remove();
+}
+
+function addPublicMarker(map, item, kind, onClick) {
+  if (!maplibregl || !Number.isFinite(item?.longitude) || !Number.isFinite(item?.latitude)) return;
+  const el = document.createElement('button');
+  el.type = 'button';
+  el.className = `public-map-marker public-map-marker--${kind}`;
+  if (item.id && props.selectedPlaceIds.includes(item.id)) el.classList.add('is-selected');
+  el.title = item.name;
+  el.setAttribute('aria-label', `${item.name}，在地图上查看`);
+  el.innerHTML = `<span>${PUBLIC_MARKER_ICONS[kind]}</span>`;
+  el.addEventListener('click', (event) => {
+    event.stopPropagation();
+    onClick();
+  });
+  publicMarkers.push(new maplibregl.Marker({ element: el, anchor: 'bottom' })
+    .setLngLat([item.longitude, item.latitude])
+    .addTo(map));
+}
+
+function syncPublicMarkers(map) {
+  clearPublicMarkers();
+  (props.publicData?.places || []).forEach((place) => {
+    addPublicMarker(map, place, place.kind, () => emit('point-select', place));
+  });
+  const airport = props.publicData?.airport;
+  if (airport) addPublicMarker(map, airport, 'airport', () => flyToPoint(airport));
 }
 
 function ensurePublicSources(map) {
@@ -150,43 +191,22 @@ function ensurePublicSources(map) {
     paint: { 'line-color': MAP_THEME.coral, 'line-width': 4, 'line-opacity': 0.96 },
   });
   map.addLayer({
-    id: 'public-poi-dots', type: 'circle', source: 'public-pois',
-    paint: {
-      'circle-radius': ['case', ['get', 'selected'], 9, 6],
-      'circle-color': ['match', ['get', 'kind'], 'hotel', '#0f6674', 'restaurant', '#ba4d2d', '#e87022'],
-      'circle-stroke-color': '#fffaf1',
-      'circle-stroke-width': ['case', ['get', 'selected'], 4, 2],
-    },
-  });
-  map.addLayer({
     id: 'public-poi-labels', type: 'symbol', source: 'public-pois', minzoom: 11,
     layout: {
       'text-field': ['get', 'name'], 'text-font': ['Noto Sans Bold'], 'text-size': 12,
-      'text-offset': [0, 1.25], 'text-anchor': 'top', 'text-allow-overlap': false,
+      'text-offset': [0, 2.6], 'text-anchor': 'top', 'text-allow-overlap': false,
     },
     paint: { 'text-color': '#23333b', 'text-halo-color': '#fffaf1', 'text-halo-width': 1.5 },
   });
   map.addLayer({
-    id: 'public-airport-dot', type: 'circle', source: 'public-airports',
-    paint: { 'circle-radius': 8, 'circle-color': '#173f50', 'circle-stroke-color': '#fffaf1', 'circle-stroke-width': 3 },
-  });
-  map.addLayer({
     id: 'public-airport-label', type: 'symbol', source: 'public-airports',
     layout: {
-      'text-field': ['concat', '✈ ', ['get', 'code']], 'text-font': ['Noto Sans Bold'],
-      'text-size': 12, 'text-offset': [0, 1.35], 'text-anchor': 'top',
+      'text-field': ['get', 'code'], 'text-font': ['Noto Sans Bold'],
+      'text-size': 12, 'text-offset': [0, 2.7], 'text-anchor': 'top',
     },
     paint: { 'text-color': '#173f50', 'text-halo-color': '#fffaf1', 'text-halo-width': 1.5 },
   });
-
-  map.on('click', 'public-poi-dots', (event) => {
-    const feature = event.features?.[0];
-    if (!feature) return;
-    const [longitude, latitude] = feature.geometry.coordinates;
-    emit('point-select', { ...feature.properties, longitude, latitude });
-  });
-  map.on('mouseenter', 'public-poi-dots', () => { map.getCanvas().style.cursor = 'pointer'; });
-  map.on('mouseleave', 'public-poi-dots', () => { map.getCanvas().style.cursor = ''; });
+  syncPublicMarkers(map);
 }
 
 function flyToPoint(point) {
@@ -705,6 +725,7 @@ onUnmounted(() => {
   if (enrichTimer) window.clearTimeout(enrichTimer);
   if (enrichIdle && 'cancelIdleCallback' in window) window.cancelIdleCallback(enrichIdle);
   clearPois();
+  clearPublicMarkers();
   cityMarkers.forEach((m) => m.remove());
   cityMarkers.clear();
   resizeObserver?.disconnect();
@@ -829,3 +850,45 @@ defineExpose({ flyToCity, flyToPoint, toggleOrbit, stopOrbit });
     </div>
   </div>
 </template>
+
+<style>
+.public-map-marker {
+  width: 42px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #173f50;
+  cursor: pointer;
+  filter: drop-shadow(0 6px 8px rgba(23, 63, 80, .25));
+}
+
+.public-map-marker > span {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 3px solid #fffaf1;
+  border-radius: 16px 16px 16px 5px;
+  background: #f4ad42;
+  transform: rotate(-4deg);
+  transition: transform .16s ease;
+}
+
+.public-map-marker svg { width: 23px; height: 23px; fill: currentColor; transform: rotate(4deg); }
+.public-map-marker--hotel > span { border-radius: 8px 18px 8px 18px; background: #7ed1da; transform: rotate(2deg); }
+.public-map-marker--hotel svg { transform: rotate(-2deg); }
+.public-map-marker--restaurant > span { border-radius: 50% 50% 12px 50%; background: #ff926f; transform: rotate(6deg); }
+.public-map-marker--restaurant svg { transform: rotate(-6deg); }
+.public-map-marker--airport > span { border-radius: 50% 8px 50% 8px; background: #9eb8e6; color: #173f50; transform: rotate(-3deg); }
+.public-map-marker--airport svg { transform: rotate(3deg); }
+.public-map-marker:hover > span,
+.public-map-marker:focus-visible > span,
+.public-map-marker.is-selected > span { transform: translateY(-4px) scale(1.08); }
+.public-map-marker.is-selected > span { outline: 4px solid rgba(232,112,34,.42); }
+.public-map-marker:focus-visible { outline: 3px solid rgba(232,112,34,.5); outline-offset: 3px; border-radius: 12px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .public-map-marker > span { transition: none; }
+}
+</style>
