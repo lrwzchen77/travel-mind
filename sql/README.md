@@ -11,6 +11,7 @@ This directory stores MySQL initialization scripts for Travel Mind.
 - `007_trip_expenses.sql` creates user-owned actual trip expenses for budget comparison.
 - `008_community_interactions.sql` adds likes and first-level comments to approved public community posts.
 - `009_trip_memory.sql` adds private trip memories, timeline items, and evidence-backed generation versions.
+- `010_trip_memory_knowledge.sql` adds vector-index status and last-indexed time to private memories.
 
 Example:
 
@@ -24,6 +25,7 @@ mysql -uroot -p travelmind < sql/006_seed_community_posts.sql
 mysql -uroot -p travelmind < sql/007_trip_expenses.sql
 mysql -uroot -p travelmind < sql/008_community_interactions.sql
 mysql -uroot -p travelmind < sql/009_trip_memory.sql
+mysql -uroot -p travelmind < sql/010_trip_memory_knowledge.sql
 ```
 
 The Spring `dev` profile also creates `004` automatically and provisions local demo accounts. Production deployments must run the migration and provision their own password hashes.

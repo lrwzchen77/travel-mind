@@ -14,7 +14,9 @@ class PythonAiClientSpringConstructorTest {
             TestPropertySourceUtils.addInlinedPropertiesToEnvironment(
                 context,
                 "travelmind.python-ai.base-url=http://127.0.0.1:19080",
-                "travelmind.python-ai.timeout-ms=200"
+                "travelmind.python-ai.timeout-ms=200",
+                "travelmind.python-ai.memory-timeout-ms=400",
+                "travelmind.python-ai.memory-service-token=test-token"
             );
             context.register(PythonAiClient.class);
 

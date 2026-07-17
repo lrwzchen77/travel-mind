@@ -2,15 +2,26 @@ import base64
 import binascii
 import os
 import re
+import hmac
 import tempfile
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request
+import httpx
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from app.memory import MemoryAnalysisRequest, analyze_memory
+from app.memory_knowledge import (
+    EmbeddingUnavailable,
+    MemoryDeleteRequest,
+    MemoryIndexRequest,
+    MemoryQueryRequest,
+    delete_memory,
+    index_memory,
+    query_memory,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(PROJECT_ROOT / ".env", override=False)
@@ -265,12 +276,52 @@ async def _read_vision_payload(request: Request) -> dict[str, Any]:
     return {}
 
 
-@app.post("/api/memory/analyze")
+def _require_memory_service(x_internal_service_token: str | None = Header(default=None)) -> None:
+    configured = os.getenv("MEMORY_SERVICE_TOKEN", "").strip()
+    profile = os.getenv("SPRING_PROFILES_ACTIVE", os.getenv("ENVIRONMENT", "dev")).lower()
+    expected = configured or ("travelmind-dev-memory-token-change-me" if profile != "prod" else "")
+    if not expected:
+        raise HTTPException(status_code=503, detail="memory internal service token unavailable")
+    if not x_internal_service_token or not hmac.compare_digest(x_internal_service_token, expected):
+        raise HTTPException(status_code=401, detail="invalid internal service token")
+
+
+@app.post("/api/memory/analyze", dependencies=[Depends(_require_memory_service)])
 def memory_analyze(payload: MemoryAnalysisRequest):
     try:
         return ok(analyze_memory(payload, _try_yolo_detection))
     except ValueError as ex:
         raise HTTPException(status_code=400, detail=str(ex)) from ex
+
+
+@app.post("/api/memory/index", dependencies=[Depends(_require_memory_service)])
+def memory_index(payload: MemoryIndexRequest):
+    try:
+        return ok(index_memory(payload))
+    except EmbeddingUnavailable as ex:
+        raise HTTPException(status_code=503, detail=str(ex)) from ex
+    except httpx.HTTPError as ex:
+        raise HTTPException(status_code=503, detail="memory vector service unavailable") from ex
+
+
+@app.post("/api/memory/query", dependencies=[Depends(_require_memory_service)])
+def memory_query(payload: MemoryQueryRequest):
+    try:
+        return ok(query_memory(payload))
+    except ValueError as ex:
+        raise HTTPException(status_code=400, detail=str(ex)) from ex
+    except EmbeddingUnavailable as ex:
+        raise HTTPException(status_code=503, detail=str(ex)) from ex
+    except httpx.HTTPError as ex:
+        raise HTTPException(status_code=503, detail="memory vector service unavailable") from ex
+
+
+@app.post("/api/memory/delete", dependencies=[Depends(_require_memory_service)])
+def memory_delete(payload: MemoryDeleteRequest):
+    try:
+        return ok(delete_memory(payload))
+    except httpx.HTTPError as ex:
+        raise HTTPException(status_code=503, detail="memory vector service unavailable") from ex
 
 
 def _data_url_to_temp_path(value: str) -> str | None:

@@ -16,3 +16,9 @@ spring:
 sa-token:
   # 无默认值：生产环境缺失 JWT_SECRET 时应用启动失败。
   jwt-secret-key: ${JWT_SECRET}
+
+travelmind:
+  python-ai:
+    # 生产环境无默认值，Java 与 Python 必须配置同一个内部 token；scope secret 只留在 Java。
+    memory-service-token: ${MEMORY_SERVICE_TOKEN}
+    memory-scope-secret: ${MEMORY_SCOPE_SECRET}

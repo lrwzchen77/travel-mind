@@ -8,6 +8,7 @@
 - Python 3.10 by default; Python 3.12 is allowed when dependencies are stable.
 - MySQL 8.0 or 5.7-compatible schema.
 - Redis 7.
+- Qdrant 1.15 (provided by Compose).
 - Docker Desktop for local MySQL/Redis containers.
 
 ## Database
@@ -18,6 +19,7 @@ Start MySQL 8.0 and Redis 7. On a fresh volume, Compose runs the SQL scripts aut
 docker compose up -d --wait
 docker exec travel-mind-mysql mysql -uroot -Nse "SELECT VERSION()"
 docker exec travel-mind-redis redis-cli ping
+curl http://localhost:6333/healthz
 ```
 
 ## Backend
@@ -45,6 +47,10 @@ cd python-ai
 ```
 
 The bundled self-trained model is configured as `python-ai/models/travel-risk-yolo-best.pt`. Without it, deterministic rule fallback is used.
+
+Private travel-memory indexing also requires `MEMORY_SERVICE_TOKEN`, `MEMORY_SCOPE_SECRET`, `QDRANT_URL`, and
+`BAAI/bge-small-zh-v1.5`. The embedding model is downloaded on first use (roughly 100 MB). Production must set
+`ENVIRONMENT=prod`, a unique internal token, and a 32+ byte scope secret; there is no production fallback.
 
 ## Frontend
 

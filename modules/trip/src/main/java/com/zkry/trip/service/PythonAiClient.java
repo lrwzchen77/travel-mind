@@ -13,6 +13,7 @@ import com.zkry.trip.dto.ai.TripEvaluateResult;
 import com.zkry.trip.dto.ai.VisionDetectRequest;
 import com.zkry.trip.dto.ai.VisionDetectResult;
 import com.zkry.resources.service.TripMemoryAnalysisContract;
+import com.zkry.resources.service.TripMemoryKnowledgeContract;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -28,7 +29,9 @@ public class PythonAiClient {
 
     private final String baseUrl;
     private final Duration timeout;
+    private final Duration memoryTimeout;
     private final HttpClient httpClient;
+    private final String memoryServiceToken;
     private final ObjectMapper objectMapper = JsonUtils.getObjectMapper();
     private final ObjectWriter requestWriter = objectMapper.copy()
         .setSerializationInclusion(JsonInclude.Include.NON_NULL)
@@ -37,14 +40,22 @@ public class PythonAiClient {
     @Autowired
     public PythonAiClient(
         @Value("${travelmind.python-ai.base-url:http://localhost:19080}") String baseUrl,
-        @Value("${travelmind.python-ai.timeout-ms:10000}") long timeoutMs
+        @Value("${travelmind.python-ai.timeout-ms:10000}") long timeoutMs,
+        @Value("${travelmind.python-ai.memory-timeout-ms:120000}") long memoryTimeoutMs,
+        @Value("${travelmind.python-ai.memory-service-token}") String memoryServiceToken
     ) {
-        this(baseUrl, Duration.ofMillis(timeoutMs));
+        this(baseUrl, Duration.ofMillis(timeoutMs), Duration.ofMillis(memoryTimeoutMs), memoryServiceToken);
     }
 
     PythonAiClient(String baseUrl, Duration timeout) {
+        this(baseUrl, timeout, timeout, "travelmind-dev-memory-token-change-me");
+    }
+
+    PythonAiClient(String baseUrl, Duration timeout, Duration memoryTimeout, String memoryServiceToken) {
         this.baseUrl = normalizeBaseUrl(baseUrl);
         this.timeout = timeout;
+        this.memoryTimeout = memoryTimeout;
+        this.memoryServiceToken = memoryServiceToken;
         this.httpClient = HttpClient.newBuilder()
             .version(HttpClient.Version.HTTP_1_1)
             .connectTimeout(timeout)
@@ -64,17 +75,46 @@ public class PythonAiClient {
     }
 
     public PythonAiCallResult<TripMemoryAnalysisContract.Result> analyzeMemory(TripMemoryAnalysisContract.Input request) {
-        return post("/api/memory/analyze", request, TripMemoryAnalysisContract.Result.class);
+        return postMemory("/api/memory/analyze", request, TripMemoryAnalysisContract.Result.class);
+    }
+
+    public PythonAiCallResult<TripMemoryKnowledgeContract.IndexResult> indexMemory(TripMemoryKnowledgeContract.IndexRequest request) {
+        return postMemory("/api/memory/index", request, TripMemoryKnowledgeContract.IndexResult.class);
+    }
+
+    public PythonAiCallResult<TripMemoryKnowledgeContract.Answer> queryMemory(TripMemoryKnowledgeContract.QueryRequest request) {
+        return postMemory("/api/memory/query", request, TripMemoryKnowledgeContract.Answer.class);
+    }
+
+    public PythonAiCallResult<TripMemoryKnowledgeContract.DeleteResult> deleteMemory(TripMemoryKnowledgeContract.DeleteRequest request) {
+        return postMemory("/api/memory/delete", request, TripMemoryKnowledgeContract.DeleteResult.class);
+    }
+
+    private <T> PythonAiCallResult<T> postMemory(String path, Object body, Class<T> responseType) {
+        return post(path, body, responseType, memoryServiceToken, memoryTimeout);
     }
 
     private <T> PythonAiCallResult<T> post(String path, Object body, Class<T> responseType) {
+        return post(path, body, responseType, null, timeout);
+    }
+
+    private <T> PythonAiCallResult<T> post(
+        String path,
+        Object body,
+        Class<T> responseType,
+        String internalToken,
+        Duration requestTimeout
+    ) {
         try {
             String json = requestWriter.writeValueAsString(body);
-            HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + path))
-                .timeout(timeout)
+            HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(URI.create(baseUrl + path))
+                .timeout(requestTimeout)
                 .header("Content-Type", "application/json; charset=utf-8")
-                .POST(HttpRequest.BodyPublishers.ofString(json))
-                .build();
+                .POST(HttpRequest.BodyPublishers.ofString(json));
+            if (internalToken != null && !internalToken.isBlank()) {
+                requestBuilder.header("X-Internal-Service-Token", internalToken);
+            }
+            HttpRequest request = requestBuilder.build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 return PythonAiCallResult.failure("Python AI service returned HTTP " + response.statusCode());

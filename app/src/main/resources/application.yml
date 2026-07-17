@@ -29,6 +29,9 @@ travelmind:
   python-ai:
     base-url: ${PYTHON_AI_BASE_URL:http://localhost:19080}
     timeout-ms: ${PYTHON_AI_TIMEOUT_MS:10000}
+    memory-timeout-ms: ${PYTHON_MEMORY_TIMEOUT_MS:120000}
+    memory-service-token: ${MEMORY_SERVICE_TOKEN:travelmind-dev-memory-token-change-me}
+    memory-scope-secret: ${MEMORY_SCOPE_SECRET:travelmind-dev-memory-scope-secret-change-me}
   map:
     amap:
       enabled: ${AMAP_ENABLED:true}

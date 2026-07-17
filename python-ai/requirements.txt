@@ -7,3 +7,4 @@ pytest>=8.0,<10.0
 # optional for TRAVEL_MIND_YOLO_MODEL classify path (use torch 2.5.x on Win if 2.13 DLL fails)
 ultralytics>=8.3,<9
 Pillow>=10,<12
+sentence-transformers==5.1.2

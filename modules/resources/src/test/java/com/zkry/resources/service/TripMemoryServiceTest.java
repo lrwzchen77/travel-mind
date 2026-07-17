@@ -134,6 +134,34 @@ class TripMemoryServiceTest {
         verify(jdbc).update(contains("INSERT INTO tm_trip_memory_generation"), any(Map.class));
     }
 
+    @Test
+    void rejectsCitationThatDoesNotBelongToOwnedMemory() {
+        NamedParameterJdbcTemplate jdbc = org.mockito.Mockito.mock(NamedParameterJdbcTemplate.class);
+        when(jdbc.queryForList(contains("FROM tm_trip_memory WHERE id"), any(Map.class)))
+            .thenReturn(List.of(memoryRow()));
+        when(jdbc.queryForList(contains("FROM tm_trip_memory_item\n"), any(Map.class))).thenReturn(List.of());
+        TripMemoryService service = new TripMemoryService(jdbc);
+        var answer = new TripMemoryKnowledgeContract.Answer("你去了别人的酒店。", List.of(
+            new TripMemoryKnowledgeContract.Citation(9999L, "trip_item", 8888L, "敏感证据")), true);
+
+        assertThatThrownBy(() -> service.validateAnswer(1001L, 3001L, answer))
+            .isInstanceOf(BizException.class).hasMessage("旅行记忆回答包含不属于当前记忆册的引用。");
+    }
+
+    @Test
+    void indexStatusIsOwnershipScopedAndRecordsReadyTime() {
+        NamedParameterJdbcTemplate jdbc = org.mockito.Mockito.mock(NamedParameterJdbcTemplate.class);
+        when(jdbc.queryForList(contains("FROM tm_trip_memory WHERE id"), any(Map.class)))
+            .thenReturn(List.of(memoryRow()));
+        TripMemoryService service = new TripMemoryService(jdbc);
+
+        service.knowledgeStatus(1001L, 3001L, "ready");
+
+        verify(jdbc).update(contains("indexed_at = CASE WHEN :status = 'ready'"),
+            org.mockito.ArgumentMatchers.<Map<String, ?>>argThat(values ->
+                "ready".equals(values.get("status")) && Long.valueOf(3001L).equals(values.get("memoryId"))));
+    }
+
     private NamedParameterJdbcTemplate jdbcForOwnedMemory() {
         NamedParameterJdbcTemplate jdbc = org.mockito.Mockito.mock(NamedParameterJdbcTemplate.class);
         when(jdbc.queryForList(anyString(), any(Map.class))).thenAnswer(call -> {

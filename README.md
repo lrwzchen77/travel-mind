@@ -7,7 +7,7 @@ Travel Mind is a full-stack intelligent travel planning system with a consumer t
 - Backend: Java 17, Spring Boot 3, Maven multi-module, MyBatis-Plus, Redis, Sa-Token.
 - Frontend: Vue 3 + Vite.
 - Python AI: FastAPI, Python 3.10/3.12, self-trained TravelRisk-YOLO.
-- Database: MySQL 8.0 with Redis 7.
+- Database: MySQL 8.0 with Redis 7 and Qdrant 1.15 for private travel-memory vectors.
 
 ## Project Structure
 
@@ -66,10 +66,14 @@ AI endpoints:
 - `POST http://localhost:19080/api/vision/detect`
 - `POST http://localhost:19080/api/trip/evaluate`
 - `POST http://localhost:19080/api/content/analyze`
+- Internal-only `POST /api/memory/analyze|index|query|delete` (requires the shared service token)
 
 Java exposes matching authenticated user endpoints under `/api/user/ai/*` and stores results in `tm_ai_analysis_record`.
 
 The bundled model is `python-ai/models/travel-risk-yolo-best.pt`. Its dataset, training report, and metrics are under `docs/ai`.
+Travel-memory retrieval uses `BAAI/bge-small-zh-v1.5` (about 100 MB on first download) and the fixed
+512-dimensional cosine collection `travel_memory_v1`. Missing model/Qdrant is reported as unavailable, not replaced
+with fake vectors.
 
 ## Configuration
 

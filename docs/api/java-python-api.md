@@ -6,6 +6,9 @@ Java backend calls the local FastAPI service through `PYTHON_AI_BASE_URL` (defau
 {"code":0,"message":"success","data":{}}
 ```
 
+All `/api/memory/*` calls additionally require `X-Internal-Service-Token`. They accept only Java's opaque owner scope,
+never a JWT or raw user ID. Qdrant reads are always filtered by both `owner_scope` and `memory_id`.
+
 ## Python Service Endpoints
 
 ### `POST /api/vision/detect`
@@ -75,5 +78,23 @@ Response data includes `sentiment`, `keywords`, `positive_highlights`, `negative
 - `POST /api/ai/trip/evaluate?targetType=trip_plan&targetId=9001`
 - `POST /api/ai/content/analyze?targetType=travel_note&targetId=7001`
 - `GET /api/ai/trip/{id}/comfort`
+- `POST /api/user/memories/{memoryId}/index`
+- `POST /api/user/memories/{memoryId}/ask` with `{"question":"哪家餐厅值得再去？","top_k":5}`
+- `DELETE /api/user/memories/{memoryId}` deletes Qdrant vectors before MySQL data
+
+The memory answer shape is evidence-first:
+
+```json
+{
+  "answer": "根据这次旅行记录：第 1 天，西湖，上午游览西湖",
+  "citations": [
+    {"memoryItemId": 11, "sourceType": "trip_item", "sourceId": 81, "excerpt": "第 1 天，西湖，上午游览西湖"}
+  ],
+  "fallback": true
+}
+```
+
+Java validates memory ownership before calling Python and revalidates every returned citation. Any foreign or altered
+citation rejects the whole answer. `top_k` is capped at 10 and questions are limited to 500 characters.
 
 Each Java endpoint calls Python, stores an audit row in `tm_ai_analysis_record`, and returns a `PythonAiCallResult`. Python failures are stored with `status=failed` and do not block trip planning.

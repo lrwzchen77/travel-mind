@@ -50,7 +50,7 @@ async def test_memory_analysis_reads_exif_matches_time_and_returns_evidence(tmp_
 
     transport = httpx.ASGITransport(app=main.app)
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
-        response = await client.post("/api/memory/analyze", json=_payload(name))
+        response = await client.post("/api/memory/analyze", json=_payload(name), headers={"X-Internal-Service-Token": "travelmind-dev-memory-token-change-me"})
 
     assert response.status_code == 200
     data = response.json()["data"]
@@ -83,7 +83,7 @@ async def test_memory_analysis_uses_supplied_gps_and_existing_yolo(tmp_path, mon
 
     transport = httpx.ASGITransport(app=main.app)
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
-        response = await client.post("/api/memory/analyze", json=payload)
+        response = await client.post("/api/memory/analyze", json=payload, headers={"X-Internal-Service-Token": "travelmind-dev-memory-token-change-me"})
 
     photo = response.json()["data"]["items"][0]
     assert photo["matchedItemId"] == 11
@@ -107,7 +107,7 @@ async def test_memory_analysis_degrades_for_no_exif_and_bad_image(tmp_path, monk
 
     transport = httpx.ASGITransport(app=main.app)
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
-        response = await client.post("/api/memory/analyze", json=payload)
+        response = await client.post("/api/memory/analyze", json=payload, headers={"X-Internal-Service-Token": "travelmind-dev-memory-token-change-me"})
 
     good_result, bad_result = response.json()["data"]["items"]
     assert good_result["takenAt"] is None
@@ -126,6 +126,6 @@ async def test_memory_analysis_rejects_uncontrolled_source(tmp_path, monkeypatch
 
     transport = httpx.ASGITransport(app=main.app, raise_app_exceptions=False)
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
-        response = await client.post("/api/memory/analyze", json=payload)
+        response = await client.post("/api/memory/analyze", json=payload, headers={"X-Internal-Service-Token": "travelmind-dev-memory-token-change-me"})
 
     assert response.status_code == 400

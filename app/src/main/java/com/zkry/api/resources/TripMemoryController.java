@@ -6,6 +6,8 @@ import com.zkry.common.satoken.core.LoginHelper;
 import com.zkry.resources.service.TripMemoryService;
 import com.zkry.resources.service.TripMemoryAnalysisContract;
 import com.zkry.trip.service.TripMemoryAnalysisApplicationService;
+import com.zkry.trip.service.TripMemoryKnowledgeApplicationService;
+import com.zkry.resources.service.TripMemoryKnowledgeContract;
 import java.util.Map;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,10 +24,16 @@ public class TripMemoryController {
 
     private final TripMemoryService tripMemoryService;
     private final TripMemoryAnalysisApplicationService analysisService;
+    private final TripMemoryKnowledgeApplicationService knowledgeService;
 
-    public TripMemoryController(TripMemoryService tripMemoryService, TripMemoryAnalysisApplicationService analysisService) {
+    public TripMemoryController(
+        TripMemoryService tripMemoryService,
+        TripMemoryAnalysisApplicationService analysisService,
+        TripMemoryKnowledgeApplicationService knowledgeService
+    ) {
         this.tripMemoryService = tripMemoryService;
         this.analysisService = analysisService;
+        this.knowledgeService = knowledgeService;
     }
 
     @PostMapping("/trips/{tripId}/memory")
@@ -56,6 +64,26 @@ public class TripMemoryController {
         return R.ok(analysisService.analyze(LoginHelper.getUserId(), memoryId));
     }
 
+    @PostMapping("/memories/{memoryId}/index")
+    public R<TripMemoryKnowledgeContract.IndexResult> index(@PathVariable long memoryId) {
+        return R.ok(knowledgeService.index(LoginHelper.getUserId(), memoryId));
+    }
+
+    @PostMapping("/memories/{memoryId}/ask")
+    public R<TripMemoryKnowledgeContract.Answer> ask(
+        @PathVariable long memoryId,
+        @RequestBody Map<String, Object> payload
+    ) {
+        String question = payload == null ? "" : String.valueOf(payload.getOrDefault("question", ""));
+        int topK = 5;
+        try {
+            if (payload != null && payload.get("top_k") != null) topK = Integer.parseInt(String.valueOf(payload.get("top_k")));
+        } catch (NumberFormatException ignored) {
+            topK = 5;
+        }
+        return R.ok(knowledgeService.ask(LoginHelper.getUserId(), memoryId, question, topK));
+    }
+
     @DeleteMapping("/memories/{memoryId}/items/{itemId}")
     public R<Void> deleteItem(@PathVariable long memoryId, @PathVariable long itemId) {
         tripMemoryService.deleteItem(LoginHelper.getUserId(), memoryId, itemId);
@@ -64,7 +92,7 @@ public class TripMemoryController {
 
     @DeleteMapping("/memories/{memoryId}")
     public R<Void> delete(@PathVariable long memoryId) {
-        tripMemoryService.delete(LoginHelper.getUserId(), memoryId);
+        knowledgeService.delete(LoginHelper.getUserId(), memoryId);
         return R.ok();
     }
 }

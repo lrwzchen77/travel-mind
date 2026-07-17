@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Pattern;
@@ -61,7 +62,8 @@ public class TripMemoryService {
             "SELECT COUNT(1) FROM tm_trip_memory WHERE user_id = :userId", params, Long.class);
         List<Map<String, Object>> records = jdbcTemplate.queryForList("""
                 SELECT m.id, m.trip_plan_id, m.title, m.destination_city, m.summary, m.cover_image,
-                       m.status, m.visibility, m.generation_status, m.create_time, m.update_time,
+                       m.status, m.visibility, m.generation_status, m.index_status, m.indexed_at,
+                       m.create_time, m.update_time,
                        (SELECT COUNT(1) FROM tm_trip_memory_item i WHERE i.memory_id = m.id) AS item_count
                 FROM tm_trip_memory m WHERE m.user_id = :userId
                 ORDER BY m.update_time DESC, m.id DESC LIMIT :limit OFFSET :offset
@@ -105,7 +107,7 @@ public class TripMemoryService {
             .addValue("sourceUrl", sourceUrl).addValue("takenAt", takenAt).addValue("latitude", latitude)
             .addValue("longitude", longitude).addValue("dayIndex", dayIndex)
             .addValue("sortOrder", sortOrder == null ? 1 : sortOrder));
-        jdbcTemplate.update("UPDATE tm_trip_memory SET generation_status = 'pending' WHERE id = :memoryId",
+        jdbcTemplate.update("UPDATE tm_trip_memory SET generation_status = 'pending', index_status = 'pending', indexed_at = NULL WHERE id = :memoryId",
             Map.of("memoryId", memoryId));
         return jdbcTemplate.queryForMap("""
                 SELECT id, item_type, source_url, taken_at, latitude, longitude, day_index, sort_order, status
@@ -120,7 +122,7 @@ public class TripMemoryService {
             "DELETE FROM tm_trip_memory_item WHERE id = :itemId AND memory_id = :memoryId",
             Map.of("itemId", itemId, "memoryId", memoryId));
         if (changed == 0) throw new BizException("记忆项目不存在或无权删除。");
-        jdbcTemplate.update("UPDATE tm_trip_memory SET generation_status = 'pending' WHERE id = :memoryId",
+        jdbcTemplate.update("UPDATE tm_trip_memory SET generation_status = 'pending', index_status = 'pending', indexed_at = NULL WHERE id = :memoryId",
             Map.of("memoryId", memoryId));
     }
 
@@ -130,6 +132,85 @@ public class TripMemoryService {
             "DELETE FROM tm_trip_memory WHERE id = :memoryId AND user_id = :userId",
             Map.of("memoryId", memoryId, "userId", userId));
         if (changed == 0) throw new BizException("旅行记忆不存在或无权删除。");
+    }
+
+    public TripMemoryKnowledgeContract.Identity knowledgeIdentity(long userId, long memoryId) {
+        Map<String, Object> memory = ownedMemory(userId, memoryId);
+        return new TripMemoryKnowledgeContract.Identity(memoryId, ((Number) memory.get("trip_plan_id")).longValue());
+    }
+
+    public TripMemoryKnowledgeContract.Source knowledgeSource(long userId, long memoryId) {
+        Map<String, Object> memory = ownedMemory(userId, memoryId);
+        List<Long> timelineEvidence = jdbcTemplate.queryForList("""
+                SELECT evidence_json FROM tm_trip_memory_generation
+                WHERE memory_id = :memoryId AND generation_type = 'timeline'
+                ORDER BY version DESC LIMIT 1
+                """, Map.of("memoryId", memoryId)).stream().findFirst()
+            .map(row -> JsonUtils.parseArray(String.valueOf(row.get("evidence_json")), Long.class)).orElse(List.of());
+        List<TripMemoryKnowledgeContract.Item> items = jdbcTemplate.query("""
+                SELECT id, item_type, source_type, source_id, city, place_name, content, ai_caption, ai_tags, day_index
+                FROM tm_trip_memory_item WHERE memory_id = :memoryId AND status = 'ready'
+                ORDER BY COALESCE(day_index, 2147483647), sort_order, id
+                """, Map.of("memoryId", memoryId), (rs, rowNum) -> new TripMemoryKnowledgeContract.Item(
+                    rs.getLong("id"), rs.getString("item_type"), rs.getString("source_type"),
+                    rs.getObject("source_id") == null ? null : rs.getLong("source_id"), rs.getString("city"),
+                    rs.getString("place_name"), rs.getString("content"), rs.getString("ai_caption"),
+                    JsonUtils.parseArray(rs.getString("ai_tags"), String.class), (Integer) rs.getObject("day_index"),
+                    timelineEvidence.contains(rs.getLong("id"))));
+        return new TripMemoryKnowledgeContract.Source(memoryId, ((Number) memory.get("trip_plan_id")).longValue(),
+            String.valueOf(memory.get("title")), String.valueOf(memory.get("destination_city")), items);
+    }
+
+    public void knowledgeStatus(long userId, long memoryId, String status) {
+        ownedMemory(userId, memoryId);
+        if (!Set.of("pending", "indexing", "ready", "failed", "unavailable").contains(status)) {
+            throw new BizException("旅行记忆索引状态不支持。");
+        }
+        jdbcTemplate.update("""
+                UPDATE tm_trip_memory SET index_status = :status,
+                  indexed_at = CASE WHEN :status = 'ready' THEN CURRENT_TIMESTAMP ELSE indexed_at END
+                WHERE id = :memoryId
+                """, Map.of("status", status, "memoryId", memoryId));
+    }
+
+    public TripMemoryKnowledgeContract.Answer validateAnswer(
+        long userId,
+        long memoryId,
+        TripMemoryKnowledgeContract.Answer answer
+    ) {
+        ownedMemory(userId, memoryId);
+        if (answer == null || answer.answer() == null || answer.answer().isBlank()) {
+            throw new BizException("旅行记忆问答结果为空。");
+        }
+        List<TripMemoryKnowledgeContract.Citation> citations = answer.citations() == null ? List.of() : answer.citations();
+        if (citations.isEmpty()) {
+            if (!TripMemoryKnowledgeContract.NO_EVIDENCE.equals(answer.answer())) {
+                throw new BizException("旅行记忆回答缺少可验证引用。");
+            }
+            return new TripMemoryKnowledgeContract.Answer(answer.answer(), List.of(), answer.fallback());
+        }
+        List<Long> ids = citations.stream().map(TripMemoryKnowledgeContract.Citation::memoryItemId)
+            .filter(id -> id > 0).distinct().toList();
+        if (ids.size() != citations.size()) throw new BizException("旅行记忆回答包含非法引用。");
+        Map<Long, Map<String, Object>> owned = new HashMap<>();
+        for (Map<String, Object> row : jdbcTemplate.queryForList("""
+                SELECT id, item_type, source_type, source_id FROM tm_trip_memory_item
+                WHERE memory_id = :memoryId AND id IN (:ids)
+                """, Map.of("memoryId", memoryId, "ids", ids))) {
+            owned.put(((Number) row.get("id")).longValue(), row);
+        }
+        for (TripMemoryKnowledgeContract.Citation citation : citations) {
+            Map<String, Object> row = owned.get(citation.memoryItemId());
+            String expectedType = row == null ? null : String.valueOf(row.get("source_type") == null
+                ? row.get("item_type") : row.get("source_type"));
+            long expectedId = row == null ? -1 : (row.get("source_id") instanceof Number number
+                ? number.longValue() : citation.memoryItemId());
+            if (row == null || !java.util.Objects.equals(expectedType, citation.sourceType())
+                || citation.sourceId() == null || citation.sourceId() != expectedId) {
+                throw new BizException("旅行记忆回答包含不属于当前记忆册的引用。");
+            }
+        }
+        return new TripMemoryKnowledgeContract.Answer(answer.answer(), List.copyOf(citations), answer.fallback());
     }
 
     public TripMemoryAnalysisContract.Input analysisInput(long userId, long memoryId) {
@@ -194,7 +275,7 @@ public class TripMemoryService {
         }
         TripMemoryAnalysisContract.Generation generation = result.generation();
         if (generation == null) {
-            jdbcTemplate.update("UPDATE tm_trip_memory SET generation_status = 'ready' WHERE id = :memoryId",
+            jdbcTemplate.update("UPDATE tm_trip_memory SET generation_status = 'ready', index_status = 'pending', indexed_at = NULL WHERE id = :memoryId",
                 Map.of("memoryId", memoryId));
             return new TripMemoryAnalysisContract.Saved(0, 0);
         }
@@ -220,7 +301,7 @@ public class TripMemoryService {
                 VALUES (:id, :memoryId, :type, :content, :evidence, :version)
                 """, Map.of("id", generationId, "memoryId", memoryId, "type", generation.type(), "content", content,
                     "evidence", JsonUtils.toJsonString(evidence), "version", version == null ? 1 : version));
-        jdbcTemplate.update("UPDATE tm_trip_memory SET generation_status = 'ready' WHERE id = :memoryId",
+        jdbcTemplate.update("UPDATE tm_trip_memory SET generation_status = 'ready', index_status = 'pending', indexed_at = NULL WHERE id = :memoryId",
             Map.of("memoryId", memoryId));
         return new TripMemoryAnalysisContract.Saved(generationId, version == null ? 1 : version);
     }
@@ -280,7 +361,7 @@ public class TripMemoryService {
     private Map<String, Object> ownedMemory(long userId, long memoryId) {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
                 SELECT id, trip_plan_id, title, destination_city, summary, cover_image, status, visibility,
-                       generation_status, create_time, update_time
+                       generation_status, index_status, indexed_at, create_time, update_time
                 FROM tm_trip_memory WHERE id = :memoryId AND user_id = :userId LIMIT 1
                 """, Map.of("memoryId", memoryId, "userId", userId));
         if (rows.isEmpty()) throw new BizException("旅行记忆不存在或无权访问。");
