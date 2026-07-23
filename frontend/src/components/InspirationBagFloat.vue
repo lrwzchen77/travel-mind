@@ -30,7 +30,7 @@ function onDocClick(event) {
 }
 function plan() {
   close();
-  router.push({ path: '/planning', query: { inspirationIds: items.value.map((item) => item.post_id).slice(0, 5).join(',') } });
+  router.push({ path: '/map', query: { inspirationIds: items.value.map((item) => item.post_id).slice(0, 5).join(',') } });
 }
 
 onMounted(() => {

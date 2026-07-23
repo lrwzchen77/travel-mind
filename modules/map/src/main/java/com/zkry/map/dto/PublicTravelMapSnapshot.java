@@ -12,6 +12,12 @@ public record PublicTravelMapSnapshot(
     RailwayCheck railway_check,
     Availability availability
 ) {
+    public PublicTravelMapSnapshot withPlaces(List<Place> value) {
+        List<Place> safe = value == null ? List.of() : value;
+        return new PublicTravelMapSnapshot(city, weather, safe, route, airport, railway_check,
+            new Availability(availability.weather(), safe.isEmpty() ? "unavailable" : "available", availability.routes()));
+    }
+
     public static PublicTravelMapSnapshot empty(String city) {
         return new PublicTravelMapSnapshot(city, null, List.of(), null, null,
             new RailwayCheck("https://www.12306.cn/index/", "仅跳转 12306 官网核验，不提供车次、余票或票价。"),
@@ -34,6 +40,16 @@ public record PublicTravelMapSnapshot(
         String kind,
         double longitude,
         double latitude,
+        String address,
+        String category,
+        String opening_hours,
+        double distance_km,
+        Double rating,
+        Double cost,
+        String image_url,
+        String tags,
+        int community_mentions,
+        String community_tip,
         String source,
         String updated_at
     ) {

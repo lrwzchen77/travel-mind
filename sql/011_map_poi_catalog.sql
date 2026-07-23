@@ -1,0 +1,27 @@
+USE travelmind;
+
+-- 多来源地图 POI 目录：保存高德/OSM 最近一次成功结果，外部服务波动时仍可浏览。
+CREATE TABLE IF NOT EXISTS tm_map_poi (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  source VARCHAR(32) NOT NULL,
+  source_id VARCHAR(160) NOT NULL,
+  city VARCHAR(64) NOT NULL,
+  name VARCHAR(160) NOT NULL,
+  kind VARCHAR(32) NOT NULL,
+  longitude DECIMAL(11,7) NOT NULL,
+  latitude DECIMAL(10,7) NOT NULL,
+  address VARCHAR(500) NULL,
+  category VARCHAR(128) NULL,
+  opening_hours VARCHAR(500) NULL,
+  rating DECIMAL(4,2) NULL,
+  cost DECIMAL(10,2) NULL,
+  image_url VARCHAR(1000) NULL,
+  tags VARCHAR(500) NULL,
+  source_updated_at VARCHAR(64) NULL,
+  last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  status TINYINT NOT NULL DEFAULT 1,
+  deleted TINYINT NOT NULL DEFAULT 0,
+  UNIQUE KEY uk_map_poi_source (source, source_id),
+  INDEX idx_map_poi_city_kind (city, kind, status, deleted),
+  INDEX idx_map_poi_last_seen (last_seen_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

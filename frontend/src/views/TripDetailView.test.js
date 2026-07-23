@@ -13,7 +13,11 @@ vi.mock('../api/trip.js', () => ({ tripApi: {
 } }));
 vi.mock('../api/ai.js', () => ({ aiApi: { tripComfort: mocks.tripComfort } }));
 vi.mock('../api/memory.js', () => ({ memoryApi: { createFromTrip: mocks.createMemory } }));
-vi.mock('../components/map/AsyncTravelMap3D.vue', () => ({ default: { template: '<div class="map-stub" />' } }));
+vi.mock('../components/map/AsyncTravelMap3D.vue', () => ({ default: {
+  name: 'TravelMap3DStub',
+  props: ['initialTrackPoints'],
+  template: '<div class="map-stub" />',
+} }));
 vi.mock('vue-router', () => ({
   RouterLink: { props: ['to'], template: '<a :data-to="typeof to === \'string\' ? to : to.path"><slot /></a>' },
   useRoute: () => mocks.route, useRouter: () => ({ push: mocks.push }),
@@ -37,6 +41,7 @@ function mountPage() { return mount(TripDetailView); }
 beforeEach(() => {
   vi.clearAllMocks();
   storage.clear();
+  window.sessionStorage.clear();
   vi.stubGlobal('localStorage', localStorageMock);
   mocks.detail.mockResolvedValue(plan);
   mocks.tripComfort.mockResolvedValue({ result_json: { data: { comfort_score: 88, risk_level: 'low', suggestions: [], daily_risks: [] } } });
@@ -46,6 +51,25 @@ beforeEach(() => {
 });
 
 describe('行程详情新增能力', () => {
+  it('从计划快照恢复原始编号路线并交给地图展示', async () => {
+    mocks.detail.mockResolvedValueOnce({
+      ...plan,
+      data: {
+        ...plan.data,
+        route_intent: { city: '杭州', mode: 'soft_order', nodes: [
+          { order: 1, type: 'poi', poi_id: 'west-lake', name: '西湖', kind: 'attraction', longitude: 120.1485, latitude: 30.242 },
+          { order: 2, type: 'free_point', name: '自定义节点 2', longitude: 120.1152, latitude: 30.2288 },
+        ] },
+      },
+    });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.findAll('.saved-route-strip button')).toHaveLength(2);
+    expect(wrapper.get('.saved-route-strip').text()).toContain('01西湖');
+    expect(wrapper.findComponent({ name: 'TravelMap3DStub' }).props('initialTrackPoints')).toHaveLength(2);
+  });
+
   it('creates an idempotent memory from this trip and opens it', async () => {
     const wrapper = mountPage();
     await flushPromises();
@@ -143,7 +167,7 @@ describe('行程详情新增能力', () => {
     await wrapper.get('.chat-bubble:not(.is-user) button').trigger('click');
 
     expect(mocks.chat).toHaveBeenCalledWith('9001', '第二天少走一点', []);
-    expect(mocks.push).toHaveBeenCalledWith({ path: '/planning', query: { city: '杭州', assistant: '第二天删掉一个景点，保留西湖。' } });
+    expect(mocks.push).toHaveBeenCalledWith({ path: '/map', query: { city: '杭州', assistant: '第二天删掉一个景点，保留西湖。' } });
   });
 
   it('puts the daily route and map before budget tools', async () => {

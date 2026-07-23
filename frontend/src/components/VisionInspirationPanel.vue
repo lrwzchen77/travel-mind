@@ -66,7 +66,7 @@ function goPlanning() {
     return;
   }
   router.push({
-    path: '/planning',
+    path: '/map',
     query: buildVisionPlanningQuery({
       city: city.value,
       prediction: prediction.value,

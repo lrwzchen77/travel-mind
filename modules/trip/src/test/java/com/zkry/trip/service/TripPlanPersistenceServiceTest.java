@@ -17,6 +17,8 @@ import com.zkry.trip.dto.DayPlan;
 import com.zkry.trip.dto.Hotel;
 import com.zkry.trip.dto.InspirationSource;
 import com.zkry.trip.dto.Meal;
+import com.zkry.trip.dto.RouteIntent;
+import com.zkry.trip.dto.RouteNode;
 import com.zkry.trip.dto.TripPlan;
 import com.zkry.trip.dto.TripPlanResponse;
 import com.zkry.trip.dto.TripRequest;
@@ -75,7 +77,11 @@ class TripPlanPersistenceServiceTest {
         TripPlanPersistenceService service = new TripPlanPersistenceService(jdbcTemplate);
         TripRequest request = new TripRequest("Hangzhou", null, "2026-08-01", "2026-08-01", 1, "公共交通", "舒适型酒店", "2000",
             List.of("湖景"), "参考旅行灵感", "zh", List.of(7001L),
-            List.of(new InspirationSource(7001L, "西湖慢游", "Hangzhou", "route", "must", "上午走断桥和苏堤")));
+            List.of(new InspirationSource(7001L, "西湖慢游", "Hangzhou", "route", "must", "上午走断桥和苏堤")),
+            new RouteIntent("Hangzhou", "soft_order", List.of(
+                new RouteNode(1, "poi", "west-lake", "West Lake", 120.1485, 30.242, "attraction", "Sunset stop", List.of("must", "photo")),
+                new RouteNode(2, "free_point", null, "Custom point 2", 120.1152, 30.2288, null)
+            )));
 
         service.save(1001L, response("plan-1"), request);
 
@@ -84,6 +90,10 @@ class TripPlanPersistenceServiceTest {
         TripPlanResponse stored = JsonUtils.parseObject(String.valueOf(params.getValue().getValue("rawPlanJson")), TripPlanResponse.class);
         assertThat(stored.data().inspiration_sources()).singleElement().extracting(InspirationSource::intent).isEqualTo("must");
         assertThat(stored.data().public_data()).singleElement().extracting(PublicDataItem::data_kind).isEqualTo("live");
+        assertThat(stored.data().route_intent().nodes()).hasSize(2);
+        assertThat(stored.data().route_intent().nodes().get(0).poi_id()).isEqualTo("west-lake");
+        assertThat(stored.data().route_intent().nodes().get(0).note()).isEqualTo("Sunset stop");
+        assertThat(stored.data().route_intent().nodes().get(0).preferences()).containsExactly("must", "photo");
     }
 
     private TripRequest request() {

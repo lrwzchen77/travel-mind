@@ -16,7 +16,6 @@ describe('application shell contracts', () => {
       '/assistant',
       '/cities',
       '/trip-history',
-      '/planning',
       '/map',
       '/ai-lab',
       '/memories',
@@ -46,6 +45,7 @@ describe('application shell contracts', () => {
       expect(routePaths).toContain(item.path);
     }
     expect(routePaths).toContain('/trip/:id');
+    expect(routePaths).toContain('/planning');
     expect(routePaths).toContain('/memories/:id');
     expect(routePaths).toContain('/city/:city');
     expect(routePaths).toContain('/attractions');

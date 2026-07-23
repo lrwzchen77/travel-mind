@@ -11,6 +11,7 @@ import com.zkry.map.dto.MapPlanningContext;
 import com.zkry.map.dto.MapPoi;
 import com.zkry.map.dto.MapPoint;
 import com.zkry.map.dto.MapWeatherForecast;
+import com.zkry.map.util.MapCoordinates;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -20,9 +21,12 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -160,21 +164,49 @@ public class AmapMapContextService implements MapContextService {
             if (result.size() >= limit) {
                 break;
             }
-            String name = text(poi.path("name"));
-            if (name.isBlank()) {
-                continue;
-            }
-            result.add(new MapPoi(
-                name,
-                text(poi.path("address")),
-                parsePoint(text(poi.path("location"))),
-                text(poi.path("type")),
-                firstNonBlank(text(poi.path("business").path("rating")), text(poi.path("biz_ext").path("rating"))),
-                text(poi.path("distance")),
-                firstPhoto(poi.path("photos"))
-            ));
+            MapPoi parsed = parsePoi(poi, true);
+            if (parsed != null) result.add(parsed);
         }
         log.info("[AMap] POI 搜索完成 city={} keywords={} resultCount={}", city, keywords, result.size());
+        return result;
+    }
+
+    /** 按高德 GCJ-02 中心点分页搜索周边，返回的 POI 坐标统一为 WGS84。 */
+    public List<MapPoi> searchAround(
+        MapPoint gcjCenter, String city, String keywords, String types, int pageSize, int pages
+    ) throws IOException, InterruptedException {
+        validateReady();
+        if (gcjCenter == null || !gcjCenter.available()
+            || !Double.isFinite(gcjCenter.longitude()) || !Double.isFinite(gcjCenter.latitude())) {
+            return List.of();
+        }
+        int safePageSize = Math.max(1, Math.min(pageSize, 25));
+        int safePages = Math.max(1, Math.min(pages, 8));
+        List<MapPoi> result = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        for (int page = 1; page <= safePages; page++) {
+            Map<String, String> params = new LinkedHashMap<>();
+            params.put("location", gcjCenter.longitude() + "," + gcjCenter.latitude());
+            params.put("keywords", keywords);
+            params.put("types", types);
+            params.put("region", city);
+            params.put("city_limit", "true");
+            params.put("sortrule", "distance");
+            params.put("page_size", String.valueOf(safePageSize));
+            params.put("page_num", String.valueOf(page));
+            params.put("show_fields", "business,photos");
+            params.put("output", "JSON");
+            JsonNode pois = get("/v5/place/around", params).path("pois");
+            if (!pois.isArray()) continue;
+            for (JsonNode poi : pois) {
+                MapPoi parsed = parsePoi(poi, true);
+                if (parsed == null || parsed.location() == null) continue;
+                String key = parsed.id().isBlank()
+                    ? parsed.name().replaceAll("\\s+", "").toLowerCase(Locale.ROOT)
+                    : parsed.id();
+                if (seen.add(key)) result.add(parsed);
+            }
+        }
         return result;
     }
 
@@ -219,7 +251,8 @@ public class AmapMapContextService implements MapContextService {
         return result;
     }
 
-    private JsonNode get(String path, Map<String, String> params) throws IOException, InterruptedException {
+    // ponytail: 单实例串行高德请求；多实例或吞吐成为瓶颈时再换共享限流器。
+    protected synchronized JsonNode get(String path, Map<String, String> params) throws IOException, InterruptedException {
         Map<String, String> finalParams = new LinkedHashMap<>();
         finalParams.put("key", apiKey());
         finalParams.putAll(params);
@@ -257,6 +290,10 @@ public class AmapMapContextService implements MapContextService {
 
     private String apiKey() {
         return runtimeSettingsService.stringValue(TravelMindSettingKeys.AMAP_WEB_KEY).orElse("");
+    }
+
+    public boolean ready() {
+        return enabled && !apiKey().isBlank();
     }
 
     public void validateReady() {
@@ -306,6 +343,29 @@ public class AmapMapContextService implements MapContextService {
             return "";
         }
         return text(photos.get(0).path("url"));
+    }
+
+    private MapPoi parsePoi(JsonNode poi, boolean convertToWgs84) {
+        String name = text(poi.path("name"));
+        if (name.isBlank()) return null;
+        JsonNode business = poi.path("business");
+        JsonNode bizExt = poi.path("biz_ext");
+        MapPoint location = parsePoint(text(poi.path("location")));
+        if (convertToWgs84) location = MapCoordinates.gcj02ToWgs84(location);
+        return new MapPoi(
+            text(poi.path("id")),
+            name,
+            text(poi.path("address")),
+            location,
+            text(poi.path("type")),
+            firstNonBlank(text(business.path("rating")), text(bizExt.path("rating"))),
+            text(poi.path("distance")),
+            firstPhoto(poi.path("photos")),
+            text(business.path("opentime_week")),
+            text(business.path("opentime_today")),
+            firstNonBlank(text(business.path("cost")), text(bizExt.path("cost"))),
+            text(business.path("tag"))
+        );
     }
 
     private String text(JsonNode node) {

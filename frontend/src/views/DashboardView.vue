@@ -56,7 +56,7 @@ onUnmounted(() => {
           </span>
         </h1>
         <div class="hero-actions">
-          <RouterLink class="btn-link btn-coral btn-glow" :to="{ path: '/planning', query: { city: rotatingCities[cityIndex] } }">
+          <RouterLink class="btn-link btn-coral btn-glow" :to="{ path: '/map', query: { city: rotatingCities[cityIndex] } }">
             开始规划我的行程
             <span class="btn-arrow" aria-hidden="true">→</span>
           </RouterLink>
@@ -140,7 +140,7 @@ onUnmounted(() => {
           <strong>当前镜头：{{ mapCity }}</strong>
         </div>
         <div class="actions">
-          <RouterLink v-if="supportsPlanning(mapCity)" class="btn-link btn-coral" :to="{ path: '/planning', query: { city: mapCity } }">
+          <RouterLink v-if="supportsPlanning(mapCity)" class="btn-link btn-coral" :to="{ path: '/map', query: { city: mapCity } }">
             规划 {{ mapCity }}
           </RouterLink>
           <RouterLink v-else class="btn-link btn-coral" :to="`/city/${encodeURIComponent(mapCity)}`">先浏览 {{ mapCity }}</RouterLink>
@@ -149,15 +149,5 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <section class="cta-banner" data-reveal>
-      <div class="cta-banner-bg" aria-hidden="true" />
-      <div class="cta-banner-copy">
-        <h2>还在犹豫去哪？</h2>
-      </div>
-      <div class="actions">
-        <RouterLink class="btn-link btn-coral btn-glow" to="/assistant">先问 AI，聊聊怎么安排</RouterLink>
-        <RouterLink class="btn-link btn-ghost" to="/profile">设置我的偏好</RouterLink>
-      </div>
-    </section>
   </div>
 </template>

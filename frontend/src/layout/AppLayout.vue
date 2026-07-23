@@ -72,7 +72,7 @@ onUnmounted(() => {
           </span>
           <span class="brand-text">
             <strong>Travel Mind</strong>
-            <small>想去，就出发</small>
+            <small>把下一站写清楚</small>
           </span>
         </RouterLink>
 
@@ -100,7 +100,7 @@ onUnmounted(() => {
             {{ item.label }}
           </RouterLink>
 
-          <RouterLink to="/planning" class="header-cta" @click="closeMenus">
+          <RouterLink to="/map" class="header-cta" @click="closeMenus">
             生成行程
           </RouterLink>
           <div v-if="currentUser" class="account-menu" :class="{ 'is-open': accountOpen }">
@@ -150,9 +150,10 @@ onUnmounted(() => {
       <div class="site-footer-inner">
         <div>
           <strong>Travel Mind</strong>
+          <p>从一条灵感，到一份走得通的行程。</p>
         </div>
         <div class="footer-links">
-          <RouterLink to="/planning">生成行程</RouterLink>
+          <RouterLink to="/map">生成行程</RouterLink>
           <RouterLink to="/map">地图情报</RouterLink>
           <RouterLink to="/trip-history">我的行程</RouterLink>
           <RouterLink to="/cities">发现城市</RouterLink>

@@ -67,6 +67,8 @@ defineExpose({
   flyToPoint: (...args) => inner.value?.flyToPoint?.(...args),
   toggleOrbit: (...args) => inner.value?.toggleOrbit?.(...args),
   stopOrbit: (...args) => inner.value?.stopOrbit?.(...args),
+  clearTrack: (...args) => inner.value?.clearTrack?.(...args),
+  getTrackIntent: (...args) => inner.value?.getTrackIntent?.(...args),
 });
 </script>
 

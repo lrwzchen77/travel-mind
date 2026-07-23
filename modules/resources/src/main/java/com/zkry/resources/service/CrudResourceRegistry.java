@@ -66,6 +66,15 @@ public class CrudResourceRegistry {
                 "tags", "image_url", "status")
         ));
         register(new CrudResourceDefinition(
+            "map-pois",
+            "tm_map_poi",
+            "id",
+            List.of("name", "city", "address", "tags"),
+            List.of("kind", "source", "category", "rating", "status"),
+            List.of("source", "source_id", "city", "name", "kind", "longitude", "latitude", "address",
+                "category", "opening_hours", "rating", "cost", "image_url", "tags", "status")
+        ));
+        register(new CrudResourceDefinition(
             "travel-tags",
             "tm_travel_tag",
             "id",

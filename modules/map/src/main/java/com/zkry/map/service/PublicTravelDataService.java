@@ -3,10 +3,12 @@ package com.zkry.map.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.zkry.common.json.utils.JsonUtils;
 import com.zkry.map.dto.MapPoint;
+import com.zkry.map.dto.MapPoi;
 import com.zkry.map.dto.MapWeatherForecast;
 import com.zkry.map.dto.PublicDataItem;
 import com.zkry.map.dto.PublicTravelMapSnapshot;
 import com.zkry.map.dto.PublicTravelSnapshot;
+import com.zkry.map.util.MapCoordinates;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -17,15 +19,22 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
-/** 零 Key 演示数据：只访问固定公开端点，失败时返回空项，不阻断本地规划。 */
+/** 高德优先、开放地图回退的旅行地图数据；外部失败不阻断本地规划。 */
 @Service
 public class PublicTravelDataService {
 
@@ -33,6 +42,7 @@ public class PublicTravelDataService {
     private static final Duration WEATHER_TTL = Duration.ofMinutes(15);
     private static final Duration PLACES_TTL = Duration.ofDays(7);
     private static final Duration ROUTE_TTL = Duration.ofHours(24);
+    private static final int AMAP_PAGE_SIZE = 25;
     private static final List<String> OVERPASS_ENDPOINTS = List.of(
         "https://overpass.kumi.systems/api/interpreter",
         "https://overpass-api.de/api/interpreter"
@@ -46,10 +56,20 @@ public class PublicTravelDataService {
     private final HttpClient httpClient = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(3))
         .build();
+    private final AmapMapContextService amapMapContextService;
     // ponytail: 进程内缓存可能在并发刷新时重复请求；演示流量需要多实例时再换共享缓存。
     private final Map<String, Cached<WeatherResult>> weatherCache = new ConcurrentHashMap<>();
     private final Map<String, Cached<PlaceResult>> placesCache = new ConcurrentHashMap<>();
     private final Map<String, Cached<RouteResult>> routeCache = new ConcurrentHashMap<>();
+
+    public PublicTravelDataService() {
+        this(null);
+    }
+
+    @Autowired
+    public PublicTravelDataService(AmapMapContextService amapMapContextService) {
+        this.amapMapContextService = amapMapContextService;
+    }
 
     public PublicTravelSnapshot collect(String cityName) {
         String city = normalizeCity(cityName);
@@ -82,8 +102,15 @@ public class PublicTravelDataService {
     }
 
     public PublicTravelMapSnapshot collectMap(String cityName) {
+        return collectMap(cityName, null, null);
+    }
+
+    public PublicTravelMapSnapshot collectMap(String cityName, Double longitude, Double latitude) {
         String city = normalizeCity(cityName);
         City location = CITIES.get(city);
+        if (location == null && validCoordinates(longitude, latitude)) {
+            location = new City(longitude, latitude, "", "", longitude, latitude);
+        }
         if (location == null) return PublicTravelMapSnapshot.empty(city);
 
         WeatherResult weather = weather(city, location);
@@ -96,7 +123,7 @@ public class PublicTravelDataService {
                 weather.forecasts(), "Open-Meteo"),
             places == null ? List.of() : places.places(),
             route == null ? null : route.route(),
-            new PublicTravelMapSnapshot.Airport(
+            location.airportCode().isBlank() ? null : new PublicTravelMapSnapshot.Airport(
                 location.airportCode(), location.airportName(), location.airportLongitude(), location.airportLatitude(),
                 "OurAirports", "公共领域机场基础资料，不含航班时刻、准点信息、票价和舱位。"),
             new PublicTravelMapSnapshot.RailwayCheck(
@@ -109,21 +136,48 @@ public class PublicTravelDataService {
     }
 
     private WeatherResult weather(String city, City location) {
-        WeatherResult result = cached(weatherCache, city, WEATHER_TTL);
+        String key = locationKey(city, location);
+        WeatherResult result = cached(weatherCache, key, WEATHER_TTL);
         if (result == null) {
             result = loadWeather(city, location);
-            if (result != null) weatherCache.put(city, new Cached<>(Instant.now(), result));
+            if (result != null) weatherCache.put(key, new Cached<>(Instant.now(), result));
         }
         return result;
     }
 
     private PlaceResult places(String city, City location) {
-        PlaceResult result = cached(placesCache, city, PLACES_TTL);
+        String key = locationKey(city, location);
+        PlaceResult result = cached(placesCache, key, PLACES_TTL);
         if (result == null) {
-            result = loadPlaces(city, location);
-            if (result != null) placesCache.put(city, new Cached<>(Instant.now(), result));
+            result = loadAmapPlaces(city, location);
+            if (!hasEnoughPlaces(result)) result = mergePlaces(result, loadPlaces(city, location));
+            if (result != null) placesCache.put(key, new Cached<>(Instant.now(), result));
         }
         return result;
+    }
+
+    private boolean hasEnoughPlaces(PlaceResult result) {
+        if (result == null) return false;
+        return Stream.of("attraction", "hotel", "restaurant")
+            .allMatch(kind -> result.places().stream().filter(place -> kind.equals(place.kind())).count() >= 10);
+    }
+
+    private PlaceResult mergePlaces(PlaceResult primary, PlaceResult fallback) {
+        if (primary == null) return fallback;
+        if (fallback == null) return primary;
+        Map<String, List<PublicTravelMapSnapshot.Place>> groups = new LinkedHashMap<>();
+        groups.put("attraction", new ArrayList<>());
+        groups.put("hotel", new ArrayList<>());
+        groups.put("restaurant", new ArrayList<>());
+        Set<String> names = new HashSet<>();
+        Stream.concat(primary.places().stream(), fallback.places().stream()).forEach(place -> {
+            String name = normalizePlaceName(place.name());
+            if (names.add(name)) groups.computeIfAbsent(place.kind(), ignored -> new ArrayList<>()).add(place);
+        });
+        List<PublicTravelMapSnapshot.Place> places = groups.values().stream()
+            .flatMap(group -> group.stream().sorted(Comparator.comparingDouble(PublicTravelMapSnapshot.Place::distance_km)))
+            .toList();
+        return new PlaceResult(places, primary.item());
     }
 
     private RouteResult route(String city, PlaceResult places) {
@@ -182,15 +236,84 @@ public class PublicTravelDataService {
         return result;
     }
 
+    private PlaceResult loadAmapPlaces(String city, City location) {
+        if (amapMapContextService == null || !amapMapContextService.ready()) return null;
+        MapPoint gcjCenter = MapCoordinates.wgs84ToGcj02(new MapPoint(location.longitude(), location.latitude()));
+        CompletableFuture<List<PublicTravelMapSnapshot.Place>> attractions = CompletableFuture.supplyAsync(() ->
+            amapPlaces(city, location, gcjCenter, "attraction", "", "110000"));
+        CompletableFuture<List<PublicTravelMapSnapshot.Place>> hotels = CompletableFuture.supplyAsync(() ->
+            amapPlaces(city, location, gcjCenter, "hotel", "", "100000"));
+        CompletableFuture<List<PublicTravelMapSnapshot.Place>> restaurants = CompletableFuture.supplyAsync(() ->
+            amapPlaces(city, location, gcjCenter, "restaurant", "", "050000"));
+        List<PublicTravelMapSnapshot.Place> places = Stream.of(attractions, hotels, restaurants)
+            .flatMap(future -> future.join().stream()).toList();
+        if (places.isEmpty()) return null;
+        String updatedAt = Instant.now().toString();
+        String detail = Stream.of("attraction", "hotel", "restaurant")
+            .map(kind -> places.stream().filter(place -> kind.equals(place.kind())).map(PublicTravelMapSnapshot.Place::name)
+                .reduce((left, right) -> left + "、" + right)
+                .map(names -> kindLabel(kind) + "：" + names).orElse(""))
+            .filter(value -> !value.isBlank()).reduce((left, right) -> left + "；" + right).orElse("");
+        return new PlaceResult(places, new PublicDataItem(
+            city + "高德周边地点", detail + "。营业时间、评分和消费信息以商户现场为准。",
+            "高德地图", updatedAt, "live", false,
+            "https://lbs.amap.com/api/webservice/guide/api-advanced/newpoisearch"));
+    }
+
+    private List<PublicTravelMapSnapshot.Place> amapPlaces(
+        String city, City location, MapPoint gcjCenter, String kind, String keywords, String types
+    ) {
+        try {
+            String updatedAt = Instant.now().toString();
+            int pages = "attraction".equals(kind) ? 3 : 1;
+            List<MapPoi> candidates = new ArrayList<>(
+                amapMapContextService.searchAround(gcjCenter, city, keywords, types, AMAP_PAGE_SIZE, pages));
+            if ("attraction".equals(kind)) {
+                candidates.addAll(amapMapContextService.searchPois(city, city + " 热门景点", AMAP_PAGE_SIZE));
+            }
+            return candidates
+                .stream().filter(poi -> poi.location() != null && poi.location().available())
+                .map(poi -> new PublicTravelMapSnapshot.Place(
+                    "amap-" + firstNonBlank(poi.id(), normalizePlaceName(poi.name()) + '-' + poi.location().longitude()
+                        + '-' + poi.location().latitude()),
+                    poi.name(), kind, poi.location().longitude(), poi.location().latitude(), poi.address(),
+                    amapCategory(poi, kind), firstNonBlank(poi.openTimeWeek(), poi.openTimeToday()),
+                    distanceKm(location, poi.location()), parseDouble(poi.rating()), parseDouble(poi.cost()),
+                    poi.photoUrl(), poi.tag(), 0, "", "高德地图", updatedAt
+                )).sorted(Comparator.comparingDouble(PublicTravelMapSnapshot.Place::distance_km))
+                .toList();
+        } catch (Exception ex) {
+            log.info("高德周边地点暂不可用 city={} kind={} reason={}", city, kind, ex.getMessage());
+            return List.of();
+        }
+    }
+
+    private String amapCategory(MapPoi poi, String kind) {
+        if (poi.type() != null && !poi.type().isBlank()) {
+            String[] values = poi.type().split("[;；]");
+            for (int i = values.length - 1; i >= 0; i--) if (!values[i].isBlank()) return values[i].trim();
+        }
+        return kindLabel(kind);
+    }
+
+    private String kindLabel(String kind) {
+        return "hotel".equals(kind) ? "住宿" : "restaurant".equals(kind) ? "餐饮" : "景点";
+    }
+
     private PlaceResult loadPlaces(String city, City location) {
         String query = "[out:json][timeout:8];("
-            + "nwr(around:12000," + location.latitude() + "," + location.longitude() + ")[tourism~\"attraction|museum|hotel|guest_house\"];"
-            + "nwr(around:12000," + location.latitude() + "," + location.longitude() + ")[amenity=restaurant];"
-            + ");out center tags 30;";
+            + "nwr(around:12000," + location.latitude() + "," + location.longitude() + ")[tourism~\"attraction|museum|gallery|viewpoint|zoo|aquarium|theme_park\"];"
+            + "nwr(around:12000," + location.latitude() + "," + location.longitude() + ")[historic];"
+            + "nwr(around:12000," + location.latitude() + "," + location.longitude() + ")[leisure~\"park|garden|nature_reserve\"];"
+            + ")->.attractions;.attractions out center tags 120;("
+            + "nwr(around:12000," + location.latitude() + "," + location.longitude() + ")[tourism~\"hotel|guest_house|hostel|motel\"];"
+            + ")->.hotels;.hotels out center tags 120;("
+            + "nwr(around:12000," + location.latitude() + "," + location.longitude() + ")[amenity~\"restaurant|cafe|fast_food|food_court\"];"
+            + ")->.restaurants;.restaurants out center tags 120;";
         for (String endpoint : OVERPASS_ENDPOINTS) {
             try {
                 URI uri = URI.create(endpoint + "?data=" + URLEncoder.encode(query, StandardCharsets.UTF_8));
-                PlaceResult result = parsePlaces(city, JsonUtils.getObjectMapper().readTree(get(uri)));
+                PlaceResult result = parsePlaces(city, location, JsonUtils.getObjectMapper().readTree(get(uri)));
                 if (result != null) return result;
             } catch (Exception ex) {
                 log.info("Overpass 节点暂不可用 endpoint={} city={} reason={}", endpoint, city, ex.getMessage());
@@ -199,32 +322,52 @@ public class PublicTravelDataService {
         return null;
     }
 
-    private PlaceResult parsePlaces(String city, JsonNode root) {
+    private PlaceResult parsePlaces(String city, City location, JsonNode root) {
         JsonNode elements = root.path("elements");
         if (!elements.isArray()) return null;
-        Map<String, List<String>> names = new LinkedHashMap<>();
-        names.put("景区", new ArrayList<>());
-        names.put("住宿", new ArrayList<>());
-        names.put("餐饮", new ArrayList<>());
-        List<PublicTravelMapSnapshot.Place> places = new ArrayList<>();
+        Map<String, List<PublicTravelMapSnapshot.Place>> candidates = new LinkedHashMap<>();
+        candidates.put("attraction", new ArrayList<>());
+        candidates.put("hotel", new ArrayList<>());
+        candidates.put("restaurant", new ArrayList<>());
+        Set<String> seenNames = new HashSet<>();
         String updatedAt = Instant.now().toString();
         for (JsonNode element : elements) {
             JsonNode tags = element.path("tags");
             String name = firstNonBlank(text(tags.path("name:zh")), text(tags.path("name")));
             if (name.isBlank()) continue;
             String tourism = text(tags.path("tourism"));
-            String kind = "restaurant".equals(text(tags.path("amenity"))) ? "餐饮"
-                : ("hotel".equals(tourism) || "guest_house".equals(tourism)) ? "住宿" : "景区";
-            List<String> group = names.get(kind);
-            if (group.size() >= 3 || group.contains(name)) continue;
-            group.add(name);
+            String amenity = text(tags.path("amenity"));
+            String kind = amenity.matches("restaurant|cafe|fast_food|food_court") ? "餐饮"
+                : tourism.matches("hotel|guest_house|hostel|motel") ? "住宿" : "景区";
             MapPoint point = point(element);
             if (point == null) continue;
+            String normalizedName = normalizePlaceName(name);
+            if (!seenNames.add(normalizedName)) continue;
             String mapKind = "景区".equals(kind) ? "attraction" : "住宿".equals(kind) ? "hotel" : "restaurant";
-            places.add(new PublicTravelMapSnapshot.Place(
-                mapKind + "-" + places.size(), name, mapKind, point.longitude(), point.latitude(),
+            List<PublicTravelMapSnapshot.Place> group = candidates.get(mapKind);
+            String elementId = text(element.path("id"));
+            String elementType = text(element.path("type"));
+            group.add(new PublicTravelMapSnapshot.Place(
+                elementId.isBlank() ? "osm-" + mapKind + '-' + normalizedName : "osm-" + elementType + '-' + elementId,
+                name, mapKind, point.longitude(), point.latitude(),
+                address(tags), category(tags), text(tags.path("opening_hours")),
+                distanceKm(location, point),
+                null, parseDouble(text(tags.path("charge"))), firstNonBlank(text(tags.path("image")),
+                    text(tags.path("wikimedia_commons"))), text(tags.path("description")), 0, "",
                 "OpenStreetMap", updatedAt));
         }
+        Map<String, List<String>> names = new LinkedHashMap<>();
+        names.put("景区", new ArrayList<>());
+        names.put("住宿", new ArrayList<>());
+        names.put("餐饮", new ArrayList<>());
+        List<PublicTravelMapSnapshot.Place> places = new ArrayList<>();
+        candidates.forEach((kind, group) -> group.stream()
+            .sorted(Comparator.comparingDouble(PublicTravelMapSnapshot.Place::distance_km))
+            .forEach(place -> {
+                places.add(place);
+                names.get("attraction".equals(kind) ? "景区" : "hotel".equals(kind) ? "住宿" : "餐饮")
+                    .add(place.name());
+            }));
         String detail = names.entrySet().stream()
             .filter(entry -> !entry.getValue().isEmpty())
             .map(entry -> entry.getKey() + "：" + String.join("、", entry.getValue()))
@@ -296,6 +439,69 @@ public class PublicTravelDataService {
         return value == null ? "" : value.trim().replaceFirst("市$", "");
     }
 
+    private boolean validCoordinates(Double longitude, Double latitude) {
+        return longitude != null && latitude != null
+            && Double.isFinite(longitude) && Double.isFinite(latitude)
+            && longitude >= -180 && longitude <= 180 && latitude >= -90 && latitude <= 90;
+    }
+
+    private String locationKey(String city, City location) {
+        return "%s:%.4f:%.4f".formatted(city, location.longitude(), location.latitude());
+    }
+
+    private String address(JsonNode tags) {
+        String full = text(tags.path("addr:full"));
+        if (!full.isBlank()) return full;
+        String street = text(tags.path("addr:street")) + text(tags.path("addr:housenumber"));
+        return Stream.of(
+                text(tags.path("addr:province")), text(tags.path("addr:state")),
+                text(tags.path("addr:city")), text(tags.path("addr:district")),
+                text(tags.path("addr:subdistrict")), street)
+            .filter(value -> !value.isBlank()).distinct().reduce("", String::concat);
+    }
+
+    private String category(JsonNode tags) {
+        if (!text(tags.path("historic")).isBlank()) return "历史古迹";
+        String tourism = text(tags.path("tourism"));
+        if (!tourism.isBlank()) return switch (tourism) {
+            case "museum" -> "博物馆";
+            case "gallery" -> "美术馆";
+            case "viewpoint" -> "观景台";
+            case "zoo" -> "动物园";
+            case "aquarium" -> "水族馆";
+            case "theme_park" -> "主题乐园";
+            case "hotel" -> "酒店";
+            case "guest_house" -> "民宿";
+            case "hostel" -> "青年旅舍";
+            case "motel" -> "汽车旅馆";
+            default -> "景点";
+        };
+        String amenity = text(tags.path("amenity"));
+        if (!amenity.isBlank()) return switch (amenity) {
+            case "cafe" -> "咖啡馆";
+            case "fast_food" -> "快餐";
+            case "food_court" -> "美食广场";
+            default -> "餐厅";
+        };
+        String leisure = text(tags.path("leisure"));
+        if (!leisure.isBlank()) return switch (leisure) {
+            case "park" -> "公园";
+            case "garden" -> "花园";
+            case "nature_reserve" -> "自然保护区";
+            default -> "休闲场所";
+        };
+        return text(tags.path("shop")).isBlank() ? "景点" : "商店";
+    }
+
+    private double distanceKm(City location, MapPoint point) {
+        double latitudeDistance = Math.toRadians(point.latitude() - location.latitude());
+        double longitudeDistance = Math.toRadians(point.longitude() - location.longitude());
+        double a = Math.sin(latitudeDistance / 2) * Math.sin(latitudeDistance / 2)
+            + Math.cos(Math.toRadians(location.latitude())) * Math.cos(Math.toRadians(point.latitude()))
+            * Math.sin(longitudeDistance / 2) * Math.sin(longitudeDistance / 2);
+        return Math.round(6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 10) / 10.0;
+    }
+
     private MapPoint point(JsonNode element) {
         JsonNode point = element.has("lat") ? element : element.path("center");
         if (!point.has("lat") || !point.has("lon")) return null;
@@ -312,6 +518,19 @@ public class PublicTravelDataService {
 
     private String firstNonBlank(String first, String second) {
         return first == null || first.isBlank() ? (second == null ? "" : second) : first;
+    }
+
+    private String normalizePlaceName(String value) {
+        return value == null ? "" : value.toLowerCase(Locale.ROOT).replaceAll("[\\s·•・—_\\-（）()]", "");
+    }
+
+    private Double parseDouble(String value) {
+        if (value == null || value.isBlank()) return null;
+        try {
+            return Double.parseDouble(value.replaceAll("[^0-9.]", ""));
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 
     private String weatherLabel(int code) {

@@ -140,7 +140,7 @@ function cleanFilters() {
 function planThisCity(record) {
   const city = record.name || record.city || '';
   if (city) {
-    window.location.href = `/planning?city=${encodeURIComponent(city)}`;
+    window.location.href = `/map?city=${encodeURIComponent(city)}`;
   }
 }
 
@@ -161,7 +161,7 @@ onMounted(load);
   </section>
 
   <div v-if="isDiscover" class="actions" style="margin-bottom: 18px;">
-    <RouterLink class="btn-link btn-coral" style="min-height: 40px; font-size: 13px; padding: 0 16px;" to="/planning">
+    <RouterLink class="btn-link btn-coral" style="min-height: 40px; font-size: 13px; padding: 0 16px;" to="/map">
       带着灵感去规划
     </RouterLink>
     <RouterLink class="btn-link btn-ghost" style="min-height: 40px; font-size: 13px; padding: 0 16px;" to="/cities">城市</RouterLink>

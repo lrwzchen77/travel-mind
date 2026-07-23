@@ -7,6 +7,8 @@ import static org.mockito.Mockito.when;
 
 import com.zkry.trip.dto.TripPlanResponse;
 import com.zkry.trip.dto.TripRequest;
+import com.zkry.trip.dto.RouteIntent;
+import com.zkry.trip.dto.RouteNode;
 import com.zkry.map.dto.PublicTravelSnapshot;
 import com.zkry.map.service.PublicTravelDataService;
 import java.math.BigDecimal;
@@ -57,6 +59,9 @@ class DemoTripPlannerServiceTest {
         assertThat(response.data().city()).isEqualTo("Hangzhou");
         assertThat(response.data().days()).hasSize(2);
         assertThat(response.data().days().get(0).attractions()).isNotEmpty();
+        assertThat(response.data().days().stream().flatMap(day -> day.attractions().stream()).map(item -> item.name()).toList())
+            .containsExactly("West Lake route", "Lingyin route");
+        assertThat(response.data().route_intent().nodes()).hasSize(2);
         assertThat(response.data().days().get(0).meals()).isNotEmpty();
         assertThat(response.data().budget().total()).isGreaterThan(0);
         assertThat(response.data().public_data()).extracting("data_kind")
@@ -70,6 +75,10 @@ class DemoTripPlannerServiceTest {
 
     private TripRequest request() {
         return new TripRequest("Hangzhou", null, "2026-08-01", "2026-08-02", 2, "公共交通", "舒适型酒店", "3000",
-            List.of("湖景", "美食"), "节奏轻松", "zh");
+            List.of("湖景", "美食"), "节奏轻松", "zh", List.of(), List.of(),
+            new RouteIntent("Hangzhou", "soft_order", List.of(
+                new RouteNode(1, "poi", "west-lake", "West Lake route", 120.1485, 30.242, "attraction"),
+                new RouteNode(2, "poi", "lingyin", "Lingyin route", 120.101, 30.24, "attraction")
+            )));
     }
 }

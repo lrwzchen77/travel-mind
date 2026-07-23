@@ -90,7 +90,7 @@ function moodClass(item, index) {
 
 function planLink(item) {
   if (resourceKey.value === 'cities') {
-    return { path: '/planning', query: { city: item.name } };
+    return { path: '/map', query: { city: item.name } };
   }
   const labels = { attractions: '景点', hotels: '住宿', restaurants: '餐厅' };
   const actions = { attractions: '安排游览', hotels: '优先考虑入住', restaurants: '安排用餐' };
@@ -102,7 +102,7 @@ function planLink(item) {
     note: `希望${actions[resourceKey.value]}：${consumerText(item.name)}${city ? `（${city}）` : ''}，类型：${labels[resourceKey.value]}。`,
   };
   if (city) query.city = city;
-  return { path: '/planning', query };
+  return { path: '/map', query };
 }
 
 function cityDetailLink(item) {
@@ -215,7 +215,7 @@ onMounted(() => {
     <strong>{{ resourceMeta.emptyTitle }}</strong>
     <p>{{ resourceMeta.emptyHint }}</p>
     <div class="actions" style="justify-content: center; margin-top: 16px;">
-      <RouterLink class="btn-link btn-coral" to="/planning">直接去规划</RouterLink>
+      <RouterLink class="btn-link btn-coral" to="/map">直接去规划</RouterLink>
       <RouterLink class="btn-link btn-ghost" to="/map">先看立体地图</RouterLink>
     </div>
   </div>

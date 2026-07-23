@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.IntStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -98,9 +99,7 @@ public class TripAiPlannerService {
         }
 
         TripPlan normalized = normalize(parsedPlan.get(), request, mapContext);
-        if (!reviewPlan(planId, request, normalized)) {
-            return Optional.empty();
-        }
+        reviewPlan(planId, request, normalized);
         log.info("[AI-PLAN] 多 Agent 行程规划完成 planId={} days={} cities={} elapsedMs={}",
             planId,
             normalized.days() == null ? 0 : normalized.days().size(),
@@ -109,7 +108,7 @@ public class TripAiPlannerService {
         return Optional.of(TripPlanResponseFactory.fromPlan(planId, normalized));
     }
 
-    private boolean reviewPlan(String planId, TripRequest request, TripPlan plan) {
+    private void reviewPlan(String planId, TripRequest request, TripPlan plan) {
         String systemPrompt = promptResourceService.load(TravelMindPrompt.REVIEW_SYSTEM);
         String userPrompt = promptResourceService.render(
             TravelMindPrompt.REVIEW_USER,
@@ -128,16 +127,16 @@ public class TripAiPlannerService {
             planId + "-review"
         );
         if (response.isEmpty()) {
-            log.warn("[AI-REVIEW] ReviewAgent 未返回结果 planId={}", planId);
-            return false;
+            log.warn("[AI-REVIEW] ReviewAgent 未返回结果，保留 Planner 结果并交由确定性校验 planId={}", planId);
+            return;
         }
         ReviewResult result = response.get();
         log.info("[AI-REVIEW] ReviewAgent 完成 planId={} passed={} issues={}",
             planId, result.passed(), result.safeIssues().size());
         if (!result.passed()) {
-            log.warn("[AI-REVIEW] 行程质检未通过 planId={} issues={}", planId, result.safeIssues());
+            log.warn("[AI-REVIEW] 行程质检建议不通过，保留 Planner 结果并交由确定性校验 planId={} issues={}",
+                planId, result.safeIssues());
         }
-        return result.passed();
     }
 
     private TripPlan normalize(TripPlan plan, TripRequest request, MapPlanningContext mapContext) {
@@ -148,7 +147,7 @@ public class TripAiPlannerService {
         String city = isBlank(plan.city())
             ? (cities.isEmpty() ? request.primaryCity() : cities.get(0))
             : plan.city();
-        List<DayPlan> days = plan.days() == null ? List.of() : plan.days();
+        List<DayPlan> days = normalizeDays(plan.days());
         Budget budget = plan.budget() == null
             ? new Budget(0, 0, 0, 0, 0, 0)
             : plan.budget();
@@ -162,8 +161,24 @@ public class TripAiPlannerService {
             isBlank(plan.overall_suggestions()) ? "AI 已生成行程，建议根据实际营业时间二次确认。" : plan.overall_suggestions(),
             budget,
             plan.inspiration_sources() == null ? List.of() : plan.inspiration_sources(),
-            List.of()
+            List.of(),
+            request.route_intent()
         );
+    }
+
+    private List<DayPlan> normalizeDays(List<DayPlan> days) {
+        if (days == null || days.isEmpty()) {
+            return List.of();
+        }
+        return IntStream.range(0, days.size())
+            .mapToObj(index -> {
+                DayPlan day = days.get(index);
+                return new DayPlan(
+                    day.date(), index, day.city(), day.is_transfer_day(), day.transfer_info(), day.description(),
+                    day.transportation(), day.accommodation(), day.hotel(), day.attractions(), day.meals()
+                );
+            })
+            .toList();
     }
 
     private List<WeatherInfo> normalizeWeather(
@@ -205,7 +220,7 @@ public class TripAiPlannerService {
         return value == null || value.isBlank();
     }
 
-    private record ReviewResult(
+    record ReviewResult(
         boolean passed,
         List<String> issues,
         List<String> suggestions

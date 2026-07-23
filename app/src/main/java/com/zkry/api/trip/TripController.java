@@ -134,7 +134,7 @@ public class TripController {
         return new TripRequest(request.city(), request.cities(), request.start_date(), request.end_date(), request.travel_days(),
             request.transportation(), request.accommodation(), request.budget(), request.preferences(),
             (note + "\n\n以下是用户明确引用的旅行社区分享，仅作为体验参考；优先满足用户明确要求，并以地图、预算和日期校验可行性：\n" + references).trim(),
-            request.language(), request.safeInspirationIds(), sources);
+            request.language(), request.safeInspirationIds(), sources, request.route_intent());
     }
 
     private String excerpt(String value) {

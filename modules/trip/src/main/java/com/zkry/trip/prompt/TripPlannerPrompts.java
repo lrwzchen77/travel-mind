@@ -8,6 +8,7 @@ import com.zkry.map.dto.MapPlanningContext;
 import com.zkry.map.dto.MapPoi;
 import com.zkry.map.dto.MapWeatherForecast;
 import com.zkry.trip.dto.CityStay;
+import com.zkry.trip.dto.RouteNode;
 import com.zkry.trip.dto.TripRequest;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -67,7 +68,35 @@ public final class TripPlannerPrompts {
             Map.entry("budget", request.safeBudget()),
             Map.entry("preferences", preferences),
             Map.entry("free_text_input", safe(request.free_text_input())),
+            Map.entry("route_context", routeContextBlock(request)),
             Map.entry("language", request.safeLanguage())
+        );
+    }
+
+    private static String routeContextBlock(TripRequest request) {
+        if (request.route_intent() == null || request.route_intent().safeNodes().isEmpty()) {
+            return "无地图路线草稿。";
+        }
+        String rule = "strict_order".equals(request.route_intent().mode())
+            ? "严格顺序：不得调换命名地点的先后顺序。"
+            : "柔性顺序：尽量遵循节点顺序；可因距离、营业时间或节奏小幅调整，并在行程建议中说明。";
+        String nodes = request.route_intent().safeNodes().stream()
+            .map(TripPlannerPrompts::routeNodeLine)
+            .collect(Collectors.joining("\n"));
+        return "城市：" + safe(request.route_intent().city()) + "\n- 规划规则：" + rule + "\n- 节点：\n" + nodes;
+    }
+
+    private static String routeNodeLine(RouteNode node) {
+        String role = "free_point".equals(node.type()) ? "希望经过的区域" : "命名地点";
+        return "  %02d. %s｜%s｜类型%s｜经纬度%s,%s｜偏好%s｜备注%s".formatted(
+            node.order() == null ? 0 : node.order(),
+            safe(node.name()),
+            role,
+            safe(node.kind()),
+            node.longitude(),
+            node.latitude(),
+            node.safePreferences().isEmpty() ? "无" : String.join("、", node.safePreferences()),
+            safe(node.note())
         );
     }
 

@@ -10,6 +10,14 @@ import { detectMapPerformanceProfile } from '../../map/performance.js';
 import { prefetchFlightTiles } from '../../map/tilePrefetch.js';
 import { emptyFc, lineFc, MAP_THEME } from '../../map/travelMindStyle.js';
 import {
+  appendTrackPoint,
+  interpolatePoint,
+  MAX_TRACK_NODES,
+  normalizeTrackPoints,
+  routeIntentFromTrack,
+  trackDistanceKm,
+} from '../../map/trackEditor.js';
+import {
   prefetchMapLibre,
   preconnectMapCdn,
   resolveMapStyle,
@@ -25,9 +33,11 @@ const props = defineProps({
   publicData: { type: Object, default: null },
   selectedPlaceIds: { type: Array, default: () => [] },
   selectableCities: { type: Array, default: () => [] },
+  trackEditor: { type: Boolean, default: false },
+  initialTrackPoints: { type: Array, default: () => [] },
 });
 
-const emit = defineEmits(['city-change', 'point-select', 'ready', 'error']);
+const emit = defineEmits(['city-change', 'point-select', 'track-change', 'track-plan', 'ready', 'error']);
 
 const containerRef = ref(null);
 const mapRef = shallowRef(null);
@@ -39,6 +49,13 @@ const orbiting = ref(false);
 const flying = ref(false);
 const flyLabel = ref('');
 const flyProgress = ref(0);
+const trackEditing = ref(false);
+const trackPoints = ref(normalizeTrackPoints(props.initialTrackPoints));
+const selectedTrackIndex = ref(-1);
+const trackDistance = computed(() => trackDistanceKm(trackPoints.value));
+const lastTrackPoint = computed(() => trackPoints.value.at(-1) || null);
+const selectedTrackPoint = computed(() => trackPoints.value[selectedTrackIndex.value] || null);
+const NODE_PREFERENCES = ['必去', '慢游', '拍照', '美食', '亲子', '避开人群'];
 /** 样式首帧可用后即展示，瓦片和增强图层继续渐进加载。 */
 const mapRevealed = ref(false);
 const performanceProfile = detectMapPerformanceProfile();
@@ -52,6 +69,8 @@ const cityMarkers = new Map();
 const poiMarkers = [];
 /** @type {import('maplibre-gl').Marker[]} */
 const publicMarkers = [];
+/** @type {import('maplibre-gl').Marker[]} */
+const trackMarkers = [];
 
 const PUBLIC_MARKER_ICONS = {
   attraction: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="17.5" cy="6.5" r="2.5"/><path d="M3 19 9.5 8l3.2 5 2.4-3.5L21 19H3Z"/></svg>',
@@ -72,6 +91,8 @@ let enrichIdle = 0;
 let destroyed = false;
 let mapStyleReady = false;
 let pendingFlight = null;
+let trackRaf = 0;
+let publicPopup = null;
 
 function setPrimaryPin(city) {
   cityMarkers.forEach((marker, name) => {
@@ -141,7 +162,89 @@ function updatePublicSources(map = mapRef.value) {
 }
 
 function clearPublicMarkers() {
+  publicPopup?.remove();
+  publicPopup = null;
   while (publicMarkers.length) publicMarkers.pop().remove();
+}
+
+function showPublicPopup(map, item) {
+  publicPopup?.remove();
+  const projected = map.project([item.longitude, item.latitude]);
+  const container = map.getContainer();
+  const anchor = `${projected.y < container.clientHeight / 2 ? 'top' : 'bottom'}-${projected.x < container.clientWidth / 2 ? 'left' : 'right'}`;
+  const content = document.createElement('article');
+  content.className = 'travel-node-detail';
+  const visual = document.createElement('div');
+  visual.className = 'travel-node-visual';
+  visual.innerHTML = `<span>${PUBLIC_MARKER_ICONS[item.kind] || PUBLIC_MARKER_ICONS.attraction}</span>`;
+  if (item.image_url) {
+    const image = document.createElement('img');
+    image.src = item.image_url;
+    image.alt = '';
+    image.referrerPolicy = 'no-referrer';
+    image.addEventListener('error', () => image.remove(), { once: true });
+    visual.prepend(image);
+  }
+  const body = document.createElement('div');
+  body.className = 'travel-node-body';
+  const meta = document.createElement('span');
+  meta.textContent = [item.category || item.kind, item.source].filter(Boolean).join(' · ');
+  const heading = document.createElement('div');
+  heading.className = 'travel-node-heading';
+  const name = document.createElement('strong');
+  name.textContent = item.name;
+  heading.append(name);
+  const rating = Number(item.rating);
+  if (Number.isFinite(rating) && rating > 0) {
+    const score = document.createElement('b');
+    score.textContent = `★ ${rating.toFixed(1)}`;
+    heading.append(score);
+  }
+  body.append(meta, heading);
+  const chips = document.createElement('div');
+  chips.className = 'travel-node-facts';
+  const facts = [
+    [Number.isFinite(item.distance_km) ? '⌖' : '', Number.isFinite(item.distance_km) ? `${item.distance_km.toFixed(1)} km` : ''],
+    [Number.isFinite(item.cost) && item.cost > 0 ? '¥' : '', Number.isFinite(item.cost) && item.cost > 0 ? Math.round(item.cost) : ''],
+    [item.opening_hours ? '◷' : '', item.opening_hours || ''],
+  ].filter((fact) => fact[1] !== '');
+  facts.forEach(([icon, text]) => {
+    const chip = document.createElement('span');
+    chip.textContent = `${icon} ${text}`;
+    chips.append(chip);
+  });
+  if (chips.childElementCount) body.append(chips);
+  if (item.address) {
+    const facts = document.createElement('p');
+    facts.textContent = `⌖ ${item.address}`;
+    body.append(facts);
+  } else if (item.facts) {
+    const facts = document.createElement('p');
+    facts.textContent = item.facts;
+    body.append(facts);
+  }
+  if (item.community_mentions) {
+    const community = document.createElement('small');
+    community.textContent = `✦ 旅友提到 ${item.community_mentions} 次${item.community_tip ? ` · ${item.community_tip}` : ''}`;
+    body.append(community);
+  }
+  content.append(visual, body);
+  publicPopup = new maplibregl.Popup({
+    anchor,
+    closeButton: false,
+    closeOnClick: false,
+    offset: 22,
+    maxWidth: '340px',
+    className: 'travel-node-popup',
+  })
+    .setLngLat([item.longitude, item.latitude])
+    .setDOMContent(content)
+    .addTo(map);
+}
+
+function hidePublicPopup() {
+  publicPopup?.remove();
+  publicPopup = null;
 }
 
 function addPublicMarker(map, item, kind, onClick) {
@@ -150,11 +253,18 @@ function addPublicMarker(map, item, kind, onClick) {
   el.type = 'button';
   el.className = `public-map-marker public-map-marker--${kind}`;
   if (item.id && props.selectedPlaceIds.includes(item.id)) el.classList.add('is-selected');
+  if (item.id && trackPoints.value.some((point) => String(point.poiId) === String(item.id))) el.classList.add('is-in-track');
+  if (item.id) el.dataset.poiId = String(item.id);
   el.title = item.name;
   el.setAttribute('aria-label', `${item.name}，在地图上查看`);
   el.innerHTML = `<span>${PUBLIC_MARKER_ICONS[kind]}</span>`;
+  el.addEventListener('mouseenter', () => showPublicPopup(map, item));
+  el.addEventListener('mouseleave', hidePublicPopup);
+  el.addEventListener('focus', () => showPublicPopup(map, item));
+  el.addEventListener('blur', hidePublicPopup);
   el.addEventListener('click', (event) => {
     event.stopPropagation();
+    showPublicPopup(map, item);
     onClick();
   });
   publicMarkers.push(new maplibregl.Marker({ element: el, anchor: 'bottom' })
@@ -165,10 +275,13 @@ function addPublicMarker(map, item, kind, onClick) {
 function syncPublicMarkers(map) {
   clearPublicMarkers();
   (props.publicData?.places || []).forEach((place) => {
-    addPublicMarker(map, place, place.kind, () => emit('point-select', place));
+    addPublicMarker(map, place, place.kind, () => selectPublicPlace(place));
   });
   const airport = props.publicData?.airport;
-  if (airport) addPublicMarker(map, airport, 'airport', () => flyToPoint(airport));
+  if (airport) {
+    const point = { ...airport, id: `airport-${airport.code}`, kind: 'airport' };
+    addPublicMarker(map, point, 'airport', () => selectAirport(point));
+  }
 }
 
 function ensurePublicSources(map) {
@@ -207,6 +320,205 @@ function ensurePublicSources(map) {
     paint: { 'text-color': '#173f50', 'text-halo-color': '#fffaf1', 'text-halo-width': 1.5 },
   });
   syncPublicMarkers(map);
+}
+
+function clearTrackMarkers() {
+  while (trackMarkers.length) trackMarkers.pop().remove();
+}
+
+function syncTrackMarkers(map) {
+  clearTrackMarkers();
+  if (!maplibregl) return;
+  trackPoints.value.forEach((point, index) => {
+    const el = document.createElement('button');
+    el.type = 'button';
+    const projected = map.project([point.longitude, point.latitude]);
+    const labelLeft = projected.x > map.getContainer().clientWidth * 0.7;
+    el.className = `track-node${point.poiId ? ' is-poi' : ''}${labelLeft ? ' label-left' : ''}${index === trackPoints.value.length - 1 ? ' is-latest' : ''}${index === selectedTrackIndex.value ? ' is-selected' : ''}`;
+    el.setAttribute('aria-label', `路线节点 ${point.number}${point.name ? `，${point.name}` : ''}`);
+    const badge = document.createElement('span');
+    badge.textContent = point.number;
+    el.append(badge);
+    if (point.name) {
+      const label = document.createElement('em');
+      label.textContent = point.name;
+      el.append(label);
+    }
+    el.addEventListener('click', (event) => {
+      event.stopPropagation();
+      selectedTrackIndex.value = index;
+      syncTrackMarkers(map);
+    });
+    trackMarkers.push(new maplibregl.Marker({ element: el, anchor: 'center' })
+      .setLngLat([point.longitude, point.latitude])
+      .addTo(map));
+  });
+}
+
+function syncPublicMarkerStates() {
+  const ids = new Set(trackPoints.value.map((point) => point.poiId).filter(Boolean).map(String));
+  const selected = new Set(props.selectedPlaceIds.map(String));
+  publicMarkers.forEach((marker) => {
+    const el = marker.getElement();
+    el.classList.toggle('is-in-track', ids.has(el.dataset.poiId));
+    el.classList.toggle('is-selected', selected.has(el.dataset.poiId));
+  });
+}
+
+function trackLine(points = trackPoints.value) {
+  if (points.length < 2) return emptyFc();
+  return lineFc(points.map((point) => [point.longitude, point.latitude]));
+}
+
+function renderTrack(map = mapRef.value, animate = false) {
+  if (!map || !mapStyleReady || !map.getSource('editor-track')) return;
+  if (trackRaf) cancelAnimationFrame(trackRaf);
+  syncTrackMarkers(map);
+  syncPublicMarkerStates();
+  if (!animate || performanceProfile.reducedMotion || trackPoints.value.length < 2) {
+    setSrc(map, 'editor-track', trackLine());
+    return;
+  }
+
+  const points = trackPoints.value;
+  const from = points.at(-2);
+  const to = points.at(-1);
+  const settled = points.slice(0, -1).map((point) => [point.longitude, point.latitude]);
+  const startedAt = performance.now();
+  const grow = (now) => {
+    const progress = Math.min(1, (now - startedAt) / 320);
+    setSrc(map, 'editor-track', lineFc([...settled, interpolatePoint(from, to, 1 - (1 - progress) ** 3)]));
+    if (progress < 1) trackRaf = requestAnimationFrame(grow);
+    else trackRaf = 0;
+  };
+  trackRaf = requestAnimationFrame(grow);
+}
+
+function ensureTrackSources(map) {
+  if (!map || !mapStyleReady || (!props.trackEditor && !trackPoints.value.length) || map.getSource('editor-track')) return;
+  map.addSource('editor-track', { type: 'geojson', data: emptyFc() });
+  map.addLayer({
+    id: 'editor-track-glow', type: 'line', source: 'editor-track',
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-color': '#e87022', 'line-width': 15, 'line-opacity': 0.2, 'line-blur': 2 },
+  });
+  map.addLayer({
+    id: 'editor-track-outline', type: 'line', source: 'editor-track',
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-color': '#fffaf1', 'line-width': 8, 'line-opacity': 0.96 },
+  });
+  map.addLayer({
+    id: 'editor-track-line', type: 'line', source: 'editor-track',
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-color': '#e87022', 'line-width': 4.5, 'line-opacity': 1 },
+  });
+  renderTrack(map);
+}
+
+function syncTrackCursor() {
+  const canvas = mapRef.value?.getCanvas();
+  if (canvas) canvas.style.cursor = trackEditing.value ? 'crosshair' : '';
+}
+
+function toggleTrackEditing() {
+  trackEditing.value = !trackEditing.value;
+  if (trackEditing.value) stopOrbit();
+  syncTrackCursor();
+}
+
+function trackIntent() {
+  return routeIntentFromTrack(activeCity.value, trackPoints.value);
+}
+
+function commitTrack(next, animate = true) {
+  if (next === trackPoints.value) return false;
+  trackPoints.value = next;
+  if (selectedTrackIndex.value >= next.length) selectedTrackIndex.value = next.length - 1;
+  if (next.length >= MAX_TRACK_NODES) trackEditing.value = false;
+  syncTrackCursor();
+  renderTrack(mapRef.value, animate);
+  emit('track-change', trackIntent());
+  return true;
+}
+
+function addTrackPoint(event) {
+  if (!props.trackEditor || !trackEditing.value || flying.value) return;
+  if (commitTrack(appendTrackPoint(trackPoints.value, event.lngLat))) {
+    selectedTrackIndex.value = trackPoints.value.length - 1;
+    syncTrackMarkers(mapRef.value);
+  }
+}
+
+function addTrackLocation(item) {
+  if (!Number.isFinite(item?.longitude) || !Number.isFinite(item?.latitude)) return;
+  if (commitTrack(appendTrackPoint(trackPoints.value, {
+    lng: item.longitude,
+    lat: item.latitude,
+  }, {
+    poiId: item.id,
+    name: item.name || item.code,
+    kind: item.kind,
+  }))) {
+    selectedTrackIndex.value = trackPoints.value.length - 1;
+    syncTrackMarkers(mapRef.value);
+  }
+}
+
+function selectPublicPlace(place) {
+  if (props.trackEditor && trackEditing.value) addTrackLocation(place);
+  else emit('point-select', place);
+}
+
+function selectAirport(airport) {
+  if (props.trackEditor && trackEditing.value) addTrackLocation(airport);
+  else flyToPoint(airport);
+}
+
+function undoTrackPoint() {
+  if (!trackPoints.value.length) return;
+  commitTrack(trackPoints.value.slice(0, -1), false);
+}
+
+function clearTrack() {
+  selectedTrackIndex.value = -1;
+  commitTrack([], false);
+}
+
+function updateSelectedTrackPoint(patch) {
+  if (!selectedTrackPoint.value) return;
+  const next = trackPoints.value.map((point, index) => index === selectedTrackIndex.value ? { ...point, ...patch } : point);
+  trackPoints.value = normalizeTrackPoints(next);
+  emit('track-change', trackIntent());
+}
+
+function toggleNodePreference(preference) {
+  const current = selectedTrackPoint.value?.preferences || [];
+  updateSelectedTrackPoint({
+    preferences: current.includes(preference)
+      ? current.filter((item) => item !== preference)
+      : [...current, preference].slice(0, 6),
+  });
+}
+
+function moveSelectedTrackPoint(offset) {
+  const from = selectedTrackIndex.value;
+  const to = from + offset;
+  if (from < 0 || to < 0 || to >= trackPoints.value.length) return;
+  const next = [...trackPoints.value];
+  [next[from], next[to]] = [next[to], next[from]];
+  selectedTrackIndex.value = to;
+  commitTrack(normalizeTrackPoints(next), false);
+}
+
+function removeSelectedTrackPoint() {
+  if (!selectedTrackPoint.value) return;
+  const next = trackPoints.value.filter((_, index) => index !== selectedTrackIndex.value);
+  selectedTrackIndex.value = Math.min(selectedTrackIndex.value, next.length - 1);
+  commitTrack(normalizeTrackPoints(next), false);
+}
+
+function planTrack() {
+  if (trackPoints.value.length >= 2) emit('track-plan', trackIntent());
 }
 
 function flyToPoint(point) {
@@ -655,6 +967,7 @@ onMounted(async () => {
       ensureCityMarkers(map);
       addPoiMarkers(map, dest);
       ensurePublicSources(map);
+      ensureTrackSources(map);
       tryEnable3dBuildings(map);
     };
 
@@ -700,6 +1013,7 @@ onMounted(async () => {
     map.on('dragstart', stopOrbit);
     map.on('mousedown', stopOrbit);
     map.on('touchstart', stopOrbit);
+    map.on('click', addTrackPoint);
 
     resizeObserver = new ResizeObserver(() => {
       if (resizeRaf) cancelAnimationFrame(resizeRaf);
@@ -720,12 +1034,14 @@ onUnmounted(() => {
   flyToken += 1;
   pendingFlight = null;
   if (flyRaf) cancelAnimationFrame(flyRaf);
+  if (trackRaf) cancelAnimationFrame(trackRaf);
   if (resizeRaf) cancelAnimationFrame(resizeRaf);
   if (revealTimer) window.clearTimeout(revealTimer);
   if (enrichTimer) window.clearTimeout(enrichTimer);
   if (enrichIdle && 'cancelIdleCallback' in window) window.cancelIdleCallback(enrichIdle);
   clearPois();
   clearPublicMarkers();
+  clearTrackMarkers();
   cityMarkers.forEach((m) => m.remove());
   cityMarkers.clear();
   resizeObserver?.disconnect();
@@ -749,12 +1065,30 @@ watch(
 );
 
 watch(
-  () => [props.publicData, props.selectedPlaceIds],
+  () => props.publicData,
   () => updatePublicSources(),
   { deep: true },
 );
 
-defineExpose({ flyToCity, flyToPoint, toggleOrbit, stopOrbit });
+watch(() => props.selectedPlaceIds, syncPublicMarkerStates, { deep: true });
+
+watch(() => props.trackEditor, (enabled) => {
+  if (enabled) ensureTrackSources(mapRef.value);
+  else {
+    trackEditing.value = false;
+    syncTrackCursor();
+  }
+});
+
+watch(() => props.initialTrackPoints, (nodes) => {
+  const next = normalizeTrackPoints(nodes);
+  trackPoints.value = next;
+  selectedTrackIndex.value = -1;
+  ensureTrackSources(mapRef.value);
+  renderTrack();
+}, { deep: true });
+
+defineExpose({ flyToCity, flyToPoint, toggleOrbit, stopOrbit, clearTrack, getTrackIntent: trackIntent });
 </script>
 
 <template>
@@ -765,6 +1099,7 @@ defineExpose({ flyToCity, flyToPoint, toggleOrbit, stopOrbit });
       'map3d--flying': flying,
       'map3d--waiting': !mapRevealed && status !== 'error',
       'map3d--revealed': mapRevealed,
+      'map3d--track-editing': trackEditing,
     }"
     :style="{ height, '--map-land': MAP_THEME.land, '--map-water': MAP_THEME.water }"
   >
@@ -844,6 +1179,75 @@ defineExpose({ flyToCity, flyToPoint, toggleOrbit, stopOrbit });
       </div>
     </div>
 
+    <section
+      v-if="mapRevealed && trackEditor"
+      class="track-editor-hud"
+      :class="{ 'is-active': trackEditing, 'has-route': trackPoints.length > 1 }"
+      aria-label="地图轨迹编辑器"
+    >
+      <header>
+        <span class="track-editor-status"><i />路线草稿</span>
+        <strong>{{ trackPoints.length }} 节点<span v-if="trackDistance"> · {{ trackDistance.toFixed(1) }} km</span></strong>
+      </header>
+      <p aria-live="polite">
+        <template v-if="trackPoints.length >= MAX_TRACK_NODES">节点已满，撤销或清空后继续</template>
+        <template v-else-if="trackEditing && lastTrackPoint?.name">已吸附「{{ lastTrackPoint.name }}」· 下一枚 #{{ String(trackPoints.length + 1).padStart(2, '0') }}</template>
+        <template v-else-if="trackEditing">点击地图，放下 #{{ String(trackPoints.length + 1).padStart(2, '0') }}</template>
+        <template v-else-if="lastTrackPoint?.name">路线停在「{{ lastTrackPoint.name }}」</template>
+        <template v-else-if="trackPoints.length">继续落点，或先调整地图视角</template>
+        <template v-else>逐点画出你想走的路线</template>
+      </p>
+      <section v-if="selectedTrackPoint" class="track-node-editor" aria-label="编辑当前路线节点">
+        <header>
+          <b>#{{ String(selectedTrackPoint.number).padStart(2, '0') }}</b>
+          <strong>{{ selectedTrackPoint.name || `自定义节点 ${selectedTrackPoint.number}` }}</strong>
+          <button type="button" aria-label="关闭节点编辑" @click="selectedTrackIndex = -1">×</button>
+        </header>
+        <textarea
+          :value="selectedTrackPoint.note || ''"
+          maxlength="240"
+          rows="2"
+          :aria-label="`节点 ${selectedTrackPoint.number} 备注`"
+          placeholder="补一句：想看日落、不要太赶、需要预约…"
+          @input="updateSelectedTrackPoint({ note: $event.target.value })"
+        />
+        <div class="track-node-preferences" role="group" aria-label="节点偏好">
+          <button
+            v-for="preference in NODE_PREFERENCES"
+            :key="preference"
+            type="button"
+            :class="{ 'is-on': selectedTrackPoint.preferences?.includes(preference) }"
+            :aria-pressed="selectedTrackPoint.preferences?.includes(preference)"
+            @click="toggleNodePreference(preference)"
+          >{{ preference }}</button>
+        </div>
+        <footer>
+          <button type="button" :disabled="selectedTrackIndex === 0" @click="moveSelectedTrackPoint(-1)">← 前移</button>
+          <button type="button" :disabled="selectedTrackIndex === trackPoints.length - 1" @click="moveSelectedTrackPoint(1)">后移 →</button>
+          <button type="button" class="is-danger" @click="removeSelectedTrackPoint">删除节点</button>
+        </footer>
+      </section>
+      <div class="track-editor-actions">
+        <button
+          type="button"
+          class="track-editor-primary"
+          :class="{ 'is-on': trackEditing }"
+          :aria-pressed="trackEditing"
+          :disabled="trackPoints.length >= MAX_TRACK_NODES"
+          @click="toggleTrackEditing"
+        >
+          <span>{{ trackEditing ? '暂停落点' : trackPoints.length ? '继续画路线' : '开始画路线' }}</span>
+          <b aria-hidden="true">{{ trackEditing ? 'Ⅱ' : '＋' }}</b>
+        </button>
+        <button type="button" :disabled="!trackPoints.length" aria-label="撤销最后一个节点" @click="undoTrackPoint">↶</button>
+        <button type="button" :disabled="!trackPoints.length" aria-label="清空路线" @click="clearTrack">清空</button>
+      </div>
+      <button v-if="trackPoints.length > 1" type="button" class="track-editor-plan" @click="planTrack">
+        用这条路线规划
+        <span aria-hidden="true">{{ String(trackPoints.length).padStart(2, '0') }} → AI</span>
+      </button>
+    </section>
+
     <div v-if="mapRevealed" class="map3d-legend">
       <span class="legend-dot" />
       <span>MapLibre · {{ performanceProfile.enable3d ? '3D' : '轻量模式' }} · 航线</span>
@@ -852,6 +1256,128 @@ defineExpose({ flyToCity, flyToPoint, toggleOrbit, stopOrbit });
 </template>
 
 <style>
+.track-editor-hud {
+  position: absolute;
+  right: 52px;
+  bottom: 14px;
+  z-index: 6;
+  width: min(420px, calc(100% - 28px));
+  padding: 18px;
+  border: 1px solid #efc8ad;
+  border-top: 4px solid #e87022;
+  border-radius: 18px;
+  background: rgba(255, 253, 248, .96);
+  color: #173f50;
+  box-shadow: 6px 7px 0 rgba(190, 83, 24, .12), 0 16px 38px rgba(23, 63, 80, .14);
+  backdrop-filter: blur(14px);
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.track-editor-hud.is-active {
+  box-shadow: 6px 7px 0 rgba(190, 83, 24, .16), 0 16px 42px rgba(23, 63, 80, .16), 0 0 0 3px rgba(232, 112, 34, .16);
+  transform: translateY(-2px);
+}
+
+.track-editor-hud header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.track-editor-hud header strong { font-size: 14px; }
+.track-editor-status { display: inline-flex; align-items: center; gap: 8px; color: #bd5518; font: 800 11px/1 var(--font-mono, monospace); letter-spacing: .08em; }
+.track-editor-status i { width: 7px; height: 7px; border-radius: 50%; background: #e87022; box-shadow: 0 0 0 4px rgba(232, 112, 34, .13); }
+.track-editor-hud.is-active .track-editor-status i { background: #e87022; box-shadow: 0 0 0 5px rgba(232, 112, 34, .18); animation: track-status-pulse 1.2s ease-in-out infinite; }
+.track-editor-hud p { margin: 11px 0 14px; color: #687477; font-size: 13px; line-height: 1.5; }
+.track-node-editor { display: grid; gap: 12px; margin: 0 0 14px; padding: 14px; border: 1px solid #efd7c7; border-radius: 14px; background: #fff7ef; }
+.track-node-editor header { justify-content: start; }
+.track-node-editor header b { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 50%; background: #e87022; color: #fff; font: 900 11px/1 var(--font-mono, monospace); }
+.track-node-editor header strong { overflow: hidden; flex: 1; text-overflow: ellipsis; white-space: nowrap; }
+.track-node-editor header button { border: 0; background: transparent; color: #8f8177; cursor: pointer; font-size: 18px; }
+.track-node-editor textarea { width: 100%; min-height: 76px; resize: vertical; padding: 10px 11px; border: 1px solid #e2cbbb; border-radius: 10px; background: #fff; color: #173f50; font: 500 13px/1.5 var(--font-body, sans-serif); }
+.track-node-editor textarea::placeholder { color: #9a8f86; }
+.track-node-editor textarea:focus { border-color: #f4ad42; outline: 2px solid rgba(244, 173, 66, .2); }
+.track-node-preferences { display: flex; flex-wrap: wrap; gap: 7px; }
+.track-node-preferences button { padding: 6px 9px; border: 1px solid #e2cbbb; border-radius: 999px; background: #fff; color: #687477; cursor: pointer; font-size: 11px; font-weight: 800; }
+.track-node-preferences button.is-on { border-color: #e87022; background: #e87022; color: #fff; }
+.track-node-editor footer { display: grid; grid-template-columns: 1fr 1fr auto; gap: 7px; }
+.track-node-editor footer button { min-height: 36px; padding: 0 10px; border: 1px solid #e2cbbb; border-radius: 9px; background: #fff; color: #173f50; cursor: pointer; font-size: 11px; font-weight: 800; }
+.track-node-editor footer button:disabled { cursor: not-allowed; opacity: .32; }
+.track-node-editor footer .is-danger { color: #b7482f; }
+
+.track-editor-actions { display: grid; grid-template-columns: minmax(0, 1fr) 46px 58px; gap: 9px; }
+.track-editor-actions button { min-height: 46px; padding: 0 12px; border: 1px solid #e2cbbb; border-radius: 11px; background: #fff; color: #173f50; cursor: pointer; font-size: 13px; font-weight: 800; }
+.track-editor-actions button:hover:not(:disabled),
+.track-editor-actions button:focus-visible { border-color: #e87022; background: #fff7ef; }
+.track-editor-actions button:disabled { cursor: not-allowed; opacity: .36; }
+.track-editor-actions .track-editor-primary { display: flex; align-items: center; justify-content: space-between; border-color: #e87022; background: #fff7ef; color: #173f50; }
+.track-editor-actions .track-editor-primary b { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 8px; background: #e87022; color: #fff; font-size: 18px; }
+.track-editor-actions .track-editor-primary.is-on { background: #e87022; color: #fff; }
+.track-editor-actions .track-editor-primary.is-on b { background: #fffaf1; color: #e87022; }
+.track-editor-plan {
+  display: flex;
+  width: 100%;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding: 0 15px;
+  border: 0;
+  border-radius: 10px;
+  background: #e87022;
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 900;
+}
+.track-editor-plan span { font: 800 11px/1 var(--font-mono, monospace); letter-spacing: .06em; }
+.track-editor-plan:hover,
+.track-editor-plan:focus-visible { background: #c95f1c; outline: 3px solid rgba(232, 112, 34, .22); outline-offset: 2px; }
+
+.track-node {
+  position: relative;
+  display: grid;
+  width: 31px;
+  height: 31px;
+  place-items: center;
+  border: 3px solid #fffaf1;
+  border-radius: 50% 50% 50% 8px;
+  background: #173f50;
+  color: #fffaf1;
+  box-shadow: 0 5px 13px rgba(23, 63, 80, .28);
+  transform: rotate(-7deg);
+}
+.track-node span { font: 900 11px/1 var(--font-mono, monospace); transform: rotate(7deg); }
+.track-node em {
+  position: absolute;
+  left: 34px;
+  display: none;
+  width: max-content;
+  max-width: 150px;
+  overflow: hidden;
+  padding: 5px 8px;
+  border: 1px solid rgba(255, 250, 241, .9);
+  border-radius: 8px;
+  background: rgba(23, 63, 80, .9);
+  color: #fffaf1;
+  font: 800 10px/1.2 var(--font-body, sans-serif);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-shadow: 0 5px 14px rgba(23, 63, 80, .18);
+  transform: rotate(7deg);
+}
+.track-node.is-latest em { display: block; }
+.track-node.label-left em { right: 34px; left: auto; }
+.track-node.is-poi { box-shadow: 0 5px 13px rgba(23, 63, 80, .28), 0 0 0 4px rgba(244, 173, 66, .24); }
+.track-node.is-selected { outline: 4px solid rgba(244, 173, 66, .46); outline-offset: 3px; }
+.track-node.is-latest { background: #e87022; animation: track-node-drop .34s cubic-bezier(.2, .9, .28, 1.4); }
+.track-node.is-latest::after { position: absolute; inset: -8px; border: 2px solid rgba(232, 112, 34, .48); border-radius: 50%; content: ''; animation: track-node-ring .6s ease-out both; }
+
+@keyframes track-node-drop {
+  from { opacity: 0; transform: translateY(-20px) rotate(-7deg) scale(.5); }
+  to { opacity: 1; transform: translateY(0) rotate(-7deg) scale(1); }
+}
+@keyframes track-node-ring {
+  from { opacity: .9; transform: scale(.5); }
+  to { opacity: 0; transform: scale(1.35); }
+}
+@keyframes track-status-pulse { 50% { transform: scale(1.35); } }
+
 .public-map-marker {
   width: 42px;
   height: 48px;
@@ -886,9 +1412,53 @@ defineExpose({ flyToCity, flyToPoint, toggleOrbit, stopOrbit });
 .public-map-marker:focus-visible > span,
 .public-map-marker.is-selected > span { transform: translateY(-4px) scale(1.08); }
 .public-map-marker.is-selected > span { outline: 4px solid rgba(232,112,34,.42); }
+.public-map-marker.is-in-track > span {
+  outline: 4px solid rgba(232, 112, 34, .62);
+  outline-offset: 3px;
+  transform: translateY(-3px) scale(1.06);
+}
 .public-map-marker:focus-visible { outline: 3px solid rgba(232,112,34,.5); outline-offset: 3px; border-radius: 12px; }
+
+.travel-node-popup { pointer-events: none; }
+.travel-node-popup .maplibregl-popup-content {
+  width: min(340px, 78vw);
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #efc8ad;
+  border-radius: 14px;
+  background: rgba(255, 253, 248, .98);
+  color: #173f50;
+  box-shadow: 5px 6px 0 rgba(190, 83, 24, .11), 0 14px 34px rgba(23, 63, 80, .16);
+  backdrop-filter: blur(12px);
+}
+.travel-node-popup.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.travel-node-popup.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip { border-top-color: #fffdf8; }
+.travel-node-popup.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.travel-node-popup.maplibregl-popup-anchor-top-right .maplibregl-popup-tip { border-bottom-color: #fffdf8; }
+.travel-node-visual { position: relative; display: grid; height: 108px; overflow: hidden; place-items: center; background: linear-gradient(135deg, #fff0e4, #f9c79f); color: #bd5518; }
+.travel-node-visual::after { position: absolute; inset: auto 0 0; height: 46%; background: linear-gradient(transparent, rgba(23, 63, 80, .18)); content: ''; }
+.travel-node-visual > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.travel-node-visual > span { display: grid; width: 42px; height: 42px; place-items: center; }
+.travel-node-visual svg { width: 38px; height: 38px; fill: currentColor; }
+.travel-node-body { display: grid; gap: 9px; padding: 13px 15px 15px; }
+.travel-node-body > span { color: #bd5518; font: 800 10px/1.3 var(--font-mono, monospace); letter-spacing: .05em; }
+.travel-node-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.travel-node-heading > strong { font: 800 16px/1.3 var(--font-display, sans-serif); }
+.travel-node-heading > b { flex: 0 0 auto; padding: 5px 7px; border-radius: 7px; background: #fff0e4; color: #bd5518; font: 900 11px/1 var(--font-mono, monospace); }
+.travel-node-facts { display: flex; flex-wrap: wrap; gap: 6px; }
+.travel-node-facts > span { padding: 5px 7px; border: 1px solid #ead9cc; border-radius: 7px; background: #fffaf5; color: #56666a; font: 700 10px/1.2 var(--font-body, sans-serif); }
+.travel-node-body > p { margin: 0; color: #657276; font-size: 11px; line-height: 1.55; }
+.travel-node-body > small { padding: 9px 10px; border-left: 3px solid #e87022; border-radius: 0 8px 8px 0; background: #fff3e8; color: #a84b15; font-size: 10px; line-height: 1.45; }
 
 @media (prefers-reduced-motion: reduce) {
   .public-map-marker > span { transition: none; }
+  .track-editor-hud,
+  .track-node,
+  .track-node::after,
+  .track-editor-status i { animation: none !important; transition: none; }
+}
+
+@media (max-width: 640px) {
+  .track-editor-hud { right: 10px; bottom: 78px; width: calc(100% - 20px); }
 }
 </style>

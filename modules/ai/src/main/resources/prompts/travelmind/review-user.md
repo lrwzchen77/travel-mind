@@ -6,7 +6,7 @@
 检查规则：
 1. days 数组长度必须等于用户期望总天数。
 2. 每一天必须有 city、date、hotel、attractions、meals。
-3. 每一天必须包含 breakfast、lunch、dinner 三餐。
+3. 每一天的 meals 至少包含一项；早餐不是结构硬门槛。
 4. 景点不能为空，移动日可以较少但仍需可执行。
 5. 多城市时每天 city 必须合理。
 6. budget.total 必须存在且大于 0。

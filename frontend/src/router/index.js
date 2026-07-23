@@ -31,6 +31,7 @@ const fieldLabels = {
   category: '分类', rating: '评分', price: '参考价', tags: '标签', price_range: '价位',
   cuisine: '菜系', average_cost: '人均', user_id: '用户', target_type: '类型', target_id: '目标',
   note: '备注', attraction_id: '景点', title: '标题', visibility: '可见', analysis_type: '分析类型',
+  city: '城市', kind: '大类', source: '来源', longitude: '经度', latitude: '纬度', cost: '消费',
 };
 
 const discoveryRoutes = [
@@ -51,6 +52,7 @@ const adminResources = [
   ['attractions', '景点内容', ['id', 'city_id', 'name', 'category', 'rating', 'price', 'status']],
   ['hotels', '住宿内容', ['id', 'city_id', 'name', 'category', 'rating', 'price_range', 'status']],
   ['restaurants', '餐饮内容', ['id', 'city_id', 'name', 'cuisine', 'rating', 'average_cost', 'status']],
+  ['map-pois', '地图地点库', ['id', 'city', 'name', 'kind', 'source', 'rating', 'status']],
   ['travel-tags', '标签体系', ['id', 'name', 'category', 'status']],
   ['travel-notes', '用户笔记', ['id', 'user_id', 'title', 'visibility', 'status']],
   ['trip-plans', '行程记录', ['id', 'user_id', 'title', 'destination_city', 'status']],

@@ -63,7 +63,7 @@ function plan() {
     .join('\n')
     .slice(0, 400);
   router.push({
-    path: '/planning',
+    path: '/map',
     query: { inspirationIds: sourceIds.value.join(','), note: context ? `AI 对话需求：${context}` : '' },
   });
 }

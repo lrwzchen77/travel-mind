@@ -15,7 +15,8 @@ public record TripRequest(
     String free_text_input,
     String language,
     List<Long> inspiration_ids,
-    List<InspirationSource> inspiration_sources
+    List<InspirationSource> inspiration_sources,
+    RouteIntent route_intent
 ) {
     public TripRequest(
         String city, List<CityStay> cities, String start_date, String end_date, Integer travel_days,
@@ -23,7 +24,16 @@ public record TripRequest(
         String free_text_input, String language
     ) {
         this(city, cities, start_date, end_date, travel_days, transportation, accommodation, budget, preferences,
-            free_text_input, language, List.of(), List.of());
+            free_text_input, language, List.of(), List.of(), null);
+    }
+
+    public TripRequest(
+        String city, List<CityStay> cities, String start_date, String end_date, Integer travel_days,
+        String transportation, String accommodation, String budget, List<String> preferences,
+        String free_text_input, String language, List<Long> inspiration_ids, List<InspirationSource> inspiration_sources
+    ) {
+        this(city, cities, start_date, end_date, travel_days, transportation, accommodation, budget, preferences,
+            free_text_input, language, inspiration_ids, inspiration_sources, null);
     }
     public List<CityStay> normalizedCities() {
         if (cities != null && !cities.isEmpty()) {

@@ -16,8 +16,8 @@ export function createTripApi(client = http) {
     history(limit = 20) {
       return client.get('/user/trip/history', { params: { limit } }).then(unwrap);
     },
-    publicMap(city) {
-      return client.get('/public/travel-map', { params: { city }, timeout: 20000 }).then(unwrap);
+    publicMap(city, longitude, latitude) {
+      return client.get('/public/travel-map', { params: { city, longitude, latitude }, timeout: 20000 }).then(unwrap);
     },
     detail(id) {
       return client.get(`/user/trip/${id}`).then(unwrap);

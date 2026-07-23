@@ -9,6 +9,8 @@ import com.zkry.trip.constant.TripTaskMessages;
 import com.zkry.trip.dto.SubmitTripPlanResponse;
 import com.zkry.trip.dto.TripPlanResponse;
 import com.zkry.trip.dto.TripRequest;
+import com.zkry.trip.dto.RouteIntent;
+import com.zkry.trip.dto.RouteNode;
 import com.zkry.trip.dto.TripTaskEvent;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
@@ -274,6 +276,43 @@ public class TripTaskService {
         } catch (DateTimeParseException | NullPointerException ex) {
             throw new BizException("请填写有效的出发和返程日期。");
         }
+        validateRouteIntent(request);
+    }
+
+    private void validateRouteIntent(TripRequest request) {
+        RouteIntent intent = request.route_intent();
+        if (intent == null) return;
+        if (!List.of("soft_order", "strict_order").contains(intent.mode())) {
+            throw new BizException("路线规划方式无效。");
+        }
+        if (intent.city() == null || !intent.city().trim().equals(request.primaryCity().trim())) {
+            throw new BizException("路线草稿与目的地城市不一致。");
+        }
+        List<RouteNode> nodes = intent.safeNodes();
+        if (nodes.size() < 2 || nodes.size() > 30) {
+            throw new BizException("路线节点必须在 2 到 30 个之间。");
+        }
+        for (int index = 0; index < nodes.size(); index++) {
+            RouteNode node = nodes.get(index);
+            if (node == null || node.order() == null || node.order() != index + 1) {
+                throw new BizException("路线节点顺序必须从 1 连续编号。");
+            }
+            if (!List.of("poi", "free_point").contains(node.type())) {
+                throw new BizException("路线节点类型无效。");
+            }
+            if (node.name() == null || node.name().isBlank() || node.name().length() > 120
+                || node.poi_id() != null && node.poi_id().length() > 120
+                || node.kind() != null && node.kind().length() > 40
+                || node.note() != null && node.note().length() > 240
+                || node.safePreferences().size() > 6
+                || node.safePreferences().stream().anyMatch(item -> item == null || item.isBlank() || item.length() > 20)) {
+                throw new BizException("路线节点名称或标识无效。");
+            }
+            if (node.longitude() == null || !Double.isFinite(node.longitude()) || node.longitude() < -180 || node.longitude() > 180
+                || node.latitude() == null || !Double.isFinite(node.latitude()) || node.latitude() < -90 || node.latitude() > 90) {
+                throw new BizException("路线节点经纬度无效。");
+            }
+        }
     }
 
     private boolean runtimeSettingsComplete() {
@@ -400,6 +439,7 @@ public class TripTaskService {
             payload.put("preferences", request.preferences());
             payload.put("free_text_input", request.free_text_input());
             payload.put("language", request.language());
+            payload.put("route_intent", request.route_intent());
             return payload;
         }
     }

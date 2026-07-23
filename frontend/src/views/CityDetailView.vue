@@ -34,7 +34,7 @@ const preferences = computed(() => {
 });
 
 const planningLink = computed(() => ({
-  path: '/planning',
+  path: '/map',
   query: { city: cityName.value, preferences: preferences.value.join(',') },
 }));
 
@@ -87,7 +87,7 @@ async function favorite() {
 function resourcePlanningLink(item, type) {
   const actions = { attractions: '安排游览', hotels: '优先考虑入住', restaurants: '安排用餐' };
   return {
-    path: '/planning',
+    path: '/map',
     query: {
       city: cityName.value,
       cityId: city.value?.id,

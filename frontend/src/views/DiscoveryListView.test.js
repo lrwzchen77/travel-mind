@@ -38,7 +38,7 @@ describe('发现页带入规划', () => {
 
     const to = JSON.parse(wrapper.find('.text-action--primary').attributes('data-to'));
     expect(to).toMatchObject({
-      path: '/planning',
+      path: '/map',
       query: { city: '北京', cityId: 2, resourceType: 'attractions', resourceName: '故宫' },
     });
     expect(to.query.note).toContain('故宫（北京）');

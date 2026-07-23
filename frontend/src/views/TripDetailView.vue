@@ -8,6 +8,7 @@ import TravelMap3D from '../components/map/AsyncTravelMap3D.vue';
 import PublicTravelDataPanel from '../components/PublicTravelDataPanel.vue';
 import { consumerText } from '../data/consumerText.js';
 import { currentTripDayIndex, tripCalendar } from '../utils/tripDeparture.js';
+import { normalizeRouteIntent, ROUTE_INTENT_KEY } from '../map/trackEditor.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -22,6 +23,7 @@ const checklist = ref({});
 const expenses = ref({ budget: 0, actual: 0, remaining: 0, items: [] });
 const expenseForm = reactive({ category: 'food', title: '', amount: '', spent_on: '' });
 const expenseError = ref('');
+const mapRef = ref(null);
 
 const plan = computed(() => detail.value?.data || {});
 const days = computed(() => plan.value.days || []);
@@ -50,6 +52,7 @@ const departureChecks = computed(() => {
   ];
 });
 const inspirationSources = computed(() => plan.value.inspiration_sources || []);
+const routeIntent = computed(() => normalizeRouteIntent(plan.value.route_intent, plan.value.city));
 const comfortJson = computed(() => {
   const value = comfort.value?.result_json;
   if (!value) return {};
@@ -134,7 +137,20 @@ function exportCalendar() {
 }
 
 function replanWith(reply) {
-  router.push({ path: '/planning', query: { city: plan.value.city, assistant: reply.slice(0, 500) } });
+  const query = { city: plan.value.city, assistant: reply.slice(0, 500) };
+  if (routeIntent.value) {
+    try {
+      window.sessionStorage.setItem(ROUTE_INTENT_KEY, JSON.stringify(routeIntent.value));
+      query.route = '1';
+    } catch {
+      // 存储不可用时仍允许按 AI 建议重新规划。
+    }
+  }
+  router.push({ path: '/map', query });
+}
+
+function focusRouteNode(node) {
+  mapRef.value?.flyToPoint?.(node);
 }
 
 function money(value) {
@@ -300,7 +316,7 @@ onMounted(load);
     <strong>日程细节还没排出来</strong>
     <p>可以再生成一版，或直接在下方问这趟行程。</p>
     <div class="actions" style="justify-content: center; margin-top: 16px;">
-      <RouterLink class="btn-link btn-coral" to="/planning">重新规划</RouterLink>
+      <RouterLink class="btn-link btn-coral" to="/map">重新规划</RouterLink>
     </div>
   </div>
 
@@ -345,12 +361,20 @@ onMounted(load);
       </RouterLink>
     </div>
     <TravelMap3D
+      ref="mapRef"
       :city="plan.city"
       height="340px"
       compact
       :show-pois="true"
+      :initial-track-points="routeIntent?.nodes || []"
       style="margin-top: 12px;"
     />
+    <div v-if="routeIntent" class="saved-route-strip" aria-label="原始地图路线">
+      <button v-for="node in routeIntent.nodes" :key="node.order" type="button" @click="focusRouteNode(node)">
+        <b>{{ String(node.order).padStart(2, '0') }}</b>
+        <span>{{ node.name }}</span>
+      </button>
+    </div>
   </section>
 
   <section v-if="detail" class="trip-summary">
@@ -478,3 +502,31 @@ onMounted(load);
     </div>
   </section>
 </template>
+
+<style scoped>
+.saved-route-strip {
+  display: flex;
+  overflow-x: auto;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 2px 1px 5px;
+  scrollbar-width: thin;
+}
+.saved-route-strip button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px 6px 6px;
+  border: 1px solid rgba(23, 63, 80, .14);
+  border-radius: 999px;
+  background: rgba(255, 250, 241, .9);
+  color: #173f50;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+}
+.saved-route-strip button:hover,
+.saved-route-strip button:focus-visible { border-color: #e87022; outline: 2px solid rgba(232, 112, 34, .18); outline-offset: 2px; }
+.saved-route-strip b { display: grid; width: 25px; height: 25px; place-items: center; border-radius: 50%; background: #e87022; color: white; font: 900 10px/1 var(--font-mono, monospace); }
+</style>

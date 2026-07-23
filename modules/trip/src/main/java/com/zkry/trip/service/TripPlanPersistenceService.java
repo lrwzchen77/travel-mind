@@ -33,7 +33,7 @@ public class TripPlanPersistenceService {
             throw new BizException("行程结果为空，无法保存。");
         }
         long tripId = nextId();
-        TripPlan plan = withSources(response.data(), request.safeInspirationSources());
+        TripPlan plan = withSources(response.data(), request.safeInspirationSources(), request.route_intent());
         TripPlanResponse prepared = new TripPlanResponse(response.success(), response.message(), response.plan_id(), plan, response.graph_data());
         jdbcTemplate.update("""
                 INSERT INTO tm_trip_plan
@@ -191,15 +191,20 @@ public class TripPlanPersistenceService {
         return new TripPlanResponse(response.success(), response.message(), planId, response.data(), response.graph_data());
     }
 
-    private TripPlan withSources(TripPlan plan, List<com.zkry.trip.dto.InspirationSource> sources) {
+    private TripPlan withSources(
+        TripPlan plan,
+        List<com.zkry.trip.dto.InspirationSource> sources,
+        com.zkry.trip.dto.RouteIntent routeIntent
+    ) {
         return new TripPlan(plan.city(), plan.cities(), plan.start_date(), plan.end_date(), plan.days(), plan.weather_info(),
             plan.overall_suggestions(), plan.budget(), sources == null ? List.of() : List.copyOf(sources),
-            plan.public_data() == null ? List.of() : plan.public_data());
+            plan.public_data() == null ? List.of() : plan.public_data(), routeIntent == null ? plan.route_intent() : routeIntent);
     }
 
     private TripRequest requestFromPlan(TripPlan plan) {
         return new TripRequest(plan.city(), null, plan.start_date(), plan.end_date(), plan.days() == null ? 1 : plan.days().size(),
-            "", "", String.valueOf(plan.budget() == null ? 0 : plan.budget().total()), List.of(), "", "zh");
+            "", "", String.valueOf(plan.budget() == null ? 0 : plan.budget().total()), List.of(), "", "zh",
+            List.of(), List.of(), plan.route_intent());
     }
 
     private String title(TripPlan plan) {

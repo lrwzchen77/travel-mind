@@ -60,7 +60,7 @@ onMounted(load);
         <h1>走过的，<em>和还想去的。</em></h1>
         <span>每一张都是一段准备出发或已经发生的旅程。</span>
       </div>
-      <RouterLink class="btn-link btn-coral" to="/planning">＋ 新规划一程</RouterLink>
+      <RouterLink class="btn-link btn-coral" to="/map">＋ 新规划一程</RouterLink>
     </section>
 
     <p v-if="error" class="error-line">{{ error }}</p>
@@ -74,7 +74,7 @@ onMounted(load);
       <strong>行李箱还是空的</strong>
       <p>还没有保存的行程。去规划一趟吧——哪怕只是周末两天。</p>
       <div class="actions" style="justify-content: center; margin-top: 18px;">
-        <RouterLink class="btn-link btn-coral" to="/planning">开始规划</RouterLink>
+        <RouterLink class="btn-link btn-coral" to="/map">开始规划</RouterLink>
         <RouterLink class="btn-link btn-ghost" to="/cities">先找灵感</RouterLink>
       </div>
     </div>

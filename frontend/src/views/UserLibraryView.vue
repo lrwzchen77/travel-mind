@@ -45,7 +45,7 @@ const pageCopy = computed(() => {
     eyebrow: '我的旅行',
     emptyTitle: '这里还是空的',
     emptyHint: '旅行中的灵感会慢慢积累在这里。',
-    emptyCta: { to: '/planning', label: '开始规划' },
+    emptyCta: { to: '/map', label: '开始规划' },
     count: (n) => `${n} 项`,
   };
 });
@@ -88,7 +88,7 @@ function reuseLink(item) {
   const note = resourceKey.value === 'ai-records'
     ? `参考之前的 AI 灵感：${itemBody(item)}`
     : `希望参考我收藏的${itemKind(item)}：${itemTitle(item)}`;
-  return { path: '/planning', query: { note: note.slice(0, 500) } };
+  return { path: '/map', query: { note: note.slice(0, 500) } };
 }
 
 async function load(pageNum = 1) {

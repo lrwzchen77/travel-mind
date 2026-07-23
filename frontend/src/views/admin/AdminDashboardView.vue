@@ -6,7 +6,7 @@ import { resourceApi } from '../../api/resources.js';
 const metrics = ref([]);
 const loading = ref(true);
 onMounted(async () => {
-  const definitions = [['users', '用户'], ['trip-plans', '行程'], ['cities', '城市'], ['ai-records', 'AI 记录']];
+  const definitions = [['users', '用户'], ['trip-plans', '行程'], ['cities', '城市'], ['map-pois', '地图地点']];
   metrics.value = await Promise.all(definitions.map(async ([key, label]) => {
     try { return { key, label, value: (await resourceApi.list(key, { pageSize: 1 })).total || 0 }; }
     catch { return { key, label, value: '—' }; }

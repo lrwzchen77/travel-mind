@@ -17,6 +17,7 @@ const groups = [
       { path: '/admin/resources/attractions', label: '景点' },
       { path: '/admin/resources/hotels', label: '住宿' },
       { path: '/admin/resources/restaurants', label: '餐饮' },
+      { path: '/admin/resources/map-pois', label: '地图地点库' },
       { path: '/admin/resources/travel-tags', label: '标签' },
     ],
   },

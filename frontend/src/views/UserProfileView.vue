@@ -241,7 +241,7 @@ onMounted(load);
       <button type="submit" class="btn-coral" :disabled="saving">
         {{ saving ? '保存中…' : '保存我的偏好' }}
       </button>
-      <RouterLink class="btn-link btn-ghost" to="/planning">保存后去规划 →</RouterLink>
+      <RouterLink class="btn-link btn-ghost" to="/map">保存后去规划 →</RouterLink>
     </div>
   </form>
 </template>

@@ -13,13 +13,14 @@ public record TripPlan(
     String overall_suggestions,
     Budget budget,
     List<InspirationSource> inspiration_sources,
-    List<PublicDataItem> public_data
+    List<PublicDataItem> public_data,
+    RouteIntent route_intent
 ) {
     public TripPlan(
         String city, List<String> cities, String start_date, String end_date, List<DayPlan> days,
         List<WeatherInfo> weather_info, String overall_suggestions, Budget budget
     ) {
-        this(city, cities, start_date, end_date, days, weather_info, overall_suggestions, budget, List.of(), List.of());
+        this(city, cities, start_date, end_date, days, weather_info, overall_suggestions, budget, List.of(), List.of(), null);
     }
 
     public TripPlan(
@@ -28,6 +29,15 @@ public record TripPlan(
         List<InspirationSource> inspiration_sources
     ) {
         this(city, cities, start_date, end_date, days, weather_info, overall_suggestions, budget,
-            inspiration_sources, List.of());
+            inspiration_sources, List.of(), null);
+    }
+
+    public TripPlan(
+        String city, List<String> cities, String start_date, String end_date, List<DayPlan> days,
+        List<WeatherInfo> weather_info, String overall_suggestions, Budget budget,
+        List<InspirationSource> inspiration_sources, List<PublicDataItem> public_data
+    ) {
+        this(city, cities, start_date, end_date, days, weather_info, overall_suggestions, budget,
+            inspiration_sources, public_data, null);
     }
 }

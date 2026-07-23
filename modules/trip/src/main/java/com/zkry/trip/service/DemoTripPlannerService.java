@@ -10,7 +10,9 @@ import com.zkry.trip.dto.Budget;
 import com.zkry.trip.dto.CityStay;
 import com.zkry.trip.dto.DayPlan;
 import com.zkry.trip.dto.Hotel;
+import com.zkry.trip.dto.Location;
 import com.zkry.trip.dto.Meal;
+import com.zkry.trip.dto.RouteNode;
 import com.zkry.trip.dto.TripPlan;
 import com.zkry.trip.dto.TripPlanResponse;
 import com.zkry.trip.dto.TripRequest;
@@ -58,6 +60,7 @@ public class DemoTripPlannerService {
         List<Map<String, Object>> restaurants = queryRestaurants(cityId, primaryCity);
         List<Map<String, Object>> notes = queryNotes(cityId);
         PublicTravelSnapshot publicData = collectPublicData(primaryCity);
+        List<Attraction> routeAttractions = routeAttractions(request);
 
         int daysCount = request.safeTravelDays();
         LocalDate startDate = parseDate(request.start_date());
@@ -75,6 +78,11 @@ public class DemoTripPlannerService {
             String date = startDate.plusDays(i).toString();
             Hotel hotel = toHotel(hotelRow);
             List<Attraction> dayAttractions = distinctAttractions(attractionRow, secondAttractionRow);
+            int routeFrom = i * routeAttractions.size() / daysCount;
+            int routeTo = (i + 1) * routeAttractions.size() / daysCount;
+            if (routeFrom < routeTo) {
+                dayAttractions = routeAttractions.subList(routeFrom, routeTo);
+            }
             List<Meal> meals = List.of(toMeal("午餐", restaurantRow), toMeal("晚餐", restaurantRow));
             attractionCost += dayAttractions.stream().mapToInt(item -> item.ticket_price() == null ? 0 : item.ticket_price()).sum();
             hotelCost += hotel.estimated_cost() == null ? 0 : hotel.estimated_cost();
@@ -126,7 +134,8 @@ public class DemoTripPlannerService {
             "当前为演示规划，预算未接入实时交通、价格和库存，请勿作为预订依据。",
             budget,
             List.of(),
-            publicItems
+            publicItems,
+            request.route_intent()
         );
         TripPlanReviewer.ReviewOutcome outcome = reviewer.review(plan, request);
         if (!outcome.passed()) {
@@ -213,6 +222,30 @@ public class DemoTripPlannerService {
             return List.of(one);
         }
         return List.of(one, two);
+    }
+
+    private List<Attraction> routeAttractions(TripRequest request) {
+        if (request.route_intent() == null) return List.of();
+        return request.route_intent().safeNodes().stream()
+            .filter(node -> "poi".equals(node.type()) && node.name() != null && !node.name().isBlank())
+            .map(this::toRouteAttraction)
+            .toList();
+    }
+
+    private Attraction toRouteAttraction(RouteNode node) {
+        return new Attraction(
+            node.name(),
+            node.longitude() + "," + node.latitude(),
+            new Location(node.longitude(), node.latitude()),
+            120,
+            "用户从地图路线中指定的第 " + node.order() + " 个地点。"
+                + (node.safePreferences().isEmpty() ? "" : " 偏好：" + String.join("、", node.safePreferences()) + "。")
+                + (node.note() == null || node.note().isBlank() ? "" : " " + node.note()),
+            node.kind(),
+            null,
+            "",
+            0
+        );
     }
 
     private Attraction toAttraction(Map<String, Object> row) {

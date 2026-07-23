@@ -25,7 +25,7 @@ async function remove(item) {
   try { await communityApi.removeFromBag(item.post_id); await load(); } catch (err) { error.value = err?.message || '移除失败。'; }
 }
 
-function plan() { router.push({ path: '/planning', query: { inspirationIds: selected.value.join(',') } }); }
+function plan() { router.push({ path: '/map', query: { inspirationIds: selected.value.join(',') } }); }
 function ask() { router.push({ path: '/assistant', query: { inspirationIds: selected.value.join(',') } }); }
 onMounted(load);
 </script>

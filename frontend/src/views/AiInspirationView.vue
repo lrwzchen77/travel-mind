@@ -125,7 +125,7 @@ async function analyze() {
         <RouterLink
           class="btn-link btn-coral"
           style="margin-top: 8px;"
-          :to="{ path: '/planning', query: { city: form.city, note: planningNote } }"
+          :to="{ path: '/map', query: { city: form.city, note: planningNote } }"
         >
           带着线索去规划 →
         </RouterLink>
