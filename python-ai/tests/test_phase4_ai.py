@@ -101,6 +101,8 @@ async def test_trip_evaluate_scores_dense_days_as_medium_or_high_risk():
 
     assert response.status_code == 200
     data = response.json()["data"]
+    assert data["model_mode"] == "trained_travel_comfort"
+    assert data["model_version"] == "travel-comfort-v1"
     assert data["comfort_score"] < 80
     assert data["risk_level"] in {"medium", "high"}
     assert data["daily_risks"][0]["risk_items"]

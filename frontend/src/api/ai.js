@@ -24,6 +24,15 @@ export function createAiApi(client = http, prefix = '/user/ai') {
     tripComfort(id) {
       return client.get(`${prefix}/trip/${id}/comfort`).then(unwrap);
     },
+    tripComfortFeedback(id) {
+      return client.get(`${prefix}/trip/${id}/comfort/feedback`).then(unwrap);
+    },
+    saveTripComfortFeedback(id, payload) {
+      return client.post(`${prefix}/trip/${id}/comfort/feedback`, payload).then(unwrap);
+    },
+    comfortFeedbackStats() {
+      return client.get(`${prefix}/travel-comfort/feedback/stats`).then(unwrap);
+    },
   };
 }
 

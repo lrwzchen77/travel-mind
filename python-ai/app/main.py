@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from app.memory import MemoryAnalysisRequest, analyze_memory
+from app.travel_comfort import predict_comfort
 from app.memory_knowledge import (
     EmbeddingUnavailable,
     MemoryDeleteRequest,
@@ -162,6 +163,8 @@ async def vision_detect(request: Request):
 
 @app.post("/api/trip/evaluate")
 def trip_evaluate(payload: TripEvaluateRequest):
+    payload_data = payload.model_dump()
+    trained = predict_comfort(payload_data)
     score = 92
     daily_risks: list[dict[str, Any]] = []
     relaxed = any(pref in {"轻松", "亲子", "慢游", "relaxed"} for pref in payload.preferences)
@@ -201,9 +204,23 @@ def trip_evaluate(payload: TripEvaluateRequest):
 
     score = max(35, min(100, score))
     risk_level = "low" if score >= 80 else "medium" if score >= 60 else "high"
+    model_data = trained or {
+        "model_mode": "rule",
+        "model_version": "comfort-rule-v1",
+        "comfort_class": {"low": "relaxed", "medium": "balanced", "high": "intense"}[risk_level],
+        "confidence": 1.0,
+        "probabilities": {},
+        "comfort_score": score,
+        "risk_level": risk_level,
+        "feature_snapshot": {},
+        "training_source": "deterministic_rule",
+    }
+    score = int(model_data["comfort_score"])
+    risk_level = str(model_data["risk_level"])
     suggestions = _trip_suggestions(risk_level, daily_risks)
     return ok(
         {
+            **model_data,
             "comfort_score": score,
             "risk_level": risk_level,
             "daily_risks": daily_risks,

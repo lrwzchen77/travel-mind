@@ -42,6 +42,9 @@ Public resource keys are `cities`, `attractions`, `hotels`, `restaurants`, and `
 - `POST /api/user/ai/trip/evaluate`
 - `POST /api/user/ai/content/analyze`
 - `GET /api/user/ai/trip/{id}/comfort`
+- `GET /api/user/ai/trip/{id}/comfort/feedback`
+- `POST /api/user/ai/trip/{id}/comfort/feedback`
+- `GET /api/admin/ai/travel-comfort/feedback/stats`
 
 User IDs are taken only from the authenticated session. Client-supplied `userId` values are not accepted.
 

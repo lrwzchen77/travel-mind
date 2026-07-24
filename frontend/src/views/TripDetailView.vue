@@ -9,6 +9,7 @@ import PublicTravelDataPanel from '../components/PublicTravelDataPanel.vue';
 import { consumerText } from '../data/consumerText.js';
 import { currentTripDayIndex, tripCalendar } from '../utils/tripDeparture.js';
 import { normalizeRouteIntent, ROUTE_INTENT_KEY } from '../map/trackEditor.js';
+import { BrainCircuit, CircleCheck, Coffee, Gauge, Zap } from 'lucide-vue-next';
 
 const route = useRoute();
 const router = useRouter();
@@ -17,6 +18,8 @@ const error = ref('');
 const chatText = ref('第二天会不会太赶？');
 const replies = ref([]);
 const comfort = ref(null);
+const comfortFeedback = ref({ submitted: false });
+const feedbackError = ref('');
 const busy = ref('');
 const departureMode = ref(false);
 const checklist = ref({});
@@ -65,6 +68,22 @@ const comfortJson = computed(() => {
 });
 const comfortData = computed(() => comfortJson.value.data || comfortJson.value);
 const comfortSuggestions = computed(() => comfortData.value.suggestions || []);
+const comfortClasses = {
+  relaxed: { label: '偏松', icon: Coffee },
+  balanced: { label: '正合适', icon: CircleCheck },
+  intense: { label: '太赶', icon: Zap },
+};
+const predictedComfort = computed(() => comfortClasses[comfortData.value.comfort_class] || { label: '待判断', icon: Gauge });
+const comfortProbabilities = computed(() => ['relaxed', 'balanced', 'intense'].map((key) => ({
+  key,
+  ...comfortClasses[key],
+  value: Number(comfortData.value.probabilities?.[key] || 0),
+})));
+const modelVersionLabel = computed(() => {
+  const version = String(comfortData.value.model_version || '').match(/v\d+$/i)?.[0] || 'v1';
+  return comfortData.value.model_mode === 'trained_travel_comfort' ? `TravelComfort ${version}` : '规则评估';
+});
+const feedbackAllowed = computed(() => Boolean(plan.value.end_date) && plan.value.end_date <= localDate());
 const dailyRisks = computed(() => (comfortData.value.daily_risks || []).filter((day) => day.risk_items?.length));
 const riskLevelLabel = computed(() => ({
   low: '整体轻松',
@@ -93,6 +112,16 @@ const stopCount = computed(() => {
   return detail.value?.graph_data?.nodes?.length || days.value.length || 0;
 });
 
+function localDate() {
+  const now = new Date();
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+function percent(value) {
+  return `${Math.round(Number(value || 0) * 1000) / 10}%`;
+}
+
 async function load() {
   error.value = '';
   try {
@@ -102,15 +131,31 @@ async function load() {
     } catch {
       checklist.value = {};
     }
-    const [comfortResult, expenseResult] = await Promise.allSettled([
+    const [comfortResult, feedbackResult, expenseResult] = await Promise.allSettled([
       aiApi.tripComfort(route.params.id),
+      aiApi.tripComfortFeedback(route.params.id),
       tripApi.expenses(route.params.id),
     ]);
     if (comfortResult.status === 'fulfilled') comfort.value = comfortResult.value;
+    if (feedbackResult.status === 'fulfilled') comfortFeedback.value = feedbackResult.value;
+    else feedbackError.value = '暂时无法读取体验反馈。';
     if (expenseResult.status === 'fulfilled') expenses.value = expenseResult.value;
     else expenseError.value = '实际花费暂时不可用，稍后可以再试。';
   } catch (err) {
     error.value = err?.response?.data?.msg || err?.message || '打不开这趟行程';
+  }
+}
+
+async function saveComfortFeedback(actualLabel) {
+  if (!feedbackAllowed.value) return;
+  busy.value = 'comfort-feedback';
+  feedbackError.value = '';
+  try {
+    comfortFeedback.value = await aiApi.saveTripComfortFeedback(route.params.id, { actual_label: actualLabel });
+  } catch (err) {
+    feedbackError.value = err?.response?.data?.msg || err?.message || '这次反馈没有保存成功。';
+  } finally {
+    busy.value = '';
   }
 }
 
@@ -440,6 +485,37 @@ onMounted(load);
         <h2 id="trip-check-title">哪些地方值得提前调整</h2>
       </div>
       <span class="trip-check-score">{{ comfortLabel }}</span>
+    </div>
+
+    <div v-if="comfortData.comfort_class" class="trip-comfort-model">
+      <div class="trip-comfort-result">
+        <span class="trip-model-badge"><BrainCircuit :size="14" aria-hidden="true" />{{ modelVersionLabel }}</span>
+        <p>模型判断</p>
+        <strong><component :is="predictedComfort.icon" :size="22" aria-hidden="true" />{{ predictedComfort.label }}</strong>
+        <small>置信度 {{ percent(comfortData.confidence) }}</small>
+      </div>
+      <div class="trip-comfort-probabilities" aria-label="舒适度预测概率">
+        <div v-for="item in comfortProbabilities" :key="item.key">
+          <span>{{ item.label }} <b>{{ percent(item.value) }}</b></span>
+          <i><span :style="{ width: percent(item.value) }" /></i>
+        </div>
+      </div>
+      <div class="trip-comfort-feedback">
+        <p>回来后，实际感受如何？</p>
+        <div role="group" aria-label="实际舒适度反馈">
+          <button
+            v-for="item in comfortProbabilities"
+            :key="item.key"
+            type="button"
+            :class="{ 'is-selected': comfortFeedback.actual_label === item.key }"
+            :disabled="!feedbackAllowed || busy === 'comfort-feedback'"
+            @click="saveComfortFeedback(item.key)"
+          ><component :is="item.icon" :size="15" aria-hidden="true" />{{ item.label }}</button>
+        </div>
+        <small v-if="comfortFeedback.submitted">已记录，可重新选择修正。</small>
+        <small v-else-if="!feedbackAllowed">行程结束后开放反馈。</small>
+        <small v-if="feedbackError" class="error-line">{{ feedbackError }}</small>
+      </div>
     </div>
 
     <div class="trip-check-layout">

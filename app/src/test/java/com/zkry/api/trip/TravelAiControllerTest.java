@@ -63,7 +63,8 @@ class TravelAiControllerTest {
         TravelAiController controller = new TravelAiController(service, persistence);
         TripEvaluateRequest request = new TripEvaluateRequest(List.of(), "公共交通", 0, List.of("轻松"), 2000D);
         when(service.evaluateTrip(1001L, "trip_plan", 99L, request)).thenReturn(PythonAiCallResult.ok("success",
-            new TripEvaluateResult(88, "low", List.of(), List.of("ok")),
+            new TripEvaluateResult("trained_travel_comfort", "travel-comfort-v1", "relaxed", 0.9,
+                Map.of("relaxed", 0.9), Map.of(), "bootstrap_scenarios_v1", 88, "low", List.of(), List.of("ok")),
             "{}"));
 
         R<PythonAiCallResult<TripEvaluateResult>> response;

@@ -1,0 +1,277 @@
+{
+  "generated_at": "2026-07-13T12:31:55.747833+00:00",
+  "weights": "artifacts/best.pt",
+  "data": "datasets/travel-risk-yolo/images",
+  "device": "cpu",
+  "imgsz": 224,
+  "torch_version": "2.5.1+cpu",
+  "cuda_available": false,
+  "model": "yolov8n-cls",
+  "epochs": 20,
+  "batch": 8,
+  "seed": 42,
+  "val_accuracy": 0.9681,
+  "test_accuracy": 0.9394,
+  "should_gates": {
+    "val_ge_0_65": true,
+    "test_ge_0_60": true,
+    "passed": true
+  },
+  "splits": {
+    "val": {
+      "split": "val",
+      "n": 188,
+      "correct": 182,
+      "accuracy": 0.9681,
+      "mean_top1_conf": 0.9464,
+      "per_class": {
+        "scenic_spot": {
+          "support": 35,
+          "precision": 0.9459,
+          "recall": 1.0,
+          "f1": 0.9722
+        },
+        "restaurant_food": {
+          "support": 30,
+          "precision": 1.0,
+          "recall": 0.9667,
+          "f1": 0.9831
+        },
+        "hotel_room": {
+          "support": 33,
+          "precision": 0.9429,
+          "recall": 1.0,
+          "f1": 0.9706
+        },
+        "transport_station": {
+          "support": 27,
+          "precision": 0.9615,
+          "recall": 0.9259,
+          "f1": 0.9434
+        },
+        "crowded_scene": {
+          "support": 29,
+          "precision": 1.0,
+          "recall": 0.9655,
+          "f1": 0.9825
+        },
+        "low_light_scene": {
+          "support": 34,
+          "precision": 0.9697,
+          "recall": 0.9412,
+          "f1": 0.9552
+        }
+      },
+      "labels": [
+        "scenic_spot",
+        "restaurant_food",
+        "hotel_room",
+        "transport_station",
+        "crowded_scene",
+        "low_light_scene"
+      ],
+      "confusion_matrix": [
+        [
+          35,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          29,
+          1,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          33,
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0,
+          25,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          1,
+          0,
+          28,
+          0
+        ],
+        [
+          1,
+          0,
+          0,
+          1,
+          0,
+          32
+        ]
+      ]
+    },
+    "test": {
+      "split": "test",
+      "n": 99,
+      "correct": 93,
+      "accuracy": 0.9394,
+      "mean_top1_conf": 0.9571,
+      "per_class": {
+        "scenic_spot": {
+          "support": 18,
+          "precision": 0.85,
+          "recall": 0.9444,
+          "f1": 0.8947
+        },
+        "restaurant_food": {
+          "support": 16,
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0
+        },
+        "hotel_room": {
+          "support": 18,
+          "precision": 1.0,
+          "recall": 0.9444,
+          "f1": 0.9714
+        },
+        "transport_station": {
+          "support": 14,
+          "precision": 0.9231,
+          "recall": 0.8571,
+          "f1": 0.8889
+        },
+        "crowded_scene": {
+          "support": 15,
+          "precision": 0.9375,
+          "recall": 1.0,
+          "f1": 0.9677
+        },
+        "low_light_scene": {
+          "support": 18,
+          "precision": 0.9412,
+          "recall": 0.8889,
+          "f1": 0.9143
+        }
+      },
+      "labels": [
+        "scenic_spot",
+        "restaurant_food",
+        "hotel_room",
+        "transport_station",
+        "crowded_scene",
+        "low_light_scene"
+      ],
+      "confusion_matrix": [
+        [
+          17,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          0,
+          16,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          17,
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0,
+          12,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          15,
+          0
+        ],
+        [
+          2,
+          0,
+          0,
+          0,
+          0,
+          16
+        ]
+      ]
+    }
+  },
+  "sample_predictions": [
+    {
+      "true": "scenic_spot",
+      "file": "datasets/travel-risk-yolo/samples/scenic_spot/scenic_spot_sample_1.jpg",
+      "pred": "scenic_spot",
+      "conf": 0.995,
+      "ok": true
+    },
+    {
+      "true": "restaurant_food",
+      "file": "datasets/travel-risk-yolo/samples/restaurant_food/restaurant_food_sample_1.jpg",
+      "pred": "restaurant_food",
+      "conf": 0.9999,
+      "ok": true
+    },
+    {
+      "true": "hotel_room",
+      "file": "datasets/travel-risk-yolo/samples/hotel_room/hotel_room_sample_1.jpg",
+      "pred": "hotel_room",
+      "conf": 0.9996,
+      "ok": true
+    },
+    {
+      "true": "transport_station",
+      "file": "datasets/travel-risk-yolo/samples/transport_station/transport_station_sample_1.jpg",
+      "pred": "transport_station",
+      "conf": 0.6485,
+      "ok": true
+    },
+    {
+      "true": "crowded_scene",
+      "file": "datasets/travel-risk-yolo/samples/crowded_scene/crowded_scene_sample_1.jpg",
+      "pred": "crowded_scene",
+      "conf": 0.9933,
+      "ok": true
+    },
+    {
+      "true": "low_light_scene",
+      "file": "datasets/travel-risk-yolo/samples/low_light_scene/low_light_scene_sample_1.jpg",
+      "pred": "low_light_scene",
+      "conf": 0.9975,
+      "ok": true
+    }
+  ],
+  "artifacts": {
+    "confusion_matrix_test": "reports/screenshots/confusion_matrix_test.png",
+    "train_results_plot": "reports/screenshots/results.png",
+    "train_cm": "reports/screenshots/confusion_matrix.png"
+  }
+}

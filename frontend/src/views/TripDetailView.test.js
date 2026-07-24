@@ -4,14 +4,19 @@ import TripDetailView from './TripDetailView.vue';
 
 const mocks = vi.hoisted(() => ({
   addExpense: vi.fn(), chat: vi.fn(), copy: vi.fn(), detail: vi.fn(), expenses: vi.fn(), remove: vi.fn(), removeExpense: vi.fn(),
-  createMemory: vi.fn(), tripComfort: vi.fn(), push: vi.fn(), route: { params: { id: '9001' } },
+  createMemory: vi.fn(), tripComfort: vi.fn(), tripComfortFeedback: vi.fn(), saveTripComfortFeedback: vi.fn(),
+  push: vi.fn(), route: { params: { id: '9001' } },
 }));
 
 vi.mock('../api/trip.js', () => ({ tripApi: {
   addExpense: mocks.addExpense, chat: mocks.chat, copy: mocks.copy, detail: mocks.detail, expenses: mocks.expenses,
   remove: mocks.remove, removeExpense: mocks.removeExpense,
 } }));
-vi.mock('../api/ai.js', () => ({ aiApi: { tripComfort: mocks.tripComfort } }));
+vi.mock('../api/ai.js', () => ({ aiApi: {
+  tripComfort: mocks.tripComfort,
+  tripComfortFeedback: mocks.tripComfortFeedback,
+  saveTripComfortFeedback: mocks.saveTripComfortFeedback,
+} }));
 vi.mock('../api/memory.js', () => ({ memoryApi: { createFromTrip: mocks.createMemory } }));
 vi.mock('../components/map/AsyncTravelMap3D.vue', () => ({ default: {
   name: 'TravelMap3DStub',
@@ -44,7 +49,13 @@ beforeEach(() => {
   window.sessionStorage.clear();
   vi.stubGlobal('localStorage', localStorageMock);
   mocks.detail.mockResolvedValue(plan);
-  mocks.tripComfort.mockResolvedValue({ result_json: { data: { comfort_score: 88, risk_level: 'low', suggestions: [], daily_risks: [] } } });
+  mocks.tripComfort.mockResolvedValue({ result_json: { data: {
+    comfort_score: 88, risk_level: 'low', comfort_class: 'relaxed', confidence: 0.875,
+    model_mode: 'trained_travel_comfort', model_version: 'travel-comfort-v1',
+    probabilities: { relaxed: 0.875, balanced: 0.1, intense: 0.025 }, suggestions: [], daily_risks: [],
+  } } });
+  mocks.tripComfortFeedback.mockResolvedValue({ submitted: false });
+  mocks.saveTripComfortFeedback.mockResolvedValue({ submitted: true, actual_label: 'balanced' });
   mocks.expenses.mockResolvedValue(expenseSummary);
   mocks.addExpense.mockResolvedValue(expenseSummary);
   mocks.createMemory.mockResolvedValue({ id: 3001 });
@@ -179,5 +190,30 @@ describe('行程详情新增能力', () => {
     expect(html.indexOf('trip-route-section')).toBeLessThan(html.indexOf('trip-departure glass-panel'));
     expect(html.indexOf('trip-departure glass-panel')).toBeLessThan(html.indexOf('trip-map-panel'));
     expect(html.indexOf('trip-map-panel')).toBeLessThan(html.indexOf('trip-expense glass-panel'));
+  });
+
+  it('shows the trained model result and keeps feedback closed before the trip ends', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(wrapper.get('.trip-model-badge').text()).toBe('TravelComfort v1');
+    expect(wrapper.get('.trip-comfort-result').text()).toContain('偏松');
+    expect(wrapper.get('.trip-comfort-result').text()).toContain('87.5%');
+    expect(wrapper.findAll('.trip-comfort-feedback button').every((button) => button.attributes('disabled') !== undefined)).toBe(true);
+    expect(wrapper.get('.trip-comfort-feedback').text()).toContain('行程结束后开放反馈');
+  });
+
+  it('saves post-trip comfort feedback and marks the selected label', async () => {
+    mocks.detail.mockResolvedValueOnce({ ...plan, data: { ...plan.data, start_date: '2026-01-01', end_date: '2026-01-02' } });
+    const wrapper = mountPage();
+    await flushPromises();
+
+    const balanced = wrapper.findAll('.trip-comfort-feedback button')[1];
+    await balanced.trigger('click');
+    await flushPromises();
+
+    expect(mocks.saveTripComfortFeedback).toHaveBeenCalledWith('9001', { actual_label: 'balanced' });
+    expect(balanced.classes()).toContain('is-selected');
+    expect(wrapper.get('.trip-comfort-feedback').text()).toContain('已记录');
   });
 });

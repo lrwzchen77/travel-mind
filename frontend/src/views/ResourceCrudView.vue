@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, RouterLink } from 'vue-router';
 import { resourceApi } from '../api/resources.js';
 import { adminAiApi as aiApi } from '../api/ai.js';
+import { Pencil, Power, Route as RouteIcon, Rows3, Sparkles, Trash2 } from 'lucide-vue-next';
 
 const route = useRoute();
 const loading = ref(false);
@@ -155,19 +156,20 @@ onMounted(load);
 </script>
 
 <template>
+  <div class="resource-page" :class="{ 'resource-page--admin': isAdmin }">
   <section class="page-intro">
     <p class="eyebrow">{{ isAdmin ? '运营管理' : (isDiscover ? '发现' : '我的') }}</p>
     <h1>{{ title }}</h1>
   </section>
 
-  <div v-if="isDiscover" class="actions" style="margin-bottom: 18px;">
-    <RouterLink class="btn-link btn-coral" style="min-height: 40px; font-size: 13px; padding: 0 16px;" to="/map">
+  <div v-if="isDiscover" class="actions discovery-shortcuts">
+    <RouterLink class="btn-link btn-coral" to="/map">
       带着灵感去规划
     </RouterLink>
-    <RouterLink class="btn-link btn-ghost" style="min-height: 40px; font-size: 13px; padding: 0 16px;" to="/cities">城市</RouterLink>
-    <RouterLink class="btn-link btn-ghost" style="min-height: 40px; font-size: 13px; padding: 0 16px;" to="/attractions">景点</RouterLink>
-    <RouterLink class="btn-link btn-ghost" style="min-height: 40px; font-size: 13px; padding: 0 16px;" to="/hotels">住哪里</RouterLink>
-    <RouterLink class="btn-link btn-ghost" style="min-height: 40px; font-size: 13px; padding: 0 16px;" to="/restaurants">吃什么</RouterLink>
+    <RouterLink class="btn-link btn-ghost" to="/cities">城市</RouterLink>
+    <RouterLink class="btn-link btn-ghost" to="/attractions">景点</RouterLink>
+    <RouterLink class="btn-link btn-ghost" to="/hotels">住哪里</RouterLink>
+    <RouterLink class="btn-link btn-ghost" to="/restaurants">吃什么</RouterLink>
   </div>
 
   <section class="toolbar" aria-label="搜索筛选">
@@ -185,9 +187,9 @@ onMounted(load);
   <section class="explore-layout">
     <div class="soft-table-wrap">
       <div class="table-meta">
-        <span>{{ loading ? '加载中…' : `找到 ${total} 条` }}</span>
+        <span><Rows3 :size="15" aria-hidden="true" />{{ loading ? '加载中…' : `${total} 条记录` }}</span>
       </div>
-      <table>
+      <table :aria-label="`${title}列表`">
         <thead>
           <tr>
             <th v-for="field in fields" :key="field">{{ labelOf(field) }}</th>
@@ -204,28 +206,41 @@ onMounted(load);
             </td>
           </tr>
           <tr v-for="record in records" :key="record.id">
-            <td v-for="field in fields" :key="field">{{ cellValue(record, field) }}</td>
-            <td class="actions">
+            <td v-for="field in fields" :key="field" :class="`resource-cell--${field}`">
+              <span
+                v-if="field === 'status'"
+                class="resource-status"
+                :class="{ 'is-active': record[field] === 1 || record[field] === '1' }"
+              ><i aria-hidden="true" />{{ cellValue(record, field) }}</span>
+              <span v-else>{{ cellValue(record, field) }}</span>
+            </td>
+            <td class="table-actions">
               <button
                 v-if="!isAdmin && resourceKey === 'cities' && record.name"
                 type="button"
-                class="btn-coral btn-sm"
+                class="table-icon-button is-primary"
+                :aria-label="`规划${record.name}`"
+                :title="`规划${record.name}`"
                 @click="planThisCity(record)"
-              >去规划</button>
-              <button type="button" class="btn-ghost btn-sm" @click="edit(record)">编辑</button>
+              ><RouteIcon :size="16" aria-hidden="true" /></button>
+              <button type="button" class="table-icon-button" aria-label="编辑" title="编辑" @click="edit(record)"><Pencil :size="16" aria-hidden="true" /></button>
               <button
                 v-if="isTravelNotes"
                 type="button"
-                class="btn-ghost btn-sm"
+                class="table-icon-button"
+                aria-label="分析"
+                title="分析"
                 @click="analyzeNote(record)"
-              >分析</button>
+              ><Sparkles :size="16" aria-hidden="true" /></button>
               <button
                 v-if="canToggleStatus && 'status' in record"
                 type="button"
-                class="btn-ghost btn-sm"
+                class="table-icon-button"
+                :aria-label="Number(record.status) === 1 ? '下线' : '上线'"
+                :title="Number(record.status) === 1 ? '下线' : '上线'"
                 @click="toggleStatus(record)"
-              >上下线</button>
-              <button type="button" class="btn-danger btn-sm" @click="remove(record)">删除</button>
+              ><Power :size="16" aria-hidden="true" /></button>
+              <button type="button" class="table-icon-button is-danger" aria-label="删除" title="删除" @click="remove(record)"><Trash2 :size="16" aria-hidden="true" /></button>
             </td>
           </tr>
         </tbody>
@@ -242,8 +257,9 @@ onMounted(load);
     </form>
   </section>
 
-  <section v-if="analysisResult" class="glass-panel" style="margin-top: 20px;">
+  <section v-if="analysisResult" class="glass-panel analysis-result">
     <h2>分析结果</h2>
     <pre>{{ JSON.stringify(analysisResult.data || analysisResult, null, 2) }}</pre>
   </section>
+  </div>
 </template>

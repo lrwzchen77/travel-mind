@@ -55,7 +55,7 @@ Request:
 }
 ```
 
-Response data includes `comfort_score`, `risk_level`, `daily_risks`, and `suggestions`.
+Response data includes `comfort_score`, `risk_level`, `daily_risks`, `suggestions`, `model_mode`, `model_version`, `comfort_class`, `confidence`, `probabilities`, `feature_snapshot`, and `training_source`.
 
 ### `POST /api/content/analyze`
 
@@ -78,6 +78,9 @@ Response data includes `sentiment`, `keywords`, `positive_highlights`, `negative
 - `POST /api/ai/trip/evaluate?targetType=trip_plan&targetId=9001`
 - `POST /api/ai/content/analyze?targetType=travel_note&targetId=7001`
 - `GET /api/ai/trip/{id}/comfort`
+- `GET /api/user/ai/trip/{id}/comfort/feedback`
+- `POST /api/user/ai/trip/{id}/comfort/feedback`
+- `GET /api/admin/ai/travel-comfort/feedback/stats`
 - `POST /api/user/memories/{memoryId}/index`
 - `POST /api/user/memories/{memoryId}/ask` with `{"question":"哪家餐厅值得再去？","top_k":5}`
 - `DELETE /api/user/memories/{memoryId}` deletes Qdrant vectors before MySQL data
