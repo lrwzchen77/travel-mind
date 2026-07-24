@@ -25,7 +25,7 @@ async function submit() {
   try {
     await authApi.login(portal.value, form);
     const fallback = isAdmin.value ? '/admin' : '/';
-    await router.replace(String(route.query.redirect || fallback));
+    await router.replace(isAdmin.value ? fallback : String(route.query.redirect || fallback));
   } catch (err) {
     error.value = err?.message || '登录失败，请检查账号和密码';
   } finally {

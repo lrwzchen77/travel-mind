@@ -140,16 +140,14 @@ router.afterEach((to) => {
 router.beforeEach((to) => {
   const isAdmin = to.matched.some((route) => route.meta.admin);
   const requiresAuth = to.matched.some((route) => route.meta.requiresAuth);
-  if (!requiresAuth) return true;
   if (!authSession.isLoggedIn()) {
+    if (!requiresAuth) return true;
     return { path: isAdmin ? '/admin/login' : '/login', query: { redirect: to.fullPath } };
   }
+  if (authSession.hasRole('admin') && !isAdmin) return '/admin';
   if (isAdmin && !authSession.hasRole('admin')) {
     authSession.clear();
     return { path: '/admin/login', query: { reason: 'role' } };
-  }
-  if (!isAdmin && authSession.hasRole('admin')) {
-    return '/admin';
   }
   return true;
 });
