@@ -1,9 +1,11 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
+import { ArrowRight } from 'lucide-vue-next';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { resourceApi } from '../api/resources.js';
 import { authSession } from '../auth/session.js';
 import { cityImageByName } from '../data/cityImages.js';
+import PagePrologue from '../components/PagePrologue.vue';
 import VisionInspirationPanel from '../components/VisionInspirationPanel.vue';
 import { useFavorites } from '../composables/useFavorites.js';
 import { consumerText } from '../data/consumerText.js';
@@ -183,10 +185,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="page-intro">
-    <p class="eyebrow">发现</p>
-    <h1>{{ title }}</h1>
-  </section>
+  <PagePrologue index="04" eyebrow="发现" :title="title" lead="挑一座城，把它拆成玩、住、吃三个清单。" next-label="回到地图" next-to="/map" />
 
   <form class="discovery-search glass-panel" @submit.prevent="load">
     <div class="discovery-search-field">
@@ -266,7 +265,7 @@ onMounted(() => {
             <template v-else>收藏</template>
           </button>
           <RouterLink class="text-action text-action--primary" :to="planLink(item)">
-            {{ resourceMeta.planLabel }} →
+            {{ resourceMeta.planLabel }} <ArrowRight :size="15" :stroke-width="2.2" />
           </RouterLink>
         </div>
       </div>
@@ -280,4 +279,16 @@ onMounted(() => {
     </summary>
     <VisionInspirationPanel />
   </details>
+
+  <section class="chapter-bridge" data-reveal>
+    <div class="chapter-bridge-copy">
+      <p class="chapter-bridge-eyebrow">下一章 · 02 地图</p>
+      <h2 class="chapter-bridge-title">挑完城市，去地图圈地点</h2>
+      <p class="chapter-bridge-lead">资源页帮你找到想去的，地图负责把它们串成走得通的路线。打开立体地图，开始圈点。</p>
+    </div>
+    <RouterLink class="chapter-bridge-cta" to="/map">
+      <span>打开立体地图</span>
+      <ArrowRight :size="18" :stroke-width="2.2" />
+    </RouterLink>
+  </section>
 </template>

@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
+import { Plane, ArrowRight } from 'lucide-vue-next';
 import { authApi } from '../api/auth.js';
 
 const route = useRoute();
@@ -83,7 +84,7 @@ onUnmounted(() => {
       <div class="login-showcase-glow" aria-hidden="true" />
 
       <RouterLink to="/" class="login-showcase-brand">
-        <span class="brand-mark" aria-hidden="true"><span class="brand-plane">✈</span></span>
+        <span class="brand-mark" aria-hidden="true"><Plane class="brand-plane" :size="20" :stroke-width="2.2" /></span>
         <span>
           <strong>Travel Mind</strong>
           <small>想去，就出发</small>
@@ -113,7 +114,7 @@ onUnmounted(() => {
                 <small>FROM</small>
                 <strong>日常</strong>
               </div>
-              <div class="login-pass-plane">✈</div>
+              <div class="login-pass-plane"><Plane :size="20" :stroke-width="2.2" /></div>
               <div>
                 <small>TO</small>
                 <strong>{{ cities[cityIndex] }}</strong>
@@ -157,7 +158,7 @@ onUnmounted(() => {
           <p v-if="error" class="error-line">{{ error }}</p>
           <button type="submit" class="btn-coral login-submit" :disabled="loading">
             {{ loading ? '正在登录…' : '登录，出发' }}
-            <span aria-hidden="true">→</span>
+            <ArrowRight :size="16" :stroke-width="2.4" />
           </button>
         </form>
 

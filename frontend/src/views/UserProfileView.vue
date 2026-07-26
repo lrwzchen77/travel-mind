@@ -1,7 +1,13 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue';
 import { RouterLink } from 'vue-router';
+import { Contact, Backpack, Utensils, ArrowRight } from 'lucide-vue-next';
 import { resourceApi } from '../api/resources.js';
+import PagePrologue from '../components/PagePrologue.vue';
+import { useReveal } from '../composables/useReveal.js';
+
+const root = ref(null);
+useReveal(root);
 
 const form = reactive({
   nickname: '',
@@ -96,10 +102,13 @@ onMounted(load);
 </script>
 
 <template>
-  <section class="page-intro">
-    <p class="eyebrow">旅行偏好</p>
-    <h1>让每一程更像你</h1>
-  </section>
+  <div ref="root">
+  <PagePrologue
+    index="08 · 偏好"
+    eyebrow="Profile"
+    title="让每一程更像你"
+    lead="把你的旅行风格、联系方式和偏好城市告诉系统，未来的每一次规划都会更贴近你的节奏。"
+  />
 
   <p v-if="message" class="success-line">{{ message }}</p>
   <p v-if="error" class="error-line">{{ error }}</p>
@@ -107,7 +116,7 @@ onMounted(load);
   <form class="profile-form" @submit.prevent="save">
     <section class="glass-panel profile-card">
       <div class="profile-card-head">
-        <span class="profile-emoji" aria-hidden="true">🪪</span>
+        <span class="profile-emoji" aria-hidden="true"><Contact :size="22" :stroke-width="2" /></span>
         <div>
           <h2>怎么称呼你</h2>
         </div>
@@ -130,7 +139,7 @@ onMounted(load);
 
     <section class="glass-panel profile-card">
       <div class="profile-card-head">
-        <span class="profile-emoji" aria-hidden="true">🎒</span>
+        <span class="profile-emoji" aria-hidden="true"><Backpack :size="22" :stroke-width="2" /></span>
         <div>
           <h2>这趟通常怎么玩</h2>
         </div>
@@ -179,7 +188,7 @@ onMounted(load);
 
     <section class="glass-panel profile-card">
       <div class="profile-card-head">
-        <span class="profile-emoji" aria-hidden="true">🍜</span>
+        <span class="profile-emoji" aria-hidden="true"><Utensils :size="22" :stroke-width="2" /></span>
         <div>
           <h2>吃住与出行</h2>
         </div>
@@ -241,7 +250,20 @@ onMounted(load);
       <button type="submit" class="btn-coral" :disabled="saving">
         {{ saving ? '保存中…' : '保存我的偏好' }}
       </button>
-      <RouterLink class="btn-link btn-ghost" to="/map">保存后去规划 →</RouterLink>
+      <RouterLink class="btn-link btn-ghost" to="/map">保存后去规划 <ArrowRight :size="15" :stroke-width="2.2" /></RouterLink>
     </div>
   </form>
+
+  <section class="chapter-bridge" data-reveal>
+    <div class="chapter-bridge-copy">
+      <p class="chapter-bridge-eyebrow">下一章 · 02 地图</p>
+      <h2 class="chapter-bridge-title">带着偏好，去地图开个头</h2>
+      <p class="chapter-bridge-lead">偏好已存好，下一步是落到地图上。打开立体地图，圈出你想去的点，让规划器按你的节奏排程。</p>
+    </div>
+    <RouterLink class="chapter-bridge-cta" to="/map">
+      <span>打开立体地图</span>
+      <ArrowRight :size="18" :stroke-width="2.2" />
+    </RouterLink>
+  </section>
+  </div>
 </template>

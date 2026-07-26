@@ -6,6 +6,7 @@ import './workspace.css';
 import './community.css';
 import './memory.css';
 import './theme.css';
+import './awwwards.css';
 import { scheduleMapWarmup } from './map/prefetch.js';
 
 createApp(App).use(router).mount('#app');

@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
+import { ArrowLeft, ArrowRight } from 'lucide-vue-next';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { resourceApi } from '../api/resources.js';
 import { cityImageByName } from '../data/cityImages.js';
@@ -7,9 +8,12 @@ import { findDestination } from '../data/geoDestinations.js';
 import { useFavorites } from '../composables/useFavorites.js';
 import { consumerText } from '../data/consumerText.js';
 import { supportsPlanning } from '../data/planningSupport.js';
+import { useReveal } from '../composables/useReveal.js';
 
 const route = useRoute();
 const router = useRouter();
+const root = ref(null);
+useReveal(root);
 const cityName = computed(() => String(route.params.city || '').trim());
 const city = ref(null);
 const loading = ref(true);
@@ -112,9 +116,10 @@ onMounted(load);
 </script>
 
 <template>
-  <RouterLink class="city-detail-back" to="/cities">← 返回发现</RouterLink>
+  <div ref="root" class="city-detail-page">
+    <RouterLink class="city-detail-back" to="/cities"><ArrowLeft :size="15" :stroke-width="2.2" /> 返回发现</RouterLink>
 
-  <section class="city-detail-hero">
+    <section class="city-detail-hero" data-reveal style="--reveal-delay: 0s">
     <img v-if="cover" :src="cover" :alt="`${cityName}城市风景`" />
     <div class="city-detail-hero-shade" />
     <div class="city-detail-hero-copy">
@@ -138,7 +143,7 @@ onMounted(load);
   <p v-if="error" class="error-line">{{ error }}</p>
   <p v-if="!planningAvailable" class="trust-note">这座城当前可浏览城市灵感，但吃、住、玩真实资源尚未补齐，因此暂不开放完整规划，避免生成占位商户。</p>
 
-  <section class="city-decision-strip" aria-label="城市决策线索">
+  <section class="city-decision-strip" data-reveal style="--reveal-delay: 0.08s" aria-label="城市决策线索">
     <div>
       <span>所在地区</span>
       <strong>{{ [city?.province || destination.province, city?.country].filter(Boolean).join(' · ') || '地区待补充' }}</strong>
@@ -155,7 +160,7 @@ onMounted(load);
 
   <div class="city-detail-layout">
     <main class="city-detail-main">
-      <section class="city-resource-guide">
+      <section class="city-resource-guide" data-reveal style="--reveal-delay: 0.16s">
         <p class="eyebrow">城内旅行清单</p>
         <h2>先看去哪玩，再决定吃哪、住哪</h2>
         <nav aria-label="城市旅行信息分区">
@@ -186,7 +191,7 @@ onMounted(load);
                 <li v-for="fact in resourceFacts(item, section.key)" :key="fact">{{ fact }}</li>
               </ul>
             </div>
-            <RouterLink v-if="planningAvailable" :to="resourcePlanningLink(item, section.key)">带去规划 →</RouterLink>
+            <RouterLink v-if="planningAvailable" :to="resourcePlanningLink(item, section.key)">带去规划 <ArrowRight :size="15" :stroke-width="2.2" /></RouterLink>
             <span v-else class="panel-hint">信息仅供浏览</span>
           </article>
         </div>
@@ -202,12 +207,25 @@ onMounted(load);
       </section>
     </main>
 
-    <aside class="city-detail-aside">
+    <aside class="city-detail-aside" data-reveal style="--reveal-delay: 0.24s">
       <p class="eyebrow">下一步</p>
       <h2>不必一次看完所有攻略</h2>
       <RouterLink v-if="planningAvailable" class="btn-link btn-coral" :to="planningLink">按这些偏好规划</RouterLink>
       <span v-else class="btn-link btn-ghost" aria-disabled="true">完整规划待开放</span>
       <RouterLink class="btn-link btn-ghost" :to="{ path: '/map', query: { city: cityName } }">在地图情报中查看</RouterLink>
     </aside>
+  </div>
+
+    <section class="chapter-bridge" data-reveal style="--reveal-delay: 0.32s">
+      <div class="chapter-bridge-copy">
+        <p class="chapter-bridge-eyebrow">下一章</p>
+        <h2 class="chapter-bridge-title">选好城市，开始圈地点</h2>
+        <p class="chapter-bridge-lead">把这座城市放进地图，选你想去的地方，连成一条路线。</p>
+      </div>
+      <RouterLink class="chapter-bridge-cta" to="/map">
+        <span>去地图</span>
+        <ArrowRight :size="18" :stroke-width="2.2" />
+      </RouterLink>
+    </section>
   </div>
 </template>

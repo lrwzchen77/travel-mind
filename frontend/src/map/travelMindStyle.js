@@ -24,11 +24,11 @@ export const MAP_THEME = {
   label: '#4f473f',
   labelHalo: 'rgba(255, 253, 248, 0.94)',
   muted: '#746b61',
-  ocean: '#e87022',
-  coral: '#e87022',
+  ocean: '#ff7a3d',
+  coral: '#ff7a3d',
   boundary: '#d4c4b3',
-  trail: '#e87022',
-  trailGlow: '#e87022',
+  trail: '#ff7a3d',
+  trailGlow: '#ff7a3d',
 };
 
 const nameField = [

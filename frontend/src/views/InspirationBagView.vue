@@ -1,7 +1,9 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
+import { ArrowRight } from 'lucide-vue-next';
 import { communityApi } from '../api/community.js';
+import PagePrologue from '../components/PagePrologue.vue';
 
 const router = useRouter();
 const items = ref([]);
@@ -31,11 +33,23 @@ onMounted(load);
 </script>
 
 <template>
-  <section class="page-intro"><p class="eyebrow">我的灵感包</p><h1>这一趟，想把哪些体验带上？</h1></section>
+  <PagePrologue index="08" eyebrow="我的灵感包" title="这一趟，想把哪些体验带上？" lead="从社区和 AI 线索里收藏的体验，都会集中在这里，规划时一键带入。" />
   <p v-if="error" class="error-line">{{ error }}</p>
   <div class="section-head"><div><h2>{{ loading ? '正在整理…' : `${items.length} 篇社区分享` }}</h2></div><div class="actions"><button type="button" class="btn-ghost" :disabled="!selectedCount" @click="ask">先问 AI</button><button type="button" class="btn-coral" :disabled="!selectedCount || selectedCount > 5" @click="plan">带去规划（{{ selectedCount }}）</button></div></div>
   <p v-if="overLimit" class="error-line">规划最多引用 5 篇，请再取消 {{ overLimit }} 篇，或<button type="button" class="text-action text-action--primary" @click="ask">让 AI 先帮我取舍</button>。</p>
   <p v-else-if="items.length" class="panel-hint">最多选择 5 篇，当前已选 {{ selectedCount }} 篇。</p>
   <div v-if="!loading && !items.length" class="empty-state empty-state--card"><strong>灵感包还是空的</strong><p>在旅行社区里挑几篇吃、住、玩或避坑分享，再回来组合。</p><RouterLink class="btn-link btn-coral" to="/inspirations">去旅行社区</RouterLink></div>
   <div v-else class="bag-list"><article v-for="item in items" :key="item.post_id" class="bag-item glass-panel"><input v-model="selected" :value="item.post_id" type="checkbox" :aria-label="`选择${item.title}`" /><div><p class="eyebrow">{{ item.city || '目的地' }} · {{ item.topic || '旅行分享' }}</p><RouterLink :to="`/inspirations/${item.post_id}`"><h2>{{ item.title }}</h2></RouterLink><p>{{ String(item.content || '').slice(0, 110) }}{{ String(item.content || '').length > 110 ? '…' : '' }}</p></div><div class="bag-actions"><select v-model="item.intent" @change="updateIntent(item)"><option value="must">必须安排</option><option value="priority">优先参考</option><option value="reference">仅作参考</option></select><span>{{ intentLabels[item.intent] }}</span><button type="button" class="text-action" @click="remove(item)">移除</button></div></article></div>
+
+  <section v-if="items.length" class="chapter-bridge" data-reveal>
+    <div class="chapter-bridge-copy">
+      <p class="chapter-bridge-eyebrow">下一章 · 09 助手</p>
+      <h2 class="chapter-bridge-title">让 AI 帮你取舍，再折成行程</h2>
+      <p class="chapter-bridge-lead">灵感包收集得差不多了。把它交给旅行助手，让模型先帮你理顺冲突，再生成路线。</p>
+    </div>
+    <RouterLink class="chapter-bridge-cta" :to="{ path: '/assistant', query: { inspirationIds: selected.join(',') } }">
+      <span>去问旅行助手</span>
+      <ArrowRight :size="18" :stroke-width="2.2" />
+    </RouterLink>
+  </section>
 </template>

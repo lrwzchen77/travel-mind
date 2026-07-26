@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
+import { ArrowLeft, ArrowRight } from 'lucide-vue-next';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { authSession } from '../auth/session.js';
 import { communityApi } from '../api/community.js';
@@ -98,7 +99,7 @@ onMounted(load);
 </script>
 
 <template>
-  <RouterLink class="city-detail-back" to="/inspirations">← 返回旅行社区</RouterLink>
+  <RouterLink class="city-detail-back" to="/inspirations"><ArrowLeft :size="15" :stroke-width="2.2" /> 返回旅行社区</RouterLink>
   <p v-if="error" class="error-line">{{ error }}</p>
   <article v-if="post" class="inspiration-detail">
     <img v-if="cover" class="inspiration-detail-cover" :src="cover" :alt="post.title" />
@@ -117,4 +118,16 @@ onMounted(load);
   <aside class="inspiration-action glass-panel"><p class="eyebrow">引用到这趟旅行</p><h2>把这份体验带进行程</h2><label class="field-label" for="intent">怎么参考它</label><select id="intent" v-model="intent"><option value="must">必须安排</option><option value="priority">优先参考</option><option value="reference">仅作参考 / 避坑</option></select><button type="button" class="btn-coral" @click="addToBag">加入灵感包</button><RouterLink class="btn-link btn-ghost" :to="{ path: '/assistant', query: { inspirationIds: post.id } }">先问 AI 怎么取舍</RouterLink><button type="button" class="btn-ghost share-post" @click="sharePost">分享给同行人</button><p v-if="message" class="success-line">{{ message }}</p><p v-if="shareError" class="error-line" role="alert">{{ shareError }}</p></aside>
   </article>
   <div v-else-if="loading" class="empty-state">正在打开社区分享…</div>
+
+  <section v-if="post" class="chapter-bridge" data-reveal>
+    <div class="chapter-bridge-copy">
+      <p class="chapter-bridge-eyebrow">下一章 · 09 助手</p>
+      <h2 class="chapter-bridge-title">带着这份体验，问 AI 怎么落地</h2>
+      <p class="chapter-bridge-lead">把这篇分享丢给旅行助手，让它和你的其他灵感一起，被折成可走的行程。</p>
+    </div>
+    <RouterLink class="chapter-bridge-cta" :to="{ path: '/assistant', query: { inspirationIds: post.id } }">
+      <span>去问旅行助手</span>
+      <ArrowRight :size="18" :stroke-width="2.2" />
+    </RouterLink>
+  </section>
 </template>

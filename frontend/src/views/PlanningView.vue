@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
+import { ArrowLeft, ArrowRight, Zap } from 'lucide-vue-next';
 import { useRoute, useRouter, RouterLink } from 'vue-router';
 import { http } from '../api/http.js';
 import { resourceApi } from '../api/resources.js';
@@ -11,12 +12,16 @@ import {
   waitForTripTask,
 } from '../api/tripTask.js';
 import PublicTravelDataPanel from '../components/PublicTravelDataPanel.vue';
+import PagePrologue from '../components/PagePrologue.vue';
 import { consumerText } from '../data/consumerText.js';
 import { supportedPlanningCities, supportsPlanning } from '../data/planningSupport.js';
 import { normalizeRouteIntent, ROUTE_INTENT_KEY } from '../map/trackEditor.js';
+import { useReveal } from '../composables/useReveal.js';
 
 const router = useRouter();
 const route = useRoute();
+const root = ref(null);
+useReveal(root);
 const loading = ref(false);
 const error = ref('');
 const task = ref(null);
@@ -306,27 +311,31 @@ onUnmounted(() => taskAbortController?.abort());
 </script>
 
 <template>
-  <section class="page-intro confirmation-intro">
-    <div>
-      <p class="eyebrow">{{ routeIntent ? '路线确认 · 最后一步' : '路线规划 · 从地图开始' }}</p>
-      <h1>{{ routeIntent ? '路线圈好了，再补几项' : '先圈路线，再生成行程' }}</h1>
-      <p class="lead">{{ routeIntent ? '地点和顺序已经从地图带过来，这里只确认出行信息，然后交给 AI 排成正式日程。' : '这一步只负责确认路线；地点、顺序和每一站的偏好都在地图上完成。' }}</p>
+  <div ref="root" class="planner-page">
+    <PagePrologue
+      index="01"
+      :eyebrow="routeIntent ? '路线确认 · 最后一步' : '路线规划 · 从地图开始'"
+      :title="routeIntent ? '路线圈好了，再补几项' : '先圈路线，再生成行程'"
+      :lead="routeIntent ? '地点和顺序已经从地图带过来，这里只确认出行信息，然后交给 AI 排成正式日程。' : '这一步只负责确认路线；地点、顺序和每一站的偏好都在地图上完成。'"
+      next-label="返回地图调整"
+      :next-to="{ path: '/map', query: { city: form.city } }"
+    />
+    <div class="page-intro-aux">
+      <RouterLink class="btn-link btn-ghost" :to="{ path: '/map', query: { city: form.city } }"><ArrowLeft :size="15" :stroke-width="2.2" /> 返回地图调整</RouterLink>
     </div>
-    <RouterLink class="btn-link btn-ghost" :to="{ path: '/map', query: { city: form.city } }">← 返回地图调整</RouterLink>
-  </section>
 
-  <p v-if="error" class="error-line">{{ error }}</p>
+    <p v-if="error" class="error-line">{{ error }}</p>
 
-  <section v-if="!routeIntent" class="route-required glass-panel">
-    <span aria-hidden="true">⌁</span>
-    <p class="eyebrow">还缺一条路线</p>
-    <h2>先在地图上选好至少两个节点</h2>
-    <p>地点、顺序、节点备注和偏好都从地图进入规划；确认页不再重复替你选择目的地。</p>
-    <RouterLink class="btn-link btn-coral" :to="{ path: '/map', query: { city: form.city } }">去地图画路线</RouterLink>
-  </section>
+    <section v-if="!routeIntent" class="route-required glass-panel" data-reveal style="--reveal-delay: 0s">
+      <span aria-hidden="true"><Zap :size="15" :stroke-width="2.2" /></span>
+      <p class="eyebrow">还缺一条路线</p>
+      <h2>先在地图上选好至少两个节点</h2>
+      <p>地点、顺序、节点备注和偏好都从地图进入规划；确认页不再重复替你选择目的地。</p>
+      <RouterLink class="btn-link btn-coral" :to="{ path: '/map', query: { city: form.city } }">去地图画路线</RouterLink>
+    </section>
 
-  <section v-else class="planner-layout route-confirm-layout">
-    <form class="glass-panel field-stack" @submit.prevent="submit">
+    <section v-else class="planner-layout route-confirm-layout">
+      <form class="glass-panel field-stack" data-reveal style="--reveal-delay: 0.08s" @submit.prevent="submit">
       <div class="confirm-section-title"><span>补充信息</span><h2>只补 AI 还不知道的事</h2></div>
 
       <div class="route-locked-summary">
@@ -410,7 +419,7 @@ onUnmounted(() => taskAbortController?.abort());
 
       <div v-if="form.inspiration_ids.length" class="planner-inspiration-note">
         <strong>已引用 {{ form.inspiration_ids.length }} 篇社区分享</strong>
-        <RouterLink class="text-link" to="/inspiration-bag">调整灵感包 →</RouterLink>
+        <RouterLink class="text-link" to="/inspiration-bag">调整灵感包 <ArrowRight :size="15" :stroke-width="2.2" /></RouterLink>
       </div>
 
       <div class="actions">
@@ -420,7 +429,7 @@ onUnmounted(() => taskAbortController?.abort());
       </div>
     </form>
 
-    <div class="glass-panel route-review-panel" :class="{ 'is-route-draft': !result }">
+    <div class="glass-panel route-review-panel" data-reveal style="--reveal-delay: 0.16s" :class="{ 'is-route-draft': !result }">
       <div class="planner-result-head">
         <div><span>{{ result ? 'AI 已排程' : '地图路线' }}</span><h2>{{ result ? '你的行程草稿' : '确认节点顺序' }}</h2></div>
         <span class="badge" :class="{ 'badge-ok': taskStatus === 'completed', 'badge-warn': loading }">
@@ -450,7 +459,7 @@ onUnmounted(() => taskAbortController?.abort());
           </li>
         </ol>
         <p class="route-order-note">{{ routeIntent.mode === 'strict_order' ? 'AI 将严格按当前顺序安排。' : 'AI 会尽量按当前顺序安排，仅在营业时间、距离或节奏冲突时小幅调整。' }}</p>
-        <RouterLink class="text-link" :to="{ path: '/map', query: { city: routeIntent.city } }">返回地图修改节点 →</RouterLink>
+        <RouterLink class="text-link" :to="{ path: '/map', query: { city: routeIntent.city } }">返回地图修改节点 <ArrowRight :size="15" :stroke-width="2.2" /></RouterLink>
       </section>
 
       <div v-if="result" class="trip-summary" style="margin-top: 20px;">
@@ -491,13 +500,26 @@ onUnmounted(() => taskAbortController?.abort());
         </article>
       </div>
 
-      <PublicTravelDataPanel v-if="result?.data?.public_data?.length" :items="result.data.public_data" />
+      <PublicTravelDataPanel v-if="result?.data?.public_data?.length" data-reveal style="--reveal-delay: 0.24s" :items="result.data.public_data" />
 
       <div v-if="result" class="actions" style="margin-top: 18px;">
         <button type="button" class="btn-coral" @click="openSavedPlan">打开完整行程</button>
       </div>
     </div>
   </section>
+
+    <section class="chapter-bridge" data-reveal style="--reveal-delay: 0.32s">
+      <div class="chapter-bridge-copy">
+        <p class="chapter-bridge-eyebrow">下一章</p>
+        <h2 class="chapter-bridge-title">圈好路线，交给地图确认</h2>
+        <p class="chapter-bridge-lead">规划填完，回到地图把每一站的位置和顺序看清楚。</p>
+      </div>
+      <RouterLink class="chapter-bridge-cta" to="/map">
+        <span>去地图</span>
+        <ArrowRight :size="18" :stroke-width="2.2" />
+      </RouterLink>
+    </section>
+  </div>
 </template>
 
 <style scoped>
@@ -531,29 +553,29 @@ onUnmounted(() => taskAbortController?.abort());
   height: 64px;
   margin-bottom: 16px;
   place-items: center;
-  border: 1px solid #efc3a3;
+  border: 1px solid var(--tm-line);
   border-radius: 50%;
-  background: #fff3e8;
-  color: #e87022;
+  background: var(--tm-accent-soft);
+  color: var(--tm-accent);
   font: 800 34px/1 var(--font-display);
 }
 
 .route-required h2 { margin: 4px 0 10px; font-size: clamp(23px, 3vw, 32px); }
-.route-required > p:not(.eyebrow) { max-width: 520px; margin: 0 0 24px; color: #6f6a63; line-height: 1.7; }
+.route-required > p:not(.eyebrow) { max-width: 520px; margin: 0 0 24px; color: var(--tm-muted); line-height: 1.7; }
 
 .route-confirm-layout { grid-template-columns: minmax(320px, .88fr) minmax(400px, 1.12fr); }
 .route-confirm-layout > .field-stack { gap: 18px; }
 
-.confirm-section-title { padding-bottom: 14px; border-bottom: 1px solid #e7dfd4; }
+.confirm-section-title { padding-bottom: 14px; border-bottom: 1px solid var(--tm-line); }
 .confirm-section-title span,
 .planner-result-head > div > span {
   display: block;
   margin-bottom: 6px;
-  color: #e87022;
+  color: var(--tm-accent);
   font: 800 10px/1.2 var(--font-mono);
   letter-spacing: .12em;
 }
-.confirm-section-title h2 { margin: 0; color: #173f50; font-size: 24px; }
+.confirm-section-title h2 { margin: 0; color: var(--tm-ink); font-size: 24px; }
 
 .route-locked-summary {
   display: flex;
@@ -562,28 +584,28 @@ onUnmounted(() => taskAbortController?.abort());
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  border: 1px solid #ded6cb;
+  border: 1px solid var(--tm-line);
   border-radius: 10px;
-  background: #f8f5ef;
+  background: var(--tm-paper-muted);
 }
 .route-locked-summary > div { display: grid; gap: 4px; }
-.route-locked-summary span { color: #e87022; font: 800 10px/1.2 var(--font-mono); letter-spacing: .08em; }
-.route-locked-summary strong { color: #173f50; font: 800 17px/1.2 var(--font-display); }
-.route-locked-summary small { color: #817970; text-align: right; }
+.route-locked-summary span { color: var(--tm-accent); font: 800 10px/1.2 var(--font-mono); letter-spacing: .08em; }
+.route-locked-summary strong { color: var(--tm-ink); font: 800 17px/1.2 var(--font-display); }
+.route-locked-summary small { color: var(--tm-muted); text-align: right; }
 
 .route-review-panel { min-height: 0; }
 .route-review-panel.is-route-draft {
   position: sticky;
   top: calc(var(--header-h, 72px) + 18px);
   overflow: hidden;
-  border-color: #234f5f;
-  background: linear-gradient(145deg, #173f50 0%, #214e5d 100%);
-  color: #fffaf1;
-  box-shadow: 0 22px 50px rgba(23, 63, 80, .2);
+  border-color: var(--tm-accent-soft);
+  background: linear-gradient(145deg, var(--tm-paper-raised) 0%, var(--tm-paper-muted) 100%);
+  color: var(--tm-ink);
+  box-shadow: 0 22px 50px rgba(0, 0, 0, .4), 0 0 0 1px var(--tm-accent-soft);
 }
-.route-review-panel.is-route-draft::before { border-top-color: #f47a2a; }
-.is-route-draft .planner-result-head h2 { color: #fffaf1; }
-.is-route-draft .badge { border-color: rgba(255, 250, 241, .16); background: rgba(255, 250, 241, .1); color: #fffaf1; }
+.route-review-panel.is-route-draft::before { border-top-color: var(--tm-accent); }
+.is-route-draft .planner-result-head h2 { color: var(--tm-ink); }
+.is-route-draft .badge { border-color: var(--tm-line); background: var(--tm-paper-raised); color: var(--tm-ink); }
 
 .route-review { margin-top: 22px; }
 .route-review ol { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
@@ -602,7 +624,7 @@ onUnmounted(() => taskAbortController?.abort());
   bottom: 0;
   left: 20px;
   width: 2px;
-  background: linear-gradient(#e87022, rgba(244, 173, 66, .24));
+  background: linear-gradient(var(--tm-accent), var(--tm-accent-soft));
 }
 .route-review li > b {
   position: relative;
@@ -611,25 +633,25 @@ onUnmounted(() => taskAbortController?.abort());
   width: 42px;
   height: 42px;
   place-items: center;
-  border: 2px solid #f4ad42;
+  border: 2px solid var(--tm-accent);
   border-radius: 50%;
-  background: #173f50;
-  color: #fffaf1;
+  background: var(--tm-paper);
+  color: var(--tm-accent);
   font: 900 11px/1 var(--font-mono);
-  box-shadow: 0 0 0 5px rgba(244, 173, 66, .1);
+  box-shadow: 0 0 0 5px var(--tm-accent-soft);
 }
 .route-review li > div { min-width: 0; padding-top: 1px; }
-.route-review li strong { display: block; color: #fffaf1; font: 800 17px/1.3 var(--font-display); }
-.route-review li > div > span { display: block; margin-top: 4px; color: rgba(255, 250, 241, .58); font-size: 11px; }
-.route-review li p { margin: 10px 0 0; color: rgba(255, 250, 241, .84); font-size: 13px; line-height: 1.55; }
+.route-review li strong { display: block; color: var(--tm-ink); font: 800 17px/1.3 var(--font-display); }
+.route-review li > div > span { display: block; margin-top: 4px; color: var(--tm-muted); font-size: 11px; }
+.route-review li p { margin: 10px 0 0; color: var(--tm-ink-soft); font-size: 13px; line-height: 1.55; }
 
 .route-node-prefs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .route-node-prefs i {
   padding: 5px 8px;
-  border: 1px solid rgba(244, 173, 66, .3);
+  border: 1px solid var(--tm-accent-soft);
   border-radius: 999px;
-  background: rgba(244, 173, 66, .09);
-  color: #ffd08b;
+  background: var(--tm-accent-soft);
+  color: var(--tm-accent);
   font-size: 10px;
   font-style: normal;
   font-weight: 800;
@@ -637,14 +659,14 @@ onUnmounted(() => taskAbortController?.abort());
 .route-order-note {
   margin: 2px 0 12px;
   padding: 12px 14px;
-  border-left: 3px solid #f4ad42;
-  background: rgba(255, 250, 241, .07);
-  color: rgba(255, 250, 241, .7);
+  border-left: 3px solid var(--tm-accent);
+  background: var(--tm-paper-muted);
+  color: var(--tm-muted);
   font-size: 12px;
   line-height: 1.6;
 }
-.is-route-draft .text-link { color: #ffd08b; }
-.is-route-draft .text-link:focus-visible { outline-color: #ffd08b; }
+.is-route-draft .text-link { color: var(--tm-accent); }
+.is-route-draft .text-link:focus-visible { outline-color: var(--tm-accent); }
 
 @media (max-width: 980px) {
   .route-confirm-layout { grid-template-columns: 1fr; }

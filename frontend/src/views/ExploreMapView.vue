@@ -1,10 +1,20 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
+import { useRouter, useRoute, RouterLink } from 'vue-router';
+import {
+  Mountain, BedDouble, Utensils, Car, Plane, TrainFront,
+  Plus, ChevronRight, ArrowUpRight, ArrowRight, X,
+  CloudLightning, Snowflake, CloudRain, CloudFog, Cloud, Sun, CloudSun,
+} from 'lucide-vue-next';
 import { tripApi } from '../api/trip.js';
 import TravelMap3D from '../components/map/AsyncTravelMap3D.vue';
+import PagePrologue from '../components/PagePrologue.vue';
 import { findDestination, geoDestinations } from '../data/geoDestinations.js';
 import { normalizeRouteIntent, routeIntentFromTrack, ROUTE_INTENT_KEY } from '../map/trackEditor.js';
+import { useReveal } from '../composables/useReveal.js';
+
+const root = ref(null);
+useReveal(root);
 
 const CITY_NAMES = geoDestinations.map((item) => item.city);
 const FILTERS = [
@@ -12,7 +22,7 @@ const FILTERS = [
   ['restaurant', '餐饮'], ['route', '路线'], ['arrival', '抵达'],
 ];
 const KIND_LABEL = { attraction: '景点', hotel: '住宿', restaurant: '餐饮' };
-const KIND_ICON = { attraction: '🏞️', hotel: '🛏️', restaurant: '🍜' };
+const KIND_ICON = { attraction: Mountain, hotel: BedDouble, restaurant: Utensils };
 
 const router = useRouter();
 const route = useRoute();
@@ -109,12 +119,12 @@ function formatTime(value) {
 }
 
 function weatherGlyph(condition = '') {
-  if (condition.includes('雷')) return '⚡';
-  if (condition.includes('雪')) return '❄';
-  if (condition.includes('雨')) return '☂';
-  if (condition.includes('雾')) return '≋';
-  if (condition.includes('云')) return '☁';
-  return condition.includes('晴') ? '☀' : '○';
+  if (condition.includes('雷')) return CloudLightning;
+  if (condition.includes('雪')) return Snowflake;
+  if (condition.includes('雨')) return CloudRain;
+  if (condition.includes('雾')) return CloudFog;
+  if (condition.includes('云')) return Cloud;
+  return condition.includes('晴') ? Sun : CloudSun;
 }
 
 function formatForecastDate(value, index) {
@@ -244,13 +254,9 @@ watch(selected, (city, previousCity) => {
 </script>
 
 <template>
-  <main class="travel-intelligence">
-    <header class="intelligence-heading">
-      <div>
-        <p class="intelligence-kicker">城市漫游指南</p>
-        <h1>{{ selected }}，先圈出想去的地方</h1>
-        <p class="intelligence-lead">地图是行程起点：选地点、连路线、补节点偏好，确认后再填写出行信息。</p>
-      </div>
+  <main ref="root" class="travel-intelligence">
+    <header class="intelligence-heading" data-reveal style="--reveal-delay: 0s">
+      <PagePrologue index="02" eyebrow="城市漫游指南" :title="`${selected}，先圈出想去的地方`" lead="地图是行程起点：选地点、连路线、补节点偏好，确认后再填写出行信息。" next-label="圈好路线，去规划" next-to="/planning" />
       <label class="city-picker">
         <span>选择目的地</span>
         <select :value="selected" aria-label="选择旅行城市" @change="pickCity($event.target.value)">
@@ -262,7 +268,7 @@ watch(selected, (city, previousCity) => {
     </header>
 
     <section class="intelligence-workbench" :aria-label="`${selected}旅行地图与地点清单`">
-      <aside class="intelligence-sidebar">
+      <aside class="intelligence-sidebar" data-reveal style="--reveal-delay: 0.08s">
         <button
           v-if="publicData?.weather"
           ref="weatherEntryRef"
@@ -271,13 +277,13 @@ watch(selected, (city, previousCity) => {
           aria-haspopup="dialog"
           @click="openWeather"
         >
-          <span class="weather-glyph" aria-hidden="true">{{ weatherGlyph(publicData.weather.condition) }}</span>
+          <span class="weather-glyph" aria-hidden="true"><component :is="weatherGlyph(publicData.weather.condition)" :size="22" :stroke-width="2" /></span>
           <span class="weather-now">
             <small>现在 · {{ formatTime(publicData.weather.updated_at) }}</small>
             <strong>{{ Math.round(publicData.weather.temperature) }}°</strong>
             <span>{{ publicData.weather.condition }} · 风速 {{ publicData.weather.wind_speed }} km/h</span>
           </span>
-          <span class="forecast-entry">未来 {{ publicData.weather.daily?.length || 0 }} 天 <i aria-hidden="true">›</i></span>
+          <span class="forecast-entry">未来 {{ publicData.weather.daily?.length || 0 }} 天 <i aria-hidden="true"><ChevronRight :size="14" :stroke-width="2.2" /></i></span>
         </button>
 
         <nav class="layer-strip" aria-label="筛选旅行情报">
@@ -322,25 +328,25 @@ watch(selected, (city, previousCity) => {
           >
             <span class="type-mark" :class="`type-mark--${place.kind}`" aria-hidden="true">
               <img v-if="place.image_url" :src="place.image_url" alt="" loading="lazy" referrerpolicy="no-referrer" />
-              <template v-else>{{ KIND_ICON[place.kind] }}</template>
+              <component v-else :is="KIND_ICON[place.kind]" :size="15" :stroke-width="2" />
             </span>
             <span class="card-copy">
               <strong>{{ place.name }}</strong>
             </span>
             <span v-if="selectedPlaceIds.includes(place.id)" class="picked-state">已选</span>
-            <span v-else class="card-arrow" aria-hidden="true">＋</span>
+            <span v-else class="card-arrow" aria-hidden="true"><Plus :size="18" :stroke-width="2" /></span>
           </button>
 
           <button v-if="showRoute" type="button" class="intel-card intel-card--route" @click="flyTo(visiblePlaces[0])">
-            <span class="type-mark type-mark--route" aria-hidden="true">🚗</span>
+            <span class="type-mark type-mark--route" aria-hidden="true"><Car :size="15" :stroke-width="2" /></span>
             <span class="card-copy"><small>驾车参考</small><strong>{{ publicData.route.from }} → {{ publicData.route.to }}</strong><span>{{ publicData.route.distance_km.toFixed(1) }} km · 约 {{ publicData.route.duration_minutes }} 分钟</span></span>
-            <span class="card-arrow" aria-hidden="true">›</span>
+            <span class="card-arrow" aria-hidden="true"><ChevronRight :size="18" :stroke-width="2" /></span>
           </button>
 
           <button v-if="showArrival && publicData?.airport" type="button" class="intel-card intel-card--airport" @click="flyTo(publicData.airport)">
-            <span class="type-mark type-mark--airport" aria-hidden="true">✈</span>
+            <span class="type-mark type-mark--airport" aria-hidden="true"><Plane :size="15" :stroke-width="2" /></span>
             <span class="card-copy"><small>乘飞机抵达</small><strong>{{ publicData.airport.code }} · {{ publicData.airport.name }}</strong></span>
-            <span class="card-arrow" aria-hidden="true">›</span>
+            <span class="card-arrow" aria-hidden="true"><ChevronRight :size="18" :stroke-width="2" /></span>
           </button>
 
           <a
@@ -350,9 +356,9 @@ watch(selected, (city, previousCity) => {
             target="_blank"
             rel="noopener noreferrer"
           >
-            <span class="type-mark type-mark--rail" aria-hidden="true">🚄</span>
+            <span class="type-mark type-mark--rail" aria-hidden="true"><TrainFront :size="15" :stroke-width="2" /></span>
             <span class="card-copy"><small>乘火车抵达</small><strong>去 12306 查车次与余票</strong></span>
-            <span class="card-arrow" aria-hidden="true">↗</span>
+            <span class="card-arrow" aria-hidden="true"><ArrowUpRight :size="18" :stroke-width="2" /></span>
           </a>
 
           <article v-if="!loading && !error && !visiblePlaces.length && !showRoute && !showArrival" class="intel-card intel-card--status">
@@ -374,7 +380,7 @@ watch(selected, (city, previousCity) => {
         </footer>
       </aside>
 
-      <section class="intelligence-map-panel" aria-label="3D 旅行情报地图">
+      <section class="intelligence-map-panel" data-reveal style="--reveal-delay: 0.16s" aria-label="3D 旅行情报地图">
         <div class="map-context"><strong>{{ selected }}</strong><span>{{ trackIntent ? `路线已连成 ${trackIntent.nodes.length} 个节点` : '拖动浏览 · 开启轨迹编辑后点击落点' }}</span></div>
         <TravelMap3D
           ref="mapRef"
@@ -396,7 +402,19 @@ watch(selected, (city, previousCity) => {
       </section>
     </section>
 
-    <p class="data-boundary">天气来自 Open-Meteo；地点来自高德地图、OpenStreetMap 与 Travel Mind 地点库，并结合公开社区攻略。营业、价格、航班、车次与余票请以现场及官网为准。</p>
+    <p class="data-boundary" data-reveal style="--reveal-delay: 0.24s">天气来自 Open-Meteo；地点来自高德地图、OpenStreetMap 与 Travel Mind 地点库，并结合公开社区攻略。营业、价格、航班、车次与余票请以现场及官网为准。</p>
+
+    <section class="chapter-bridge" data-reveal style="--reveal-delay: 0.32s">
+      <div class="chapter-bridge-copy">
+        <p class="chapter-bridge-eyebrow">下一章</p>
+        <h2 class="chapter-bridge-title">地图圈完，开始排日程</h2>
+        <p class="chapter-bridge-lead">把选好的地点和路线带进规划，补上出行信息就能生成行程。</p>
+      </div>
+      <RouterLink class="chapter-bridge-cta" to="/planning">
+        <span>去规划</span>
+        <ArrowRight :size="18" :stroke-width="2.2" />
+      </RouterLink>
+    </section>
 
     <Teleport to="body">
       <Transition name="weather-sheet">
@@ -407,13 +425,13 @@ watch(selected, (city, previousCity) => {
                 <span>{{ selected }}</span>
                 <h2 id="forecast-title">未来 {{ publicData?.weather?.daily?.length || 0 }} 天</h2>
               </div>
-              <button ref="weatherCloseRef" type="button" aria-label="关闭未来天气" @click="closeWeather">×</button>
+              <button ref="weatherCloseRef" type="button" aria-label="关闭未来天气" @click="closeWeather"><X :size="18" :stroke-width="2" /></button>
             </header>
             <p class="forecast-summary">{{ publicData?.weather?.condition }}，现在 {{ Math.round(publicData?.weather?.temperature || 0) }}°</p>
             <div ref="forecastListRef" class="forecast-list" tabindex="0" aria-label="未来天气逐日预报">
               <article v-for="(day, index) in publicData?.weather?.daily || []" :key="day.date" class="forecast-day">
                 <time :datetime="day.date">{{ formatForecastDate(day.date, index) }}</time>
-                <span class="forecast-condition"><i aria-hidden="true">{{ weatherGlyph(day.dayWeather) }}</i>{{ day.dayWeather }}</span>
+                <span class="forecast-condition"><i aria-hidden="true"><component :is="weatherGlyph(day.dayWeather)" :size="18" :stroke-width="2" /></i>{{ day.dayWeather }}</span>
                 <strong class="temp-low">{{ Math.min(day.dayTemp, day.nightTemp) }}°</strong>
                 <span class="temperature-track" aria-hidden="true"><i :style="temperatureStyle(day)" /></span>
                 <strong>{{ Math.max(day.dayTemp, day.nightTemp) }}°</strong>
@@ -428,9 +446,9 @@ watch(selected, (city, previousCity) => {
 
 <style scoped>
 .travel-intelligence {
-  --night-ink: #173f50;
-  --rice: #fffaf1;
-  --vermilion: #e87022;
+  --night-ink: var(--tm-ink);
+  --rice: var(--tm-paper);
+  --vermilion: var(--tm-accent);
   --map-workbench-h: clamp(680px, calc(100vh - 180px), 820px);
   width: min(1520px, calc(100vw - 40px));
   max-width: none;
@@ -462,7 +480,7 @@ watch(selected, (city, previousCity) => {
 
 .intelligence-lead {
   margin: 9px 0 0;
-  color: #6f6a63;
+  color: var(--tm-muted);
   font-size: 14px;
 }
 
@@ -473,7 +491,7 @@ watch(selected, (city, previousCity) => {
 }
 
 .city-picker span {
-  color: #81786e;
+  color: var(--tm-muted);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: .08em;
@@ -483,9 +501,9 @@ watch(selected, (city, previousCity) => {
   width: 100%;
   min-height: 44px;
   padding: 0 40px 0 13px;
-  border: 1px solid #d9d1c6;
+  border: 1px solid var(--tm-line-strong);
   border-radius: 12px;
-  background: #fff;
+  background: var(--tm-paper-muted);
   color: var(--night-ink);
   cursor: pointer;
   font-weight: 800;
@@ -496,10 +514,10 @@ watch(selected, (city, previousCity) => {
   grid-template-columns: clamp(300px, 21vw, 340px) minmax(0, 1fr);
   min-width: 0;
   overflow: hidden;
-  border: 1px solid #d8d0c4;
+  border: 1px solid var(--tm-line);
   border-radius: 24px;
   background: var(--rice);
-  box-shadow: 0 22px 54px rgba(23, 63, 80, .14);
+  box-shadow: var(--tm-shadow-card);
 }
 
 .intelligence-sidebar {
@@ -508,8 +526,8 @@ watch(selected, (city, previousCity) => {
   min-width: 0;
   flex-direction: column;
   padding: 18px;
-  border-right: 1px solid #e5ddd2;
-  background: #fffdf8;
+  border-right: 1px solid var(--tm-line);
+  background: var(--tm-paper);
 }
 
 .weather-summary {
@@ -521,7 +539,7 @@ watch(selected, (city, previousCity) => {
   min-height: 74px;
   padding: 0 0 14px;
   border: 0;
-  border-bottom: 1px solid #e8e1d7;
+  border-bottom: 1px solid var(--tm-line);
   border-radius: 0;
   background: transparent;
   color: var(--night-ink);
@@ -535,15 +553,15 @@ watch(selected, (city, previousCity) => {
   height: 34px;
   place-items: center;
   border-radius: 10px;
-  background: #fff0e4;
+  background: var(--tm-accent-soft);
   color: var(--vermilion);
   font-size: 23px;
 }
 
 .weather-now { display: block; min-width: 0; }
-.weather-now small { display: block; overflow: hidden; color: #8c8379; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.weather-now small { display: block; overflow: hidden; color: var(--tm-muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .weather-now strong { display: inline-block; margin: 4px 8px 0 0; font: 800 25px/1 var(--font-display); vertical-align: middle; }
-.weather-now > span { color: #6d7777; font-size: 11px; vertical-align: middle; white-space: nowrap; }
+.weather-now > span { color: var(--tm-muted-soft); font-size: 11px; vertical-align: middle; white-space: nowrap; }
 .forecast-entry {
   color: var(--vermilion);
   font-size: 10px;
@@ -562,10 +580,10 @@ watch(selected, (city, previousCity) => {
 .layer-strip button {
   min-height: 34px;
   padding: 0 8px;
-  border: 1px solid #e4ddd4;
+  border: 1px solid var(--tm-line);
   border-radius: 9px;
-  background: #fff;
-  color: #596466;
+  background: var(--tm-paper-muted);
+  color: var(--tm-ink-soft);
   cursor: pointer;
   font-size: 12px;
   font-weight: 700;
@@ -573,8 +591,8 @@ watch(selected, (city, previousCity) => {
 
 .layer-strip button.is-active {
   border-color: var(--vermilion);
-  background: #fff0e4;
-  color: #bd5518;
+  background: var(--tm-accent-soft);
+  color: var(--tm-accent);
 }
 
 .intel-list-heading {
@@ -587,7 +605,7 @@ watch(selected, (city, previousCity) => {
 }
 
 .intel-list-heading strong { flex: 0 0 auto; font-size: 13px; white-space: nowrap; }
-.intel-list-heading span { color: #91887e; font-size: 11px; line-height: 1.45; text-align: right; }
+.intel-list-heading span { color: var(--tm-muted); font-size: 11px; line-height: 1.45; text-align: right; }
 
 .intel-list {
   display: grid;
@@ -596,7 +614,7 @@ watch(selected, (city, previousCity) => {
   align-content: start;
   gap: 8px;
   padding-right: 5px;
-  scrollbar-color: #d9cfc3 transparent;
+  scrollbar-color: var(--tm-paper-raised) transparent;
 }
 
 .intel-card {
@@ -607,9 +625,9 @@ watch(selected, (city, previousCity) => {
   width: 100%;
   min-height: 68px;
   padding: 10px;
-  border: 1px solid #e8e1d7;
+  border: 1px solid var(--tm-line);
   border-radius: 12px;
-  background: #fff;
+  background: var(--tm-paper);
   color: var(--night-ink);
   text-align: left;
 }
@@ -618,36 +636,37 @@ button.intel-card,
 a.intel-card { cursor: pointer; transition: transform .16s ease, border-color .16s ease; }
 button.intel-card:hover,
 a.intel-card:hover { transform: translateX(2px); border-color: var(--vermilion); }
-.intel-card.is-selected { border-color: var(--vermilion); background: #fff7ef; }
+.intel-card.is-selected { border-color: var(--vermilion); background: var(--tm-accent-soft); }
 .intel-card.has-community { min-height: 68px; }
-.intel-card small { display: block; margin-bottom: 3px; color: #7b817e; font: 700 10px/1.3 var(--font-body); }
+.intel-card small { display: block; margin-bottom: 3px; color: var(--tm-muted); font: 700 10px/1.3 var(--font-body); }
 .intel-card strong { display: block; overflow: hidden; font: 800 14px/1.3 var(--font-display); text-overflow: ellipsis; white-space: nowrap; }
-.intel-card p { margin: 0; color: #5d686a; font-size: 12px; line-height: 1.5; }
+.intel-card p { margin: 0; color: var(--tm-ink-soft); font-size: 12px; line-height: 1.5; }
 .card-copy { display: block; min-width: 0; }
-.card-copy > span { display: block; overflow: hidden; margin-top: 4px; color: #5d686a; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
-.card-copy .community-tip { color: #bd5518; }
+.card-copy > span { display: block; overflow: hidden; margin-top: 4px; color: var(--tm-ink-soft); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.card-copy .community-tip { color: var(--tm-accent); }
 .type-mark {
   display: grid;
   width: 38px;
   height: 38px;
   place-items: center;
   border-radius: 12px 12px 12px 4px;
-  background: #e9f4ef;
-  font-size: 18px;
-  box-shadow: inset 0 0 0 1px rgba(23,63,80,.05);
+  background: var(--tm-accent-soft);
+  color: var(--tm-accent);
+  font-size: 0;
+  box-shadow: inset 0 0 0 1px var(--tm-line);
   overflow: hidden;
 }
 .type-mark img { width: 100%; height: 100%; object-fit: cover; }
-.type-mark--hotel { border-radius: 7px 15px 7px 15px; background: #e3f1f5; }
-.type-mark--restaurant { border-radius: 50% 50% 12px 50%; background: #fff0df; }
-.type-mark--route { border-radius: 12px 4px 12px 4px; background: #ffe5d4; }
-.type-mark--airport { border-radius: 50% 8px 50% 8px; background: #e5ebf7; color: #254a81; }
-.type-mark--rail { border-radius: 8px; background: rgba(255,255,255,.14); }
-.card-arrow { color: #8b9290; font-size: 20px; font-weight: 500; }
-.picked-state { padding: 3px 7px; border-radius: 999px; background: var(--vermilion); color: #fff; font-size: 9px; font-weight: 800; white-space: nowrap; }
-.intel-card--rail { background: rgba(23, 63, 80, .94); color: var(--rice); }
+.type-mark--hotel { border-radius: 7px 15px 7px 15px; background: var(--tm-accent-soft); color: var(--tm-accent); }
+.type-mark--restaurant { border-radius: 50% 50% 12px 50%; background: var(--tm-sun-soft); color: var(--tm-sun); }
+.type-mark--route { border-radius: 12px 4px 12px 4px; background: var(--tm-accent-soft); color: var(--tm-accent); }
+.type-mark--airport { border-radius: 50% 8px 50% 8px; background: var(--tm-sun-soft); color: var(--tm-sun); }
+.type-mark--rail { border-radius: 8px; background: var(--tm-paper-raised); color: var(--tm-ink-soft); }
+.card-arrow { color: var(--tm-muted); font-size: 0; font-weight: 500; display: inline-flex; align-items: center; }
+.picked-state { padding: 3px 7px; border-radius: 999px; background: var(--vermilion); color: #160d05; font-size: 9px; font-weight: 800; white-space: nowrap; }
+.intel-card--rail { background: var(--tm-paper-raised); color: var(--tm-ink-soft); }
 .intel-card--rail small,
-.intel-card--rail .card-arrow { color: rgba(255, 250, 241, .7); }
+.intel-card--rail .card-arrow { color: var(--tm-muted); }
 .intel-card--status { display: block; }
 
 .intelligence-action {
@@ -655,16 +674,16 @@ a.intel-card:hover { transform: translateX(2px); border-color: var(--vermilion);
   gap: 10px;
   margin: 14px -2px -2px;
   padding: 14px 2px 2px;
-  border-top: 1px solid #e8e1d7;
+  border-top: 1px solid var(--tm-line);
 }
 
 .intelligence-action div { display: grid; min-width: 0; }
 .intelligence-action span { color: var(--vermilion); font-size: 10px; font-weight: 800; }
 .intelligence-action strong { overflow: hidden; margin-top: 2px; color: var(--night-ink); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.plan-cta { width: 100%; min-height: 44px; padding: 0 18px; border: 0; border-radius: 12px; background: var(--vermilion); color: #fff; cursor: pointer; font-weight: 800; box-shadow: 0 8px 18px rgba(232,112,34,.18); }
-.plan-cta:disabled { background: #eadfd3; color: #8a8178; box-shadow: none; }
+.plan-cta { width: 100%; min-height: 44px; padding: 0 18px; border: 0; border-radius: 12px; background: var(--vermilion); color: #160d05; cursor: pointer; font-weight: 800; box-shadow: 0 8px 18px var(--tm-accent-glow); }
+.plan-cta:disabled { background: var(--tm-paper-raised); color: var(--tm-muted); box-shadow: none; }
 
-.intelligence-map-panel { position: relative; min-width: 0; overflow: hidden; background: #e9e4db; }
+.intelligence-map-panel { position: relative; min-width: 0; overflow: hidden; background: var(--tm-paper-muted); }
 .intelligence-map :deep(.map3d) { height: var(--map-workbench-h) !important; border-radius: 0 23px 23px 0; }
 .intelligence-map :deep(.map3d-city-picker) { display: none; }
 .intelligence-map :deep(.map3d-hud) { justify-content: flex-end; }
@@ -677,16 +696,16 @@ a.intel-card:hover { transform: translateX(2px); border-color: var(--vermilion);
   left: 16px;
   display: grid;
   padding: 10px 13px;
-  border: 1px solid rgba(255,255,255,.72);
+  border: 1px solid var(--tm-line-strong);
   border-radius: 12px;
-  background: rgba(255,253,248,.9);
+  background: rgba(21, 17, 12, 0.9);
   color: var(--night-ink);
-  box-shadow: 0 7px 20px rgba(23,63,80,.12);
+  box-shadow: var(--tm-shadow-card);
   backdrop-filter: blur(10px);
   pointer-events: none;
 }
 .map-context strong { font-size: 13px; }
-.map-context span { color: #6d7777; font-size: 10px; }
+.map-context span { color: var(--tm-muted); font-size: 10px; }
 
 .weather-backdrop {
   position: fixed;
@@ -696,30 +715,30 @@ a.intel-card:hover { transform: translateX(2px); border-color: var(--vermilion);
   align-items: center;
   justify-items: end;
   padding: 20px;
-  background: rgba(39, 35, 31, .32);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(6px);
 }
 .weather-drawer {
-  --night-ink: #173f50;
-  --rice: #fffaf1;
-  --vermilion: #e87022;
+  --night-ink: var(--tm-ink);
+  --rice: var(--tm-paper);
+  --vermilion: var(--tm-accent);
   display: flex;
   flex-direction: column;
   width: min(500px, 100%);
   max-height: min(790px, calc(100vh - 40px));
   overflow: hidden;
-  border: 1px solid #d8d0c4;
+  border: 1px solid var(--tm-line-strong);
   border-radius: 22px;
-  background: #fffdf8;
+  background: var(--tm-paper);
   color: var(--night-ink);
-  box-shadow: 0 28px 70px rgba(39,35,31,.24);
+  box-shadow: var(--tm-shadow-lift);
 }
-.weather-drawer header { display: flex; justify-content: space-between; align-items: start; padding: 24px 24px 10px; background: var(--night-ink); color: var(--rice); }
-.weather-drawer header span { color: rgba(255,250,241,.64); font-size: 11px; font-weight: 700; letter-spacing: .08em; }
+.weather-drawer header { display: flex; justify-content: space-between; align-items: start; padding: 24px 24px 10px; background: var(--tm-paper-raised); color: var(--tm-ink); border-bottom: 1px solid var(--tm-line); }
+.weather-drawer header span { color: var(--tm-muted); font-size: 11px; font-weight: 700; letter-spacing: .08em; }
 .weather-drawer h2 { margin: 3px 0 0; font: 800 27px/1.15 var(--font-display); }
-.weather-drawer header button { display: grid; width: 34px; height: 34px; padding: 0; place-items: center; border: 1px solid rgba(255,250,241,.24); border-radius: 10px; background: transparent; color: var(--rice); cursor: pointer; font-size: 22px; line-height: 1; }
-.forecast-summary { margin: 0; padding: 0 24px 20px; background: var(--night-ink); color: rgba(255,250,241,.76); font-size: 13px; }
-.forecast-list { overflow-y: auto; padding: 6px 18px 18px; scrollbar-color: #d4c9bc transparent; }
+.weather-drawer header button { display: grid; width: 34px; height: 34px; padding: 0; place-items: center; border: 1px solid var(--tm-line-strong); border-radius: 10px; background: transparent; color: var(--tm-ink); cursor: pointer; font-size: 0; line-height: 1; }
+.forecast-summary { margin: 0; padding: 0 24px 20px; background: var(--tm-paper-raised); color: var(--tm-ink-soft); font-size: 13px; }
+.forecast-list { overflow-y: auto; padding: 6px 18px 18px; scrollbar-color: var(--tm-paper-raised) transparent; }
 .forecast-day {
   display: grid;
   grid-template-columns: 110px 82px 30px minmax(70px, 1fr) 30px;
@@ -727,33 +746,33 @@ a.intel-card:hover { transform: translateX(2px); border-color: var(--vermilion);
   gap: 10px;
   min-height: 56px;
   padding: 0 8px;
-  border-bottom: 1px solid #ece5dc;
+  border-bottom: 1px solid var(--tm-line);
 }
 .forecast-day:last-child { border-bottom: 0; }
 .forecast-day time { color: var(--night-ink); font-size: 12px; font-weight: 800; }
-.forecast-condition { display: flex; align-items: center; gap: 7px; color: #6d7777; font-size: 11px; }
-.forecast-condition i { width: 24px; color: var(--vermilion); font-size: 20px; font-style: normal; text-align: center; }
+.forecast-condition { display: flex; align-items: center; gap: 7px; color: var(--tm-muted); font-size: 11px; }
+.forecast-condition i { width: 24px; color: var(--vermilion); font-size: 0; font-style: normal; text-align: center; display: inline-flex; align-items: center; justify-content: center; }
 .forecast-day strong { font-size: 14px; text-align: right; }
-.forecast-day .temp-low { color: #8b9290; }
-.temperature-track { position: relative; height: 4px; border-radius: 999px; background: #e4ddd4; }
+.forecast-day .temp-low { color: var(--tm-muted); }
+.temperature-track { position: relative; height: 4px; border-radius: 999px; background: var(--tm-paper-raised); }
 .temperature-track i { position: absolute; top: 0; bottom: 0; min-width: 8px; border-radius: inherit; background: var(--vermilion); }
 .weather-sheet-enter-active .weather-drawer,
 .weather-sheet-leave-active .weather-drawer { transition: transform .22s ease; }
 .weather-sheet-enter-from .weather-drawer,
 .weather-sheet-leave-to .weather-drawer { transform: translateX(28px); }
 
-.data-boundary { margin: 12px 4px 0; color: #7d756c; font-size: 11px; line-height: 1.6; }
+.data-boundary { margin: 12px 4px 0; color: var(--tm-muted); font-size: 11px; line-height: 1.6; }
 
 button:focus-visible,
-a:focus-visible { outline: 3px solid rgba(232,112,34,.35); outline-offset: 3px; }
-.weather-summary:focus-visible { outline: 3px solid rgba(232,112,34,.45); outline-offset: 3px; }
+a:focus-visible { outline: 3px solid var(--tm-accent-glow); outline-offset: 3px; }
+.weather-summary:focus-visible { outline: 3px solid var(--tm-accent-glow); outline-offset: 3px; }
 
 @media (max-width: 820px) {
   .travel-intelligence { width: 100%; margin-left: 0; transform: none; }
   .intelligence-heading { display: grid; gap: 14px; }
   .city-picker { width: 100%; }
   .intelligence-workbench { grid-template-columns: 1fr; border-radius: 18px; }
-  .intelligence-sidebar { height: auto; min-height: 540px; border-right: 0; border-bottom: 1px solid #e5ddd2; }
+  .intelligence-sidebar { height: auto; min-height: 540px; border-right: 0; border-bottom: 1px solid var(--tm-line); }
   .intel-list { max-height: 360px; }
   .intelligence-map :deep(.map3d) { height: 56vh !important; min-height: 440px; border-radius: 0 0 17px 17px; }
   .weather-backdrop { align-items: end; padding: 0; }

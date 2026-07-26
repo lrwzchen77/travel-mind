@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import { ArrowUpRight } from 'lucide-vue-next';
 
 const props = defineProps({ items: { type: Array, default: () => [] } });
 
@@ -39,7 +40,8 @@ function updated(value) {
         <p>{{ item.detail }}</p>
         <small>来源：{{ item.source }}<template v-if="updated(item.updated_at)"> · {{ updated(item.updated_at) }}</template></small>
         <a v-if="item.url" :href="item.url" target="_blank" rel="noreferrer">
-          {{ item.source?.includes('12306') ? '去 12306 官网核验 →' : '查看数据来源 →' }}
+          {{ item.source?.includes('12306') ? '去 12306 官网核验' : '查看数据来源' }}
+          <ArrowUpRight :size="13" :stroke-width="2.2" aria-hidden="true" />
         </a>
       </article>
     </div>

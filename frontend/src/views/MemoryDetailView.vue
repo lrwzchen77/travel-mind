@@ -1,7 +1,12 @@
 <script setup>
 import { computed, nextTick, onMounted, reactive, ref } from 'vue';
+import { ArrowLeft, ArrowRight } from 'lucide-vue-next';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { memoryApi, memoryImageUrl } from '../api/memory.js';
+import { useReveal } from '../composables/useReveal.js';
+
+const root = ref(null);
+useReveal(root);
 
 const route = useRoute();
 const router = useRouter();
@@ -250,7 +255,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <RouterLink class="city-detail-back" to="/memories">← 返回旅行记录</RouterLink>
+  <div ref="root">
+  <RouterLink class="city-detail-back" to="/memories"><ArrowLeft :size="15" :stroke-width="2.2" /> 返回旅行记录</RouterLink>
   <p v-if="error" class="error-line" role="alert">{{ error }}</p>
   <p v-if="message" class="success-line" role="status">{{ message }}</p>
   <div v-if="loading && !memory" class="empty-state">正在打开这篇旅行记录…</div>
@@ -312,7 +318,7 @@ onMounted(async () => {
       <div v-else-if="memory.generation_status === 'pending'" class="memory-find-notice"><span>这本记录有新内容，更新后就能查找细节。</span><button type="button" class="text-link" :disabled="Boolean(busy)" @click="updateRecord">更新记录</button></div>
       <div class="memory-suggestions" aria-label="问题示例"><button v-for="suggestion in suggestions" :key="suggestion" type="button" :disabled="Boolean(busy) || memory.index_status !== 'ready'" @click="askSuggestion(suggestion)">{{ suggestion }}</button></div>
       <form @submit.prevent="ask"><label for="memory-question" class="field-label">想找什么</label><textarea id="memory-question" v-model="question" maxlength="500" rows="3" placeholder="例如：我们第二天去了哪里？" /><button class="btn-coral" type="submit" :disabled="busy === 'ask' || memory.index_status !== 'ready' || !question.trim()">{{ busy === 'ask' ? '正在找…' : '查找' }}</button></form>
-      <div v-if="answer" class="memory-answer" :class="{ 'is-empty': !answer.citations?.length }"><span>{{ answer.citations?.length ? '相关记录' : '没有找到相关内容' }}</span><p>{{ answer.citations?.length ? answer.answer : '这本记录里没有找到相关内容。换个问法，或添加照片后再试。' }}</p><small v-if="answer.citations?.length">回答只根据这趟旅行中已有的内容整理。</small><div v-if="answer.citations?.length" class="memory-citations"><button v-for="(citation, index) in answer.citations" :key="`${citation.memoryItemId}-${index}`" type="button" @click="focusCitation(citation)"><b>相关记录 {{ index + 1 }}</b><span>{{ citation.excerpt }}</span><em>查看这条记录 →</em></button></div></div>
+      <div v-if="answer" class="memory-answer" :class="{ 'is-empty': !answer.citations?.length }"><span>{{ answer.citations?.length ? '相关记录' : '没有找到相关内容' }}</span><p>{{ answer.citations?.length ? answer.answer : '这本记录里没有找到相关内容。换个问法，或添加照片后再试。' }}</p><small v-if="answer.citations?.length">回答只根据这趟旅行中已有的内容整理。</small><div v-if="answer.citations?.length" class="memory-citations"><button v-for="(citation, index) in answer.citations" :key="`${citation.memoryItemId}-${index}`" type="button" @click="focusCitation(citation)"><b>相关记录 {{ index + 1 }}</b><span>{{ citation.excerpt }}</span><em>查看这条记录 <ArrowRight :size="15" :stroke-width="2.2" /></em></button></div></div>
     </section>
 
     <section v-if="shareOpen" id="memory-share-panel" class="memory-share glass-panel" aria-labelledby="memory-share-title">
@@ -330,4 +336,17 @@ onMounted(async () => {
       <aside class="memory-share-preview"><span>公开预览</span><img v-if="share.photo_item_id" :src="memoryImageUrl(photos.find((photo) => idKey(photo.id) === share.photo_item_id)?.source_url)" alt="所选公开封面预览" /><h3>{{ share.title || memory.title }}</h3><p v-for="line in publicPreview" :key="line">{{ line }}</p><small>#真实行程 {{ share.tags }}</small></aside>
     </section>
   </template>
+
+    <section class="chapter-bridge" data-reveal>
+      <div class="chapter-bridge-copy">
+        <p class="chapter-bridge-eyebrow">下一章 · 01 规划</p>
+        <h2 class="chapter-bridge-title">回忆写完，再去一次</h2>
+        <p class="chapter-bridge-lead">每一段记录都是下一次出发的种子。带着这次的经验，打开规划器，开始新的路线。</p>
+      </div>
+      <RouterLink class="chapter-bridge-cta" to="/planning">
+        <span>规划新行程</span>
+        <ArrowRight :size="18" :stroke-width="2.2" />
+      </RouterLink>
+    </section>
+  </div>
 </template>

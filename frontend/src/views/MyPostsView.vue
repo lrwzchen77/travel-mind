@@ -1,7 +1,9 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
+import { ArrowRight } from 'lucide-vue-next';
 import { RouterLink } from 'vue-router';
 import { communityApi } from '../api/community.js';
+import PagePrologue from '../components/PagePrologue.vue';
 import { cityImageByName } from '../data/cityImages.js';
 
 const posts = ref([]);
@@ -51,11 +53,7 @@ onMounted(load);
 </script>
 
 <template>
-  <section class="page-intro">
-    <p class="eyebrow">我的分享</p>
-    <h1>你留下的旅行经验</h1>
-    <p class="lead">每一篇都能在这里看到是否已公开给其他旅行者。</p>
-  </section>
+  <PagePrologue index="08" eyebrow="我的分享" title="你留下的旅行经验" lead="看看你发过的旅行分享，哪些被社区收藏，哪些还在审核。" next-label="发布新分享" next-to="/inspirations" />
 
   <section class="my-post-summary glass-panel">
     <div><strong>{{ total }}</strong><span>篇全部分享</span></div>
@@ -81,9 +79,21 @@ onMounted(load);
         <h2 v-else>{{ post.title }}</h2>
         <p>{{ post.city || '目的地待补充' }} · {{ excerpt(post) }}</p>
         <small>{{ status(post).hint }}</small>
-        <RouterLink v-if="status(post).class === 'is-rejected'" class="text-link" to="/inspirations">重新发布 →</RouterLink>
+        <RouterLink v-if="status(post).class === 'is-rejected'" class="text-link" to="/inspirations">重新发布 <ArrowRight :size="15" :stroke-width="2.2" /></RouterLink>
       </div>
     </article>
   </div>
   <div v-if="hasMore" class="load-more"><button type="button" class="btn-ghost" :disabled="loading" @click="load(page + 1)">{{ loading ? '正在加载…' : `加载更多（还有 ${total - posts.length} 篇）` }}</button></div>
+
+  <section class="chapter-bridge" data-reveal>
+    <div class="chapter-bridge-copy">
+      <p class="chapter-bridge-eyebrow">下一章 · 03 社区</p>
+      <h2 class="chapter-bridge-title">看看别人怎么写</h2>
+      <p class="chapter-bridge-lead">自己的分享写完了，去社区翻翻别人的真实行程，常能找到下一程的灵感。</p>
+    </div>
+    <RouterLink class="chapter-bridge-cta" to="/inspirations">
+      <span>去旅行社区</span>
+      <ArrowRight :size="18" :stroke-width="2.2" />
+    </RouterLink>
+  </section>
 </template>

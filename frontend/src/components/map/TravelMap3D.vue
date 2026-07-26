@@ -4,6 +4,7 @@
  * 首帧优先展示，标注与 3D 渐进增强，并按设备能力控制渲染开销。
  */
 import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';
+import { X, ArrowLeft, ArrowRight, Undo2, Plus, Pause, ZoomIn, ZoomOut, Minus } from 'lucide-vue-next';
 import { findDestination, geoDestinations } from '../../data/geoDestinations.js';
 import { buildFlightArc, sampleArc } from '../../map/flightPath.js';
 import { detectMapPerformanceProfile } from '../../map/performance.js';
@@ -72,11 +73,14 @@ const publicMarkers = [];
 /** @type {import('maplibre-gl').Marker[]} */
 const trackMarkers = [];
 
+// POI 图标采用 Lucide 的 stroke 风格 path 数据，保持与全局 Lucide 图标视觉一致。
+// 图标对应：Mountain（景点）、Hotel（住宿）、Utensils（餐饮）、Plane（机场）。
+const POI_ICON_ATTRS = 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
 const PUBLIC_MARKER_ICONS = {
-  attraction: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="17.5" cy="6.5" r="2.5"/><path d="M3 19 9.5 8l3.2 5 2.4-3.5L21 19H3Z"/></svg>',
-  hotel: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11V6h5a4 4 0 0 1 4 4v1h7v8h-2v-2H6v2H4v-8Zm3-3v3h4v-1a2 2 0 0 0-2-2H7Z"/></svg>',
-  restaurant: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v7M3.5 3v5.5A2.5 2.5 0 0 0 6 11v10M8.5 3v5.5A2.5 2.5 0 0 1 6 11M16 3v18M16 3c3 2 4.5 5 4 9h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
-  airport: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 14 1.5-1.5 5 1L14 9l-9-4 2-2 11 2 2-2c.8-.8 2.2-.8 3 0s.8 2.2 0 3l-2 2-2 11-2 2-4-9-4.5 4.5 1 5L8 23l-3-6-2-3Z"/></svg>',
+  attraction: `<svg viewBox="0 0 24 24" aria-hidden="true" ${POI_ICON_ATTRS}><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg>`,
+  hotel: `<svg viewBox="0 0 24 24" aria-hidden="true" ${POI_ICON_ATTRS}><path d="M2 20h20M3 20V8l9-5 9 5v12M9 12h.01M15 12h.01M9 16h6"/></svg>`,
+  restaurant: `<svg viewBox="0 0 24 24" aria-hidden="true" ${POI_ICON_ATTRS}><path d="M3 2v7c0 1.1.9 2 2 2h2a2 2 0 0 0 2-2V2M7 2v20M21 15V2a5 5 0 0 0-3 9v4h3"/></svg>`,
+  airport: `<svg viewBox="0 0 24 24" aria-hidden="true" ${POI_ICON_ATTRS}><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 19.5 4c-1 0-1.7.3-2.3 1L14 8 6 4 4 6l6 5-3 3-3-.5L3 16l3.5 1L8 21l1.5-1.5L9 16l3-3 6 5 2-2-2-5.8z"/></svg>`,
 };
 
 let maplibregl = null;
@@ -197,26 +201,26 @@ function showPublicPopup(map, item) {
   const rating = Number(item.rating);
   if (Number.isFinite(rating) && rating > 0) {
     const score = document.createElement('b');
-    score.textContent = `★ ${rating.toFixed(1)}`;
+    score.textContent = `评分 ${rating.toFixed(1)}`;
     heading.append(score);
   }
   body.append(meta, heading);
   const chips = document.createElement('div');
   chips.className = 'travel-node-facts';
   const facts = [
-    [Number.isFinite(item.distance_km) ? '⌖' : '', Number.isFinite(item.distance_km) ? `${item.distance_km.toFixed(1)} km` : ''],
-    [Number.isFinite(item.cost) && item.cost > 0 ? '¥' : '', Number.isFinite(item.cost) && item.cost > 0 ? Math.round(item.cost) : ''],
-    [item.opening_hours ? '◷' : '', item.opening_hours || ''],
-  ].filter((fact) => fact[1] !== '');
-  facts.forEach(([icon, text]) => {
+    Number.isFinite(item.distance_km) ? `距中心 ${item.distance_km.toFixed(1)} km` : '',
+    Number.isFinite(item.cost) && item.cost > 0 ? `人均 ¥${Math.round(item.cost)}` : '',
+    item.opening_hours ? `营业 ${item.opening_hours}` : '',
+  ].filter(Boolean);
+  facts.forEach((text) => {
     const chip = document.createElement('span');
-    chip.textContent = `${icon} ${text}`;
+    chip.textContent = text;
     chips.append(chip);
   });
   if (chips.childElementCount) body.append(chips);
   if (item.address) {
     const facts = document.createElement('p');
-    facts.textContent = `⌖ ${item.address}`;
+    facts.textContent = item.address;
     body.append(facts);
   } else if (item.facts) {
     const facts = document.createElement('p');
@@ -225,7 +229,7 @@ function showPublicPopup(map, item) {
   }
   if (item.community_mentions) {
     const community = document.createElement('small');
-    community.textContent = `✦ 旅友提到 ${item.community_mentions} 次${item.community_tip ? ` · ${item.community_tip}` : ''}`;
+    community.textContent = `旅友提到 ${item.community_mentions} 次${item.community_tip ? ` · ${item.community_tip}` : ''}`;
     body.append(community);
   }
   content.append(visual, body);
@@ -400,7 +404,7 @@ function ensureTrackSources(map) {
   map.addLayer({
     id: 'editor-track-glow', type: 'line', source: 'editor-track',
     layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: { 'line-color': '#e87022', 'line-width': 15, 'line-opacity': 0.2, 'line-blur': 2 },
+    paint: { 'line-color': '#ff7a3d', 'line-width': 15, 'line-opacity': 0.2, 'line-blur': 2 },
   });
   map.addLayer({
     id: 'editor-track-outline', type: 'line', source: 'editor-track',
@@ -410,7 +414,7 @@ function ensureTrackSources(map) {
   map.addLayer({
     id: 'editor-track-line', type: 'line', source: 'editor-track',
     layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: { 'line-color': '#e87022', 'line-width': 4.5, 'line-opacity': 1 },
+    paint: { 'line-color': '#ff7a3d', 'line-width': 4.5, 'line-opacity': 1 },
   });
   renderTrack(map);
 }
@@ -1162,8 +1166,8 @@ defineExpose({ flyToCity, flyToPoint, toggleOrbit, stopOrbit, clearTrack, getTra
         </select>
       </label>
       <div class="map3d-tools">
-        <button type="button" class="map-tool-btn" title="拉近" @click="zoomIn">＋</button>
-        <button type="button" class="map-tool-btn" title="拉远" @click="zoomOut">－</button>
+        <button type="button" class="map-tool-btn" title="拉近" aria-label="拉近" @click="zoomIn"><ZoomIn :size="18" :stroke-width="2" /></button>
+        <button type="button" class="map-tool-btn" title="拉远" aria-label="拉远" @click="zoomOut"><ZoomOut :size="18" :stroke-width="2" /></button>
         <button type="button" class="map-tool-btn" title="3D" @click="pitchUp">3D</button>
         <button type="button" class="map-tool-btn" title="指北" @click="resetNorth">北</button>
         <button
@@ -1201,7 +1205,7 @@ defineExpose({ flyToCity, flyToPoint, toggleOrbit, stopOrbit, clearTrack, getTra
         <header>
           <b>#{{ String(selectedTrackPoint.number).padStart(2, '0') }}</b>
           <strong>{{ selectedTrackPoint.name || `自定义节点 ${selectedTrackPoint.number}` }}</strong>
-          <button type="button" aria-label="关闭节点编辑" @click="selectedTrackIndex = -1">×</button>
+          <button type="button" aria-label="关闭节点编辑" @click="selectedTrackIndex = -1"><X :size="16" :stroke-width="2" /></button>
         </header>
         <textarea
           :value="selectedTrackPoint.note || ''"
@@ -1222,8 +1226,8 @@ defineExpose({ flyToCity, flyToPoint, toggleOrbit, stopOrbit, clearTrack, getTra
           >{{ preference }}</button>
         </div>
         <footer>
-          <button type="button" :disabled="selectedTrackIndex === 0" @click="moveSelectedTrackPoint(-1)">← 前移</button>
-          <button type="button" :disabled="selectedTrackIndex === trackPoints.length - 1" @click="moveSelectedTrackPoint(1)">后移 →</button>
+          <button type="button" :disabled="selectedTrackIndex === 0" @click="moveSelectedTrackPoint(-1)"><ArrowLeft :size="15" :stroke-width="2.2" /> 前移</button>
+          <button type="button" :disabled="selectedTrackIndex === trackPoints.length - 1" @click="moveSelectedTrackPoint(1)">后移 <ArrowRight :size="15" :stroke-width="2.2" /></button>
           <button type="button" class="is-danger" @click="removeSelectedTrackPoint">删除节点</button>
         </footer>
       </section>
@@ -1237,14 +1241,14 @@ defineExpose({ flyToCity, flyToPoint, toggleOrbit, stopOrbit, clearTrack, getTra
           @click="toggleTrackEditing"
         >
           <span>{{ trackEditing ? '暂停落点' : trackPoints.length ? '继续画路线' : '开始画路线' }}</span>
-          <b aria-hidden="true">{{ trackEditing ? 'Ⅱ' : '＋' }}</b>
+          <b aria-hidden="true"><component :is="trackEditing ? Pause : Plus" :size="15" :stroke-width="2.2" /></b>
         </button>
-        <button type="button" :disabled="!trackPoints.length" aria-label="撤销最后一个节点" @click="undoTrackPoint">↶</button>
+        <button type="button" :disabled="!trackPoints.length" aria-label="撤销最后一个节点" @click="undoTrackPoint"><Undo2 :size="15" :stroke-width="2.2" /></button>
         <button type="button" :disabled="!trackPoints.length" aria-label="清空路线" @click="clearTrack">清空</button>
       </div>
       <button v-if="trackPoints.length > 1" type="button" class="track-editor-plan" @click="planTrack">
         用这条路线规划
-        <span aria-hidden="true">{{ String(trackPoints.length).padStart(2, '0') }} → AI</span>
+        <span aria-hidden="true">{{ String(trackPoints.length).padStart(2, '0') }} <ArrowRight :size="15" :stroke-width="2.2" /> AI</span>
       </button>
     </section>
 
@@ -1263,52 +1267,61 @@ defineExpose({ flyToCity, flyToPoint, toggleOrbit, stopOrbit, clearTrack, getTra
   z-index: 6;
   width: min(420px, calc(100% - 28px));
   padding: 18px;
-  border: 1px solid #efc8ad;
-  border-top: 4px solid #e87022;
-  border-radius: 18px;
-  background: rgba(255, 253, 248, .96);
-  color: #173f50;
-  box-shadow: 6px 7px 0 rgba(190, 83, 24, .12), 0 16px 38px rgba(23, 63, 80, .14);
-  backdrop-filter: blur(14px);
-  transition: transform .2s ease, box-shadow .2s ease;
+  border: 1px solid var(--tm-line-strong);
+  border-top: 3px solid var(--tm-accent);
+  border-radius: var(--tm-radius-panel);
+  background: rgba(21, 17, 12, 0.94);
+  color: var(--tm-ink);
+  box-shadow: var(--tm-shadow-lift);
+  backdrop-filter: blur(22px) saturate(1.4);
+  -webkit-backdrop-filter: blur(22px) saturate(1.4);
+  transition: transform .3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow .3s ease;
 }
 
 .track-editor-hud.is-active {
-  box-shadow: 6px 7px 0 rgba(190, 83, 24, .16), 0 16px 42px rgba(23, 63, 80, .16), 0 0 0 3px rgba(232, 112, 34, .16);
+  box-shadow: var(--tm-shadow-lift), 0 0 0 3px var(--tm-accent-soft);
   transform: translateY(-2px);
+  border-top-color: var(--tm-accent);
 }
 
 .track-editor-hud header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.track-editor-hud header strong { font-size: 14px; }
-.track-editor-status { display: inline-flex; align-items: center; gap: 8px; color: #bd5518; font: 800 11px/1 var(--font-mono, monospace); letter-spacing: .08em; }
-.track-editor-status i { width: 7px; height: 7px; border-radius: 50%; background: #e87022; box-shadow: 0 0 0 4px rgba(232, 112, 34, .13); }
-.track-editor-hud.is-active .track-editor-status i { background: #e87022; box-shadow: 0 0 0 5px rgba(232, 112, 34, .18); animation: track-status-pulse 1.2s ease-in-out infinite; }
-.track-editor-hud p { margin: 11px 0 14px; color: #687477; font-size: 13px; line-height: 1.5; }
-.track-node-editor { display: grid; gap: 12px; margin: 0 0 14px; padding: 14px; border: 1px solid #efd7c7; border-radius: 14px; background: #fff7ef; }
+.track-editor-hud header strong { font-size: 14px; color: var(--tm-ink); }
+.track-editor-status { display: inline-flex; align-items: center; gap: 8px; color: var(--tm-accent); font: 800 11px/1 var(--font-mono); letter-spacing: .16em; text-transform: uppercase; }
+.track-editor-status i { width: 7px; height: 7px; border-radius: 50%; background: var(--tm-accent); box-shadow: 0 0 0 4px var(--tm-accent-soft); }
+.track-editor-hud.is-active .track-editor-status i { background: var(--tm-accent); box-shadow: 0 0 0 5px var(--tm-accent-soft); animation: track-status-pulse 1.2s ease-in-out infinite; }
+.track-editor-hud p { margin: 11px 0 14px; color: var(--tm-ink-soft); font-size: 13px; line-height: 1.5; }
+.track-node-editor { display: grid; gap: 12px; margin: 0 0 14px; padding: 14px; border: 1px solid var(--tm-line); border-radius: var(--tm-radius-control); background: var(--tm-paper-muted); }
 .track-node-editor header { justify-content: start; }
-.track-node-editor header b { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 50%; background: #e87022; color: #fff; font: 900 11px/1 var(--font-mono, monospace); }
-.track-node-editor header strong { overflow: hidden; flex: 1; text-overflow: ellipsis; white-space: nowrap; }
-.track-node-editor header button { border: 0; background: transparent; color: #8f8177; cursor: pointer; font-size: 18px; }
-.track-node-editor textarea { width: 100%; min-height: 76px; resize: vertical; padding: 10px 11px; border: 1px solid #e2cbbb; border-radius: 10px; background: #fff; color: #173f50; font: 500 13px/1.5 var(--font-body, sans-serif); }
-.track-node-editor textarea::placeholder { color: #9a8f86; }
-.track-node-editor textarea:focus { border-color: #f4ad42; outline: 2px solid rgba(244, 173, 66, .2); }
+.track-node-editor header b { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 50%; background: var(--tm-accent); color: #160d05; font: 900 11px/1 var(--font-mono); }
+.track-node-editor header strong { overflow: hidden; flex: 1; text-overflow: ellipsis; white-space: nowrap; color: var(--tm-ink); }
+.track-node-editor header button { border: 0; background: transparent; color: var(--tm-muted); cursor: pointer; font-size: 0; display: inline-flex; align-items: center; }
+.track-node-editor header button svg { width: 16px; height: 16px; }
+.track-node-editor textarea { width: 100%; min-height: 76px; resize: vertical; padding: 10px 11px; border: 1px solid var(--tm-line-strong); border-radius: var(--tm-radius-control); background: var(--tm-canvas-2); color: var(--tm-ink); font: 500 13px/1.5 var(--font-body); }
+.track-node-editor textarea::placeholder { color: var(--tm-muted-soft); }
+.track-node-editor textarea:focus { border-color: var(--tm-accent); outline: 2px solid var(--tm-accent-soft); background: var(--tm-paper); }
 .track-node-preferences { display: flex; flex-wrap: wrap; gap: 7px; }
-.track-node-preferences button { padding: 6px 9px; border: 1px solid #e2cbbb; border-radius: 999px; background: #fff; color: #687477; cursor: pointer; font-size: 11px; font-weight: 800; }
-.track-node-preferences button.is-on { border-color: #e87022; background: #e87022; color: #fff; }
+.track-node-preferences button { padding: 6px 9px; border: 1px solid var(--tm-line-strong); border-radius: var(--tm-radius-pill); background: var(--tm-paper-muted); color: var(--tm-ink-soft); cursor: pointer; font-size: 11px; font-weight: 700; transition: all .2s ease; }
+.track-node-preferences button:hover { border-color: var(--tm-accent); color: var(--tm-accent); }
+.track-node-preferences button.is-on { border-color: var(--tm-accent); background: var(--tm-accent); color: #160d05; }
 .track-node-editor footer { display: grid; grid-template-columns: 1fr 1fr auto; gap: 7px; }
-.track-node-editor footer button { min-height: 36px; padding: 0 10px; border: 1px solid #e2cbbb; border-radius: 9px; background: #fff; color: #173f50; cursor: pointer; font-size: 11px; font-weight: 800; }
+.track-node-editor footer button { min-height: 36px; padding: 0 10px; border: 1px solid var(--tm-line-strong); border-radius: var(--tm-radius-control); background: var(--tm-paper-muted); color: var(--tm-ink); cursor: pointer; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 4px; transition: all .2s ease; }
+.track-node-editor footer button svg { width: 14px; height: 14px; }
+.track-node-editor footer button:hover:not(:disabled) { border-color: var(--tm-accent); color: var(--tm-accent); }
 .track-node-editor footer button:disabled { cursor: not-allowed; opacity: .32; }
-.track-node-editor footer .is-danger { color: #b7482f; }
+.track-node-editor footer .is-danger { color: var(--tm-danger); }
+.track-node-editor footer .is-danger:hover:not(:disabled) { border-color: var(--tm-danger); color: var(--tm-danger); background: var(--tm-danger-soft); }
 
 .track-editor-actions { display: grid; grid-template-columns: minmax(0, 1fr) 46px 58px; gap: 9px; }
-.track-editor-actions button { min-height: 46px; padding: 0 12px; border: 1px solid #e2cbbb; border-radius: 11px; background: #fff; color: #173f50; cursor: pointer; font-size: 13px; font-weight: 800; }
+.track-editor-actions button { min-height: 46px; padding: 0 12px; border: 1px solid var(--tm-line-strong); border-radius: var(--tm-radius-button); background: var(--tm-paper-muted); color: var(--tm-ink); cursor: pointer; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: all .2s ease; }
+.track-editor-actions button svg { width: 15px; height: 15px; }
 .track-editor-actions button:hover:not(:disabled),
-.track-editor-actions button:focus-visible { border-color: #e87022; background: #fff7ef; }
+.track-editor-actions button:focus-visible { border-color: var(--tm-accent); color: var(--tm-accent); background: var(--tm-paper-raised); }
 .track-editor-actions button:disabled { cursor: not-allowed; opacity: .36; }
-.track-editor-actions .track-editor-primary { display: flex; align-items: center; justify-content: space-between; border-color: #e87022; background: #fff7ef; color: #173f50; }
-.track-editor-actions .track-editor-primary b { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 8px; background: #e87022; color: #fff; font-size: 18px; }
-.track-editor-actions .track-editor-primary.is-on { background: #e87022; color: #fff; }
-.track-editor-actions .track-editor-primary.is-on b { background: #fffaf1; color: #e87022; }
+.track-editor-actions .track-editor-primary { display: flex; align-items: center; justify-content: space-between; border-color: var(--tm-accent); background: var(--tm-accent-soft); color: var(--tm-accent); }
+.track-editor-actions .track-editor-primary b { display: grid; width: 28px; height: 28px; place-items: center; border-radius: var(--tm-radius-control); background: var(--tm-accent); color: #160d05; font-size: 0; }
+.track-editor-actions .track-editor-primary b svg { width: 15px; height: 15px; }
+.track-editor-actions .track-editor-primary.is-on { background: var(--tm-accent); color: #160d05; }
+.track-editor-actions .track-editor-primary.is-on b { background: rgba(22, 13, 5, 0.25); color: #160d05; }
 .track-editor-plan {
   display: flex;
   width: 100%;
@@ -1318,16 +1331,19 @@ defineExpose({ flyToCity, flyToPoint, toggleOrbit, stopOrbit, clearTrack, getTra
   margin-top: 8px;
   padding: 0 15px;
   border: 0;
-  border-radius: 10px;
-  background: #e87022;
-  color: #fff;
+  border-radius: var(--tm-radius-button);
+  background: var(--tm-accent);
+  color: #160d05;
   cursor: pointer;
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 700;
+  box-shadow: 0 14px 30px -12px var(--tm-accent-glow);
+  transition: transform .3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow .25s ease, background .25s ease;
 }
-.track-editor-plan span { font: 800 11px/1 var(--font-mono, monospace); letter-spacing: .06em; }
+.track-editor-plan span { font: 700 11px/1 var(--font-mono); letter-spacing: .12em; display: inline-flex; align-items: center; gap: 4px; }
+.track-editor-plan span svg { width: 14px; height: 14px; }
 .track-editor-plan:hover,
-.track-editor-plan:focus-visible { background: #c95f1c; outline: 3px solid rgba(232, 112, 34, .22); outline-offset: 2px; }
+.track-editor-plan:focus-visible { background: var(--tm-accent-hover); transform: translateY(-2px); box-shadow: 0 20px 40px -12px var(--tm-accent-glow); }
 
 .track-node {
   position: relative;
@@ -1335,14 +1351,14 @@ defineExpose({ flyToCity, flyToPoint, toggleOrbit, stopOrbit, clearTrack, getTra
   width: 31px;
   height: 31px;
   place-items: center;
-  border: 3px solid #fffaf1;
+  border: 3px solid var(--tm-canvas);
   border-radius: 50% 50% 50% 8px;
-  background: #173f50;
-  color: #fffaf1;
-  box-shadow: 0 5px 13px rgba(23, 63, 80, .28);
+  background: var(--tm-paper-raised);
+  color: var(--tm-ink);
+  box-shadow: 0 5px 13px rgba(0, 0, 0, 0.5);
   transform: rotate(-7deg);
 }
-.track-node span { font: 900 11px/1 var(--font-mono, monospace); transform: rotate(7deg); }
+.track-node span { font: 900 11px/1 var(--font-mono); transform: rotate(7deg); }
 .track-node em {
   position: absolute;
   left: 34px;
@@ -1351,22 +1367,23 @@ defineExpose({ flyToCity, flyToPoint, toggleOrbit, stopOrbit, clearTrack, getTra
   max-width: 150px;
   overflow: hidden;
   padding: 5px 8px;
-  border: 1px solid rgba(255, 250, 241, .9);
-  border-radius: 8px;
-  background: rgba(23, 63, 80, .9);
-  color: #fffaf1;
-  font: 800 10px/1.2 var(--font-body, sans-serif);
+  border: 1px solid var(--tm-line-strong);
+  border-radius: var(--tm-radius-control);
+  background: rgba(21, 17, 12, 0.95);
+  color: var(--tm-ink);
+  font: 700 10px/1.2 var(--font-body);
   text-overflow: ellipsis;
   white-space: nowrap;
-  box-shadow: 0 5px 14px rgba(23, 63, 80, .18);
+  box-shadow: var(--tm-shadow-card);
+  backdrop-filter: blur(12px);
   transform: rotate(7deg);
 }
 .track-node.is-latest em { display: block; }
 .track-node.label-left em { right: 34px; left: auto; }
-.track-node.is-poi { box-shadow: 0 5px 13px rgba(23, 63, 80, .28), 0 0 0 4px rgba(244, 173, 66, .24); }
-.track-node.is-selected { outline: 4px solid rgba(244, 173, 66, .46); outline-offset: 3px; }
-.track-node.is-latest { background: #e87022; animation: track-node-drop .34s cubic-bezier(.2, .9, .28, 1.4); }
-.track-node.is-latest::after { position: absolute; inset: -8px; border: 2px solid rgba(232, 112, 34, .48); border-radius: 50%; content: ''; animation: track-node-ring .6s ease-out both; }
+.track-node.is-poi { box-shadow: 0 5px 13px rgba(0, 0, 0, 0.5), 0 0 0 4px var(--tm-accent-soft); }
+.track-node.is-selected { outline: 3px solid var(--tm-accent); outline-offset: 3px; }
+.track-node.is-latest { background: var(--tm-accent); color: #160d05; animation: track-node-drop .34s cubic-bezier(.2, .9, .28, 1.4); }
+.track-node.is-latest::after { position: absolute; inset: -8px; border: 2px solid var(--tm-accent-glow); border-radius: 50%; content: ''; animation: track-node-ring .6s ease-out both; }
 
 @keyframes track-node-drop {
   from { opacity: 0; transform: translateY(-20px) rotate(-7deg) scale(.5); }
@@ -1384,9 +1401,9 @@ defineExpose({ flyToCity, flyToPoint, toggleOrbit, stopOrbit, clearTrack, getTra
   padding: 0;
   border: 0;
   background: transparent;
-  color: #173f50;
+  color: var(--tm-ink);
   cursor: pointer;
-  filter: drop-shadow(0 6px 8px rgba(23, 63, 80, .25));
+  filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.5));
 }
 
 .public-map-marker > span {
@@ -1394,61 +1411,63 @@ defineExpose({ flyToCity, flyToPoint, toggleOrbit, stopOrbit, clearTrack, getTra
   width: 38px;
   height: 38px;
   place-items: center;
-  border: 3px solid #fffaf1;
+  border: 3px solid var(--tm-canvas);
   border-radius: 16px 16px 16px 5px;
-  background: #f4ad42;
+  background: var(--tm-sun);
+  color: #160d05;
   transform: rotate(-4deg);
   transition: transform .16s ease;
 }
 
-.public-map-marker svg { width: 23px; height: 23px; fill: currentColor; transform: rotate(4deg); }
-.public-map-marker--hotel > span { border-radius: 8px 18px 8px 18px; background: #7ed1da; transform: rotate(2deg); }
+.public-map-marker svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transform: rotate(4deg); }
+.public-map-marker--hotel > span { border-radius: 8px 18px 8px 18px; background: var(--tm-success); color: #0c0a08; transform: rotate(2deg); }
 .public-map-marker--hotel svg { transform: rotate(-2deg); }
-.public-map-marker--restaurant > span { border-radius: 50% 50% 12px 50%; background: #ff926f; transform: rotate(6deg); }
+.public-map-marker--restaurant > span { border-radius: 50% 50% 12px 50%; background: var(--tm-accent); color: #160d05; transform: rotate(6deg); }
 .public-map-marker--restaurant svg { transform: rotate(-6deg); }
-.public-map-marker--airport > span { border-radius: 50% 8px 50% 8px; background: #9eb8e6; color: #173f50; transform: rotate(-3deg); }
+.public-map-marker--airport > span { border-radius: 50% 8px 50% 8px; background: var(--tm-sun); color: #160d05; transform: rotate(-3deg); }
 .public-map-marker--airport svg { transform: rotate(3deg); }
 .public-map-marker:hover > span,
 .public-map-marker:focus-visible > span,
 .public-map-marker.is-selected > span { transform: translateY(-4px) scale(1.08); }
-.public-map-marker.is-selected > span { outline: 4px solid rgba(232,112,34,.42); }
+.public-map-marker.is-selected > span { outline: 3px solid var(--tm-accent); }
 .public-map-marker.is-in-track > span {
-  outline: 4px solid rgba(232, 112, 34, .62);
+  outline: 3px solid var(--tm-accent);
   outline-offset: 3px;
   transform: translateY(-3px) scale(1.06);
 }
-.public-map-marker:focus-visible { outline: 3px solid rgba(232,112,34,.5); outline-offset: 3px; border-radius: 12px; }
+.public-map-marker:focus-visible { outline: 2px solid var(--tm-accent); outline-offset: 3px; border-radius: 12px; }
 
 .travel-node-popup { pointer-events: none; }
 .travel-node-popup .maplibregl-popup-content {
   width: min(340px, 78vw);
   padding: 0;
   overflow: hidden;
-  border: 1px solid #efc8ad;
-  border-radius: 14px;
-  background: rgba(255, 253, 248, .98);
-  color: #173f50;
-  box-shadow: 5px 6px 0 rgba(190, 83, 24, .11), 0 14px 34px rgba(23, 63, 80, .16);
-  backdrop-filter: blur(12px);
+  border: 1px solid var(--tm-line-strong);
+  border-radius: var(--tm-radius-panel);
+  background: rgba(21, 17, 12, 0.97);
+  color: var(--tm-ink);
+  box-shadow: var(--tm-shadow-lift);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
 }
 .travel-node-popup.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
-.travel-node-popup.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip { border-top-color: #fffdf8; }
+.travel-node-popup.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip { border-top-color: rgba(21, 17, 12, 0.97); }
 .travel-node-popup.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
-.travel-node-popup.maplibregl-popup-anchor-top-right .maplibregl-popup-tip { border-bottom-color: #fffdf8; }
-.travel-node-visual { position: relative; display: grid; height: 108px; overflow: hidden; place-items: center; background: linear-gradient(135deg, #fff0e4, #f9c79f); color: #bd5518; }
-.travel-node-visual::after { position: absolute; inset: auto 0 0; height: 46%; background: linear-gradient(transparent, rgba(23, 63, 80, .18)); content: ''; }
+.travel-node-popup.maplibregl-popup-anchor-top-right .maplibregl-popup-tip { border-bottom-color: rgba(21, 17, 12, 0.97); }
+.travel-node-visual { position: relative; display: grid; height: 108px; overflow: hidden; place-items: center; background: linear-gradient(135deg, var(--tm-accent-soft), rgba(232, 93, 31, 0.3)); color: var(--tm-accent); }
+.travel-node-visual::after { position: absolute; inset: auto 0 0; height: 46%; background: linear-gradient(transparent, rgba(0, 0, 0, 0.3)); content: ''; }
 .travel-node-visual > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .travel-node-visual > span { display: grid; width: 42px; height: 42px; place-items: center; }
 .travel-node-visual svg { width: 38px; height: 38px; fill: currentColor; }
 .travel-node-body { display: grid; gap: 9px; padding: 13px 15px 15px; }
-.travel-node-body > span { color: #bd5518; font: 800 10px/1.3 var(--font-mono, monospace); letter-spacing: .05em; }
+.travel-node-body > span { color: var(--tm-accent); font: 700 10px/1.3 var(--font-mono); letter-spacing: .16em; text-transform: uppercase; }
 .travel-node-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-.travel-node-heading > strong { font: 800 16px/1.3 var(--font-display, sans-serif); }
-.travel-node-heading > b { flex: 0 0 auto; padding: 5px 7px; border-radius: 7px; background: #fff0e4; color: #bd5518; font: 900 11px/1 var(--font-mono, monospace); }
+.travel-node-heading > strong { font: 700 16px/1.3 var(--font-display); color: var(--tm-ink); }
+.travel-node-heading > b { flex: 0 0 auto; padding: 5px 7px; border-radius: var(--tm-radius-control); background: var(--tm-accent-soft); color: var(--tm-accent); font: 900 11px/1 var(--font-mono); }
 .travel-node-facts { display: flex; flex-wrap: wrap; gap: 6px; }
-.travel-node-facts > span { padding: 5px 7px; border: 1px solid #ead9cc; border-radius: 7px; background: #fffaf5; color: #56666a; font: 700 10px/1.2 var(--font-body, sans-serif); }
-.travel-node-body > p { margin: 0; color: #657276; font-size: 11px; line-height: 1.55; }
-.travel-node-body > small { padding: 9px 10px; border-left: 3px solid #e87022; border-radius: 0 8px 8px 0; background: #fff3e8; color: #a84b15; font-size: 10px; line-height: 1.45; }
+.travel-node-facts > span { padding: 5px 7px; border: 1px solid var(--tm-line); border-radius: var(--tm-radius-control); background: var(--tm-paper-muted); color: var(--tm-ink-soft); font: 600 10px/1.2 var(--font-body); }
+.travel-node-body > p { margin: 0; color: var(--tm-muted); font-size: 11px; line-height: 1.55; }
+.travel-node-body > small { padding: 9px 10px; border-left: 3px solid var(--tm-accent); border-radius: 0 var(--tm-radius-control) var(--tm-radius-control) 0; background: var(--tm-accent-soft); color: var(--tm-accent); font-size: 10px; line-height: 1.45; }
 
 @media (prefers-reduced-motion: reduce) {
   .public-map-marker > span { transition: none; }

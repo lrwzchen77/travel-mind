@@ -1,11 +1,23 @@
 <script setup>
 import { computed, ref, onMounted, onUnmounted, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
+import { Plane, ChevronDown, LogOut, Menu, X, ArrowRight, Compass, Sparkles, Map, BookOpen, BookMarked, Heart, NotebookPen, ScanText, Footprints, SlidersHorizontal } from 'lucide-vue-next';
 import { accountNav, primaryNav } from './menu.js';
 import PageTransition from '../components/PageTransition.vue';
 import InspirationBagFloat from '../components/InspirationBagFloat.vue';
 import { authApi } from '../api/auth.js';
 import { authSession } from '../auth/session.js';
+
+const accountIcon = {
+  '/memories': BookMarked,
+  '/inspiration-bag': Sparkles,
+  '/my-posts': BookOpen,
+  '/favorites': Heart,
+  '/travel-notes': NotebookPen,
+  '/ai-lab': ScanText,
+  '/ai-records': Footprints,
+  '/profile': SlidersHorizontal,
+};
 
 const route = useRoute();
 const router = useRouter();
@@ -15,6 +27,33 @@ const menuOpen = ref(false);
 const accountOpen = ref(false);
 const scrolled = ref(false);
 const showInspirationBag = computed(() => currentUser.value && !/^\/memories(?:\/|$)/.test(route.path));
+
+// 跨页面章节码：用 01–09 编号每个主路由，形成"连续手记"的叙事感
+const chapterMap = {
+  dashboard: '00 · 序',
+  planning: '01 · 规划',
+  'explore-map': '02 · 地图',
+  inspirations: '03 · 社区',
+  'inspiration-detail': '03 · 社区',
+  cities: '04 · 城市',
+  'city-detail': '04 · 城市',
+  attractions: '05 · 去哪玩',
+  hotels: '05 · 住哪里',
+  restaurants: '05 · 吃什么',
+  'trip-history': '06 · 行程',
+  'trip-detail': '06 · 行程',
+  memories: '07 · 记录',
+  'memory-detail': '07 · 记录',
+  'my-posts': '08 · 我的',
+  'inspiration-bag': '08 · 灵感包',
+  assistant: '09 · 助手',
+  'ai-lab': '09 · 助手',
+  favorites: '08 · 收藏',
+  'travel-notes': '08 · 笔记',
+  'ai-records': '08 · 足迹',
+  profile: '08 · 偏好',
+};
+const chapterCode = computed(() => chapterMap[route.name] || '— · —');
 
 function closeMenus() {
   menuOpen.value = false;
@@ -64,11 +103,20 @@ onUnmounted(() => {
 
 <template>
   <div class="app-shell">
+    <!-- 跨页面连续叙事层：固定坐标网格 + 边缘时间码，让翻页感觉是同一块画布 -->
+    <div class="app-atmosphere" aria-hidden="true">
+      <div class="app-atmosphere-grid" />
+      <div class="app-atmosphere-code">
+        <span class="app-atmosphere-code-label">TM · CHAPTER</span>
+        <span class="app-atmosphere-code-value">{{ chapterCode }}</span>
+      </div>
+    </div>
+
     <header class="site-header" :class="{ 'is-scrolled': scrolled }">
       <div class="site-header-inner">
         <RouterLink to="/" class="brand" @click="closeMenus">
           <span class="brand-mark" aria-hidden="true">
-            <span class="brand-plane">✈</span>
+            <Plane class="brand-plane" :size="20" :stroke-width="2.2" />
           </span>
           <span class="brand-text">
             <strong>Travel Mind</strong>
@@ -80,10 +128,11 @@ onUnmounted(() => {
           type="button"
           class="nav-toggle"
           :aria-expanded="menuOpen"
-          aria-label="打开菜单"
+          :aria-label="menuOpen ? '关闭菜单' : '打开菜单'"
           @click="menuOpen = !menuOpen"
         >
-          <span /><span /><span />
+          <Menu v-if="!menuOpen" :size="20" />
+          <X v-else :size="20" />
         </button>
 
         <nav class="top-nav" :class="{ 'is-open': menuOpen }" aria-label="主导航">
@@ -101,6 +150,8 @@ onUnmounted(() => {
           </RouterLink>
 
           <RouterLink to="/map" class="header-cta" @click="closeMenus">
+            <Compass :size="16" :stroke-width="2.2" />
+            <span class="cta-shine" aria-hidden="true" />
             生成行程
           </RouterLink>
           <div v-if="currentUser" class="account-menu" :class="{ 'is-open': accountOpen }">
@@ -113,7 +164,7 @@ onUnmounted(() => {
             >
               <span class="account-avatar" aria-hidden="true">{{ userInitial }}</span>
               <span class="account-trigger-name">{{ currentUser.name || '旅行者' }}</span>
-              <span class="account-chevron" aria-hidden="true">▾</span>
+              <span class="account-chevron" aria-hidden="true"><ChevronDown :size="15" /></span>
             </button>
             <div v-show="accountOpen" class="account-popover" role="menu">
               <div class="account-head">
@@ -128,9 +179,11 @@ onUnmounted(() => {
                 role="menuitem"
                 @click="closeMenus"
               >
+                <component :is="accountIcon[item.path] || Map" :size="15" :stroke-width="2" />
                 {{ item.label }}
               </RouterLink>
               <button type="button" class="account-logout" role="menuitem" @click="logout">
+                <LogOut :size="15" :stroke-width="2" />
                 退出登录
               </button>
             </div>
@@ -167,3 +220,52 @@ onUnmounted(() => {
     </footer>
   </div>
 </template>
+
+<style scoped>
+/* 跨页面连续叙事层：固定在视口边缘的坐标网格与章节码，
+   不随页面切换消失，让整站读起来像同一块画布上的不同章节。 */
+.app-atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.app-atmosphere-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(243, 235, 220, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(243, 235, 220, 0.025) 1px, transparent 1px);
+  background-size: 80px 80px;
+  mask-image: radial-gradient(120% 100% at 50% 40%, #000 30%, transparent 85%);
+}
+.app-atmosphere-code {
+  position: absolute;
+  left: 14px;
+  bottom: 16px;
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--tm-muted-soft);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+@media (min-width: 1180px) { .app-atmosphere-code { display: flex; } }
+.app-atmosphere-code-label { opacity: 0.6; }
+.app-atmosphere-code-value {
+  color: var(--tm-accent);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+/* 让内容层在氛围层之上 */
+.app-shell { position: relative; z-index: 1; }
+.site-header,
+.site-main,
+.site-footer,
+.inspiration-bag-float { position: relative; z-index: 2; }
+</style>

@@ -1,7 +1,9 @@
 <script setup>
 import { computed, reactive, ref } from 'vue';
+import { ArrowRight, Sparkles } from 'lucide-vue-next';
 import { RouterLink } from 'vue-router';
 import { aiApi } from '../api/ai.js';
+import PagePrologue from '../components/PagePrologue.vue';
 
 const form = reactive({ city: '杭州', attraction_name: '', text: '' });
 const result = ref(null);
@@ -51,13 +53,12 @@ async function analyze() {
 </script>
 
 <template>
-  <section class="page-intro">
-    <p class="eyebrow">AI 灵感</p>
-    <h1>把别人的游记，变成你的出发线索</h1>
+  <PagePrologue index="09" eyebrow="AI 灵感" title="把别人的游记，变成你的出发线索" lead="贴一段游记链接或文本，AI 会提炼出可执行的旅行线索。" next-label="去问旅行助手" next-to="/assistant" />
+  <div class="page-intro-aux">
     <RouterLink class="text-link inspiration-history-link" to="/ai-records">
-      查看最近灵感 →
+      查看最近灵感 <ArrowRight :size="15" :stroke-width="2.2" />
     </RouterLink>
-  </section>
+  </div>
 
   <div class="inspiration-layout">
     <form class="glass-panel inspiration-input" @submit.prevent="analyze">
@@ -127,16 +128,28 @@ async function analyze() {
           style="margin-top: 8px;"
           :to="{ path: '/map', query: { city: form.city, note: planningNote } }"
         >
-          带着线索去规划 →
+          带着线索去规划 <ArrowRight :size="15" :stroke-width="2.2" />
         </RouterLink>
       </template>
 
       <template v-else>
         <div class="inspiration-empty">
-          <span class="inspiration-empty-icon" aria-hidden="true">✦</span>
+          <span class="inspiration-empty-icon" aria-hidden="true"><Sparkles :size="30" :stroke-width="2" /></span>
           <strong>旅行线索会出现在这里</strong>
         </div>
       </template>
+    </section>
+
+    <section class="chapter-bridge" data-reveal>
+      <div class="chapter-bridge-copy">
+        <p class="chapter-bridge-eyebrow">下一章 · 09 助手</p>
+        <h2 class="chapter-bridge-title">把灵感交给旅行助手</h2>
+        <p class="chapter-bridge-lead">AI 给出的线索，下一步是和你的需求对话。打开助手，把灵感折成具体行程。</p>
+      </div>
+      <RouterLink class="chapter-bridge-cta" to="/assistant">
+        <span>去问旅行助手</span>
+        <ArrowRight :size="18" :stroke-width="2.2" />
+      </RouterLink>
     </section>
   </div>
 </template>

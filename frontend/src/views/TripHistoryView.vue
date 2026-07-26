@@ -1,9 +1,14 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
+import { ArrowRight, Plus } from 'lucide-vue-next';
 import { RouterLink } from 'vue-router';
 import { tripApi } from '../api/trip.js';
 import { cityImageByName } from '../data/cityImages.js';
+import PagePrologue from '../components/PagePrologue.vue';
+import { useReveal } from '../composables/useReveal.js';
 
+const root = ref(null);
+useReveal(root);
 const items = ref([]);
 const total = ref(0);
 const error = ref('');
@@ -53,24 +58,23 @@ onMounted(load);
 </script>
 
 <template>
-  <div class="journey-album-page">
-    <section class="journey-masthead">
-      <div>
-        <p>我的行程 · 私人行程册</p>
-        <h1>走过的，<em>和还想去的。</em></h1>
-        <span>每一张都是一段准备出发或已经发生的旅程。</span>
-      </div>
-      <RouterLink class="btn-link btn-coral" to="/map">＋ 新规划一程</RouterLink>
+  <div ref="root" class="journey-album-page">
+    <section class="journey-masthead" data-reveal style="--reveal-delay: 0s">
+      <PagePrologue index="06" eyebrow="我的行程 · 私人行程册">
+        <template #title>走过的，<em>和还想去的。</em></template>
+        <template #lead>每一张都是一段准备出发或已经发生的旅程。</template>
+      </PagePrologue>
+      <RouterLink class="btn-link btn-coral" to="/map"><Plus :size="15" :stroke-width="2.2" /> 新规划一程</RouterLink>
     </section>
 
     <p v-if="error" class="error-line">{{ error }}</p>
 
-    <div class="journey-album-head">
+    <div class="journey-album-head" data-reveal style="--reveal-delay: 0.08s">
       <div><span>按保存时间排列</span><h2>{{ loading ? '正在翻开行程册…' : (total ? `${total} 份行程` : '行程册空着') }}</h2></div>
-      <RouterLink class="text-link" to="/cities">去找下一站 →</RouterLink>
+      <RouterLink class="text-link" to="/cities">去找下一站 <ArrowRight :size="15" :stroke-width="2.2" /></RouterLink>
     </div>
 
-    <div v-if="!loading && items.length === 0" class="empty-state empty-state--card">
+    <div v-if="!loading && items.length === 0" class="empty-state empty-state--card" data-reveal style="--reveal-delay: 0.16s">
       <strong>行李箱还是空的</strong>
       <p>还没有保存的行程。去规划一趟吧——哪怕只是周末两天。</p>
       <div class="actions" style="justify-content: center; margin-top: 18px;">
@@ -79,7 +83,7 @@ onMounted(load);
       </div>
     </div>
 
-    <div v-else class="journey-photo-feed">
+    <div v-else class="journey-photo-feed" data-reveal style="--reveal-delay: 0.16s">
       <RouterLink
         v-for="item in items"
         :key="item.id"
@@ -99,18 +103,28 @@ onMounted(load);
             <template v-if="item.start_date || item.end_date">{{ item.start_date || '待定' }} — {{ item.end_date || '待定' }}</template>
             <template v-else>日期待定</template>
           </span>
-          <b>打开这份行程 →</b>
+          <b>打开这份行程 <ArrowRight :size="15" :stroke-width="2.2" /></b>
         </span>
       </RouterLink>
     </div>
     <div v-if="hasMore" class="load-more"><button type="button" class="btn-ghost" :disabled="loading" @click="load(limit + 20)">{{ loading ? '正在加载…' : `加载更多（还有 ${total - items.length} 份）` }}</button></div>
+
+    <section class="chapter-bridge" data-reveal style="--reveal-delay: 0.24s">
+      <div class="chapter-bridge-copy">
+        <p class="chapter-bridge-eyebrow">下一章</p>
+        <h2 class="chapter-bridge-title">走过的路，写成回忆</h2>
+        <p class="chapter-bridge-lead">把已经完成的行程整理成照片和笔记，留住路上的细节。</p>
+      </div>
+      <RouterLink class="chapter-bridge-cta" to="/memories">
+        <span>去记录</span>
+        <ArrowRight :size="18" :stroke-width="2.2" />
+      </RouterLink>
+    </section>
   </div>
 </template>
 
 <style scoped>
 .journey-album-page {
-  --album-night: #142b2d;
-  --album-coral: #ef744d;
   min-width: 0;
 }
 
@@ -120,7 +134,7 @@ onMounted(load);
   justify-content: space-between;
   gap: 28px;
   padding: 30px 4px 28px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--tm-line);
 }
 
 .journey-masthead p,
@@ -131,29 +145,29 @@ onMounted(load);
 
 .journey-masthead p {
   margin: 0 0 10px;
-  color: var(--album-coral);
+  color: var(--tm-accent);
   font-size: 12px;
   font-weight: 800;
 }
 
 .journey-masthead h1 {
   margin: 0;
-  color: var(--album-night);
-  font-family: "FZKai-Z03", "STKaiti", "KaiTi", serif;
+  color: var(--tm-ink);
+  font-family: var(--font-display);
   font-size: clamp(34px, 5vw, 56px);
   line-height: 1.12;
   letter-spacing: -.04em;
 }
 
 .journey-masthead h1 em {
-  color: var(--album-coral);
+  color: var(--tm-accent);
   font-style: normal;
 }
 
 .journey-masthead > div > span {
   display: block;
   margin-top: 14px;
-  color: var(--muted);
+  color: var(--tm-muted);
 }
 
 .journey-masthead > .btn-link {
@@ -169,14 +183,14 @@ onMounted(load);
 }
 
 .journey-album-head > div > span {
-  color: var(--muted);
+  color: var(--tm-muted);
   font-size: 11px;
   font-weight: 700;
 }
 
 .journey-album-head h2 {
   margin: 4px 0 0;
-  color: var(--album-night);
+  color: var(--tm-ink);
   font-size: clamp(22px, 3vw, 30px);
 }
 
@@ -194,9 +208,9 @@ onMounted(load);
   overflow: hidden;
   break-inside: avoid;
   border-radius: 18px;
-  background: var(--album-night);
+  background: var(--tm-paper);
   color: #fff;
-  box-shadow: 0 10px 28px rgba(20, 43, 45, .12);
+  box-shadow: var(--tm-shadow-card);
   isolation: isolate;
   vertical-align: top;
 }
@@ -224,15 +238,15 @@ onMounted(load);
 .journey-photo-fallback {
   display: grid;
   place-items: center;
-  background: linear-gradient(145deg, #689e99, var(--album-night));
+  background: linear-gradient(145deg, var(--tm-accent-deep), var(--tm-canvas-2));
   color: rgba(255, 255, 255, .44);
-  font-family: "FZKai-Z03", "STKaiti", "KaiTi", serif;
+  font-family: var(--font-display);
   font-size: 34px;
 }
 
 .journey-photo-shade {
   z-index: 1;
-  background: linear-gradient(180deg, rgba(8, 24, 25, .04) 16%, rgba(8, 24, 25, .28) 50%, rgba(8, 24, 25, .94) 100%);
+  background: linear-gradient(180deg, rgba(12, 10, 8, .04) 16%, rgba(12, 10, 8, .28) 50%, rgba(12, 10, 8, .94) 100%);
 }
 
 .journey-status {
@@ -240,14 +254,14 @@ onMounted(load);
   top: 16px;
   right: 16px;
   z-index: 2;
-  border: 1px solid rgba(255, 255, 255, .34);
-  background: rgba(255, 255, 255, .9);
+  border: 1px solid var(--tm-line-strong);
+  background: var(--tm-paper-muted);
   backdrop-filter: blur(8px);
 }
 
-.journey-status.badge-ok { background: rgba(234, 246, 239, .94); color: #246f5c; }
-.journey-status.badge-warn { background: rgba(255, 244, 220, .94); color: #8a6200; }
-.journey-status.badge-muted { background: rgba(255, 255, 255, .9); color: #625a52; }
+.journey-status.badge-ok { background: var(--tm-accent-soft); color: var(--tm-accent); }
+.journey-status.badge-warn { background: var(--tm-sun-soft); color: var(--tm-sun); }
+.journey-status.badge-muted { background: var(--tm-paper-raised); color: var(--tm-muted); }
 
 .journey-photo-copy {
   position: relative;
@@ -267,7 +281,7 @@ onMounted(load);
 
 .journey-photo-copy > strong {
   margin-top: 6px;
-  font-family: "FZKai-Z03", "STKaiti", "KaiTi", serif;
+  font-family: var(--font-display);
   font-size: clamp(30px, 3vw, 38px);
   line-height: 1.12;
   text-shadow: 0 2px 14px rgba(0, 0, 0, .28);
@@ -288,7 +302,7 @@ onMounted(load);
 .journey-photo-copy > b {
   margin-top: 14px;
   padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, .22);
+  border-top: 1px solid var(--tm-line);
   font-size: 12px;
   text-align: right;
 }
@@ -299,7 +313,7 @@ onMounted(load);
 }
 
 .journey-photo-card:focus-visible {
-  outline: 3px solid var(--album-coral);
+  outline: 3px solid var(--tm-accent);
   outline-offset: -3px;
 }
 

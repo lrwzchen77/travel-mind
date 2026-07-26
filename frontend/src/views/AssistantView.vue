@@ -1,9 +1,14 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
+import { ArrowRight } from 'lucide-vue-next';
 import { assistantApi } from '../api/assistant.js';
 import { authSession } from '../auth/session.js';
 import { markdownBlocks } from '../utils/markdown.js';
+import { useReveal } from '../composables/useReveal.js';
+
+const root = ref(null);
+useReveal(root);
 
 const route = useRoute();
 const router = useRouter();
@@ -72,8 +77,8 @@ onMounted(loadConversations);
 </script>
 
 <template>
-  <section class="assistant-page">
-    <aside class="assistant-sidebar" aria-label="旅行对话列表">
+  <section ref="root" class="assistant-page">
+    <aside class="assistant-sidebar" aria-label="旅行对话列表" data-reveal>
       <div class="assistant-side-head">
         <div><p class="eyebrow">先问 AI</p><h2>理清复杂旅行要求</h2></div>
         <button type="button" class="btn-ghost" @click="newConversation">新对话</button>
@@ -84,21 +89,56 @@ onMounted(loadConversations);
       </div>
     </aside>
     <main class="assistant-main">
-      <header>
+      <header data-reveal>
         <div><p class="eyebrow">Travel Mind AI</p><h1>旅行对话</h1></div>
         <button type="button" class="btn-coral" :disabled="!messages.some((item) => item.role === 'user')" @click="plan">生成行程</button>
       </header>
-      <div v-if="sourceCount" class="assistant-source-strip"><span>已带入 {{ sourceCount }} 篇社区分享</span><RouterLink to="/inspiration-bag">调整灵感包</RouterLink></div>
+      <div v-if="sourceCount" class="assistant-source-strip" data-reveal><span>已带入 {{ sourceCount }} 篇社区分享</span><RouterLink to="/inspiration-bag">调整灵感包</RouterLink></div>
       <p v-if="error" class="error-line">{{ error }}</p>
       <div class="assistant-messages" aria-live="polite">
-        <article v-for="(item, index) in messages" :key="index" class="assistant-message" :class="`is-${item.role}`"><strong>{{ item.role === 'user' ? '你' : 'Travel Mind AI' }}</strong><template v-if="item.role === 'assistant'"><div class="assistant-markdown"><template v-for="(block, blockIndex) in markdownBlocks(item.content)" :key="blockIndex"><component :is="block.type === 'heading' ? `h${block.level}` : block.type === 'quote' ? 'blockquote' : 'p'" v-if="block.parts" :class="`markdown-${block.type}`"><template v-for="(part, partIndex) in block.parts" :key="partIndex"><strong v-if="part.type === 'strong'">{{ part.text }}</strong><code v-else-if="part.type === 'code'">{{ part.text }}</code><a v-else-if="part.type === 'link'" :href="part.href" target="_blank" rel="noreferrer">{{ part.text }}</a><template v-else>{{ part.text }}</template></template></component><component :is="block.type === 'ordered-list' ? 'ol' : 'ul'" v-else-if="block.items" :class="`markdown-${block.type}`"><li v-for="(parts, itemIndex) in block.items" :key="itemIndex"><template v-for="(part, partIndex) in parts" :key="partIndex"><strong v-if="part.type === 'strong'">{{ part.text }}</strong><code v-else-if="part.type === 'code'">{{ part.text }}</code><a v-else-if="part.type === 'link'" :href="part.href" target="_blank" rel="noreferrer">{{ part.text }}</a><template v-else>{{ part.text }}</template></template></li></component><pre v-else class="markdown-code"><code>{{ block.text }}</code></pre></template><span v-if="item.streaming" class="assistant-cursor" aria-label="正在生成" /></div></template><p v-else>{{ item.content }}</p><div v-if="item.sources?.length" class="chip-row"><span v-for="source in item.sources" :key="source.post_id" class="chip">参考：{{ source.title }}</span></div></article>
+        <article v-for="(item, index) in messages" :key="index" class="assistant-message" :class="`is-${item.role}`" :data-reveal="index < 3 ? '' : null"><strong>{{ item.role === 'user' ? '你' : 'Travel Mind AI' }}</strong><template v-if="item.role === 'assistant'"><div class="assistant-markdown"><template v-for="(block, blockIndex) in markdownBlocks(item.content)" :key="blockIndex"><component :is="block.type === 'heading' ? `h${block.level}` : block.type === 'quote' ? 'blockquote' : 'p'" v-if="block.parts" :class="`markdown-${block.type}`"><template v-for="(part, partIndex) in block.parts" :key="partIndex"><strong v-if="part.type === 'strong'">{{ part.text }}</strong><code v-else-if="part.type === 'code'">{{ part.text }}</code><a v-else-if="part.type === 'link'" :href="part.href" target="_blank" rel="noreferrer">{{ part.text }}</a><template v-else>{{ part.text }}</template></template></component><component :is="block.type === 'ordered-list' ? 'ol' : 'ul'" v-else-if="block.items" :class="`markdown-${block.type}`"><li v-for="(parts, itemIndex) in block.items" :key="itemIndex"><template v-for="(part, partIndex) in parts" :key="partIndex"><strong v-if="part.type === 'strong'">{{ part.text }}</strong><code v-else-if="part.type === 'code'">{{ part.text }}</code><a v-else-if="part.type === 'link'" :href="part.href" target="_blank" rel="noreferrer">{{ part.text }}</a><template v-else>{{ part.text }}</template></template></li></component><pre v-else class="markdown-code"><code>{{ block.text }}</code></pre></template><span v-if="item.streaming" class="assistant-cursor" aria-label="正在生成" /></div></template><p v-else>{{ item.content }}</p><div v-if="item.sources?.length" class="chip-row"><span v-for="source in item.sources" :key="source.post_id" class="chip">参考：{{ source.title }}</span></div></article>
       </div>
-      <div class="assistant-prompts" aria-label="快捷提问"><button type="button" @click="ask('八月带父母出行三天，预算四千，不想太赶，推荐去哪里？')">带父母，三天别太赶</button><button type="button" @click="ask('我选的这些社区分享有什么冲突？应该怎么取舍？')">检查分享冲突</button><button type="button" @click="ask('按少走路、美食优先的节奏，帮我整理一份规划确认卡。')">整理规划确认卡</button></div>
-      <form class="assistant-input" @submit.prevent="ask()">
+      <div class="assistant-prompts" aria-label="快捷提问" data-reveal><button type="button" @click="ask('八月带父母出行三天，预算四千，不想太赶，推荐去哪里？')">带父母，三天别太赶</button><button type="button" @click="ask('我选的这些社区分享有什么冲突？应该怎么取舍？')">检查分享冲突</button><button type="button" @click="ask('按少走路、美食优先的节奏，帮我整理一份规划确认卡。')">整理规划确认卡</button></div>
+      <form class="assistant-input" data-reveal @submit.prevent="ask()">
         <label class="sr-only" for="assistant-question">输入旅行问题</label>
         <textarea id="assistant-question" v-model="text" rows="3" placeholder="例如：想去杭州两天，带父母，预算三千，优先安排灵感包里的早餐和慢游路线…" />
         <button class="btn-coral" type="submit" :disabled="loading">{{ loading ? '思考中…' : '发送' }}</button>
       </form>
+
+      <section class="chapter-bridge" data-reveal>
+        <div class="chapter-bridge-copy">
+          <p class="chapter-bridge-eyebrow">下一章</p>
+          <h2 class="chapter-bridge-title">把对话折成行程</h2>
+          <p class="chapter-bridge-lead">理清需求后，下一步是落到地图上。打开规划器，把刚才聊到的城市、节奏、预算转成可走的路线。</p>
+        </div>
+        <RouterLink class="chapter-bridge-cta" to="/map">
+          <span>去地图规划</span>
+          <ArrowRight :size="18" :stroke-width="2.2" />
+        </RouterLink>
+      </section>
     </main>
   </section>
 </template>
+
+<style scoped>
+.assistant-main { display: flex; flex-direction: column; gap: 18px; }
+.assistant-conversation {
+  transition: background 0.25s ease, color 0.25s ease, padding-left 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.assistant-conversation:hover {
+  background: var(--tm-paper-raised);
+  color: var(--tm-ink);
+  padding-left: 14px;
+}
+.assistant-message {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
+}
+.assistant-message.is-inview {
+  animation: assistant-msg-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes assistant-msg-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.assistant-page .chapter-bridge { margin-top: 32px; }
+</style>

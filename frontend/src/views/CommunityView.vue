@@ -1,13 +1,18 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue';
+import { ArrowRight, Heart, MapPin } from 'lucide-vue-next';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { authSession } from '../auth/session.js';
 import { communityApi } from '../api/community.js';
 import { cityImageByName } from '../data/cityImages.js';
 import ImageDropUpload from '../components/ImageDropUpload.vue';
+import PagePrologue from '../components/PagePrologue.vue';
+import { useReveal } from '../composables/useReveal.js';
 
 const route = useRoute();
 const router = useRouter();
+const root = ref(null);
+useReveal(root);
 const posts = ref([]);
 const total = ref(0);
 const page = ref(1);
@@ -78,20 +83,19 @@ onMounted(() => load());
 </script>
 
 <template>
-  <div class="inspiration-feed-page">
-    <section class="community-intro inspiration-masthead">
-      <div>
-        <p class="inspiration-kicker">旅行灵感 · 来自旅行分享</p>
-        <h1>先被一张照片打动，<br /><em>再决定下一站。</em></h1>
-        <p class="lead">看看旅行者怎么吃、怎么玩、怎么避坑，把喜欢的体验收进行程。</p>
-      </div>
+  <div ref="root" class="inspiration-feed-page">
+    <section class="community-intro inspiration-masthead" data-reveal style="--reveal-delay: 0s">
+      <PagePrologue index="03" eyebrow="旅行灵感 · 来自旅行分享" next-label="先问 AI 怎么取舍" next-to="/assistant">
+        <template #title>先被一张照片打动，<br /><em>再决定下一站。</em></template>
+        <template #lead>看看旅行者怎么吃、怎么玩、怎么避坑，把喜欢的体验收进行程。</template>
+      </PagePrologue>
       <div class="inspiration-actions">
         <RouterLink class="btn-link btn-coral" to="/assistant">先问 AI 怎么取舍</RouterLink>
         <button type="button" class="btn-ghost" @click="startPublish">{{ composing ? '收起发布' : '发布我的分享' }}</button>
       </div>
     </section>
 
-    <form class="community-filter inspiration-filter" aria-label="筛选旅行灵感" @submit.prevent="load()">
+    <form class="community-filter inspiration-filter" data-reveal style="--reveal-delay: 0.08s" aria-label="筛选旅行灵感" @submit.prevent="load()">
       <label class="inspiration-search"><span class="visually-hidden">搜索关键词</span><input v-model="filters.keyword" placeholder="搜城市、店名、路线或避坑关键词" /></label>
       <label><span class="visually-hidden">筛选城市</span><input v-model="filters.city" placeholder="城市，例如杭州" /></label>
       <label><span class="visually-hidden">内容类型</span><select v-model="filters.topic">
@@ -115,13 +119,13 @@ onMounted(() => load());
 
     <p v-if="message" class="success-line">{{ message }}</p>
     <p v-if="error" class="error-line">{{ error }}</p>
-    <div class="inspiration-feed-head">
+    <div class="inspiration-feed-head" data-reveal style="--reveal-delay: 0.16s">
       <div><span>此刻值得出发的画面</span><h2>{{ loading ? '正在翻旅行分享…' : `${total} 篇旅行者分享` }}</h2></div>
-      <RouterLink class="text-link" to="/inspiration-bag">打开灵感包 →</RouterLink>
+      <RouterLink class="text-link" to="/inspiration-bag">打开灵感包 <ArrowRight :size="15" :stroke-width="2.2" /></RouterLink>
     </div>
 
-    <div v-if="!loading && !posts.length" class="empty-state empty-state--card"><strong>还没有匹配的灵感</strong><p>换个城市或关键词试试，也可以成为第一位分享的人。</p></div>
-    <div v-else class="travel-photo-feed">
+    <div v-if="!loading && !posts.length" class="empty-state empty-state--card" data-reveal style="--reveal-delay: 0.24s"><strong>还没有匹配的灵感</strong><p>换个城市或关键词试试，也可以成为第一位分享的人。</p></div>
+    <div v-else class="travel-photo-feed" data-reveal style="--reveal-delay: 0.24s">
       <article v-for="post in posts" :key="post.id" class="travel-photo-tile">
         <RouterLink :to="`/inspirations/${post.id}`" class="travel-photo-link" :aria-label="`查看${post.title}`">
           <img v-if="cover(post)" :src="cover(post)" :alt="coverAlt(post)" loading="lazy" />
@@ -129,13 +133,13 @@ onMounted(() => load());
           <span class="travel-photo-shade" aria-hidden="true" />
           <span class="travel-photo-topic">{{ topicLabel[post.topic] || '旅行分享' }}</span>
           <span class="travel-photo-copy">
-            <span class="travel-photo-place">⌖ {{ post.city || '目的地待补充' }} · {{ post.author || '旅行者' }}</span>
+            <span class="travel-photo-place"><MapPin :size="13" :stroke-width="2" /> {{ post.city || '目的地待补充' }} · {{ post.author || '旅行者' }}</span>
             <strong>{{ post.title }}</strong>
             <span class="travel-photo-excerpt">{{ excerpt(post) }}</span>
             <span class="travel-photo-tags">
               <span v-for="tag in String(post.tags || '').split(/[,，、\s]+/).filter(Boolean).slice(0, 3)" :key="tag">#{{ tag }}</span>
             </span>
-            <span class="travel-photo-foot"><span>♥ {{ post.like_count || 0 }} · 评论 {{ post.comment_count || 0 }}</span><b>查看并引用 →</b></span>
+            <span class="travel-photo-foot"><span><Heart :size="13" :stroke-width="2" /> {{ post.like_count || 0 }} · 评论 {{ post.comment_count || 0 }}</span><b>查看并引用 <ArrowRight :size="15" :stroke-width="2.2" /></b></span>
           </span>
         </RouterLink>
       </article>
@@ -143,14 +147,23 @@ onMounted(() => load());
     <div v-if="hasMore" class="load-more"><button type="button" class="btn-ghost" :disabled="loading" @click="load(page + 1)">{{ loading ? '正在加载…' : `加载更多（还有 ${total - posts.length} 篇）` }}</button></div>
 
     <p class="inspiration-disclosure">社区内容可能来自用户经验或演示数据，价格、营业和安全信息请在出发前再次确认。</p>
+
+    <section class="chapter-bridge" data-reveal style="--reveal-delay: 0.32s">
+      <div class="chapter-bridge-copy">
+        <p class="chapter-bridge-eyebrow">下一章</p>
+        <h2 class="chapter-bridge-title">看完了别人的分享，动手规划自己的</h2>
+        <p class="chapter-bridge-lead">把社区里收藏的体验带进行程，或者直接问 AI 怎么取舍。</p>
+      </div>
+      <RouterLink class="chapter-bridge-cta" to="/planning">
+        <span>去规划</span>
+        <ArrowRight :size="18" :stroke-width="2.2" />
+      </RouterLink>
+    </section>
   </div>
 </template>
 
 <style scoped>
 .inspiration-feed-page {
-  --feed-night: #142b2d;
-  --feed-coral: #ef744d;
-  --feed-mist: #f2f7f4;
   min-width: 0;
 }
 
@@ -160,7 +173,7 @@ onMounted(() => load());
   justify-content: space-between;
   gap: 32px;
   padding: 30px 4px 28px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--tm-line);
 }
 
 .inspiration-kicker,
@@ -171,15 +184,15 @@ onMounted(() => load());
 
 .inspiration-kicker {
   margin: 0 0 10px;
-  color: var(--feed-coral);
+  color: var(--tm-accent);
   font-size: 12px;
   font-weight: 800;
 }
 
 .inspiration-masthead h1 {
   margin: 0;
-  color: var(--feed-night);
-  font-family: "FZKai-Z03", "STKaiti", "KaiTi", serif;
+  color: var(--tm-ink);
+  font-family: var(--font-display);
   font-size: clamp(34px, 5.2vw, 58px);
   font-weight: 700;
   line-height: 1.12;
@@ -187,7 +200,7 @@ onMounted(() => load());
 }
 
 .inspiration-masthead h1 em {
-  color: var(--feed-coral);
+  color: var(--tm-accent);
   font-style: normal;
 }
 
@@ -212,10 +225,10 @@ onMounted(() => load());
   gap: 10px;
   margin: 22px 0 36px;
   padding: 10px;
-  border: 1px solid #dce8e2;
+  border: 1px solid var(--tm-line);
   border-radius: 14px;
-  background: rgba(255, 255, 255, .92);
-  box-shadow: 0 12px 38px rgba(20, 43, 45, .08);
+  background: var(--tm-paper);
+  box-shadow: var(--tm-shadow-card);
 }
 
 .inspiration-filter input,
@@ -223,13 +236,13 @@ onMounted(() => load());
   width: 100%;
   height: 46px;
   border: 0;
-  background: var(--feed-mist);
+  background: var(--tm-paper-muted);
   box-shadow: none;
 }
 
 .inspiration-filter input:focus,
 .inspiration-filter select:focus {
-  outline: 2px solid var(--feed-coral);
+  outline: 2px solid var(--tm-accent);
   outline-offset: 1px;
   box-shadow: none;
 }
@@ -258,7 +271,7 @@ onMounted(() => load());
 
 .inspiration-feed-head h2 {
   margin: 4px 0 0;
-  color: var(--feed-night);
+  color: var(--tm-ink);
   font-size: clamp(22px, 3vw, 30px);
 }
 
@@ -275,8 +288,8 @@ onMounted(() => load());
   overflow: hidden;
   break-inside: avoid;
   border-radius: 18px;
-  background: var(--feed-night);
-  box-shadow: 0 10px 28px rgba(20, 43, 45, .12);
+  background: var(--tm-paper);
+  box-shadow: var(--tm-shadow-card);
   vertical-align: top;
 }
 
@@ -312,15 +325,15 @@ onMounted(() => load());
 .travel-photo-fallback {
   display: grid;
   place-items: center;
-  background: linear-gradient(145deg, #6ca6a2, var(--feed-night));
+  background: linear-gradient(145deg, var(--tm-accent-deep), var(--tm-canvas-2));
   color: rgba(255, 255, 255, .44);
-  font-family: "FZKai-Z03", "STKaiti", "KaiTi", serif;
+  font-family: var(--font-display);
   font-size: 34px;
 }
 
 .travel-photo-shade {
   z-index: 1;
-  background: linear-gradient(180deg, rgba(8, 24, 25, .06) 20%, rgba(8, 24, 25, .3) 52%, rgba(8, 24, 25, .92) 100%);
+  background: linear-gradient(180deg, rgba(12, 10, 8, .06) 20%, rgba(12, 10, 8, .3) 52%, rgba(12, 10, 8, .92) 100%);
 }
 
 .travel-photo-topic {
@@ -330,8 +343,8 @@ onMounted(() => load());
   z-index: 2;
   padding: 7px 13px 7px 15px;
   border-radius: 14px 0 0 14px;
-  background: rgba(255, 255, 255, .9);
-  color: var(--feed-night);
+  background: var(--tm-paper-muted);
+  color: var(--tm-ink);
   font-size: 11px;
   font-weight: 800;
   backdrop-filter: blur(8px);
@@ -355,7 +368,7 @@ onMounted(() => load());
 }
 
 .travel-photo-copy > strong {
-  font-family: "FZKai-Z03", "STKaiti", "KaiTi", serif;
+  font-family: var(--font-display);
   font-size: clamp(23px, 2.4vw, 29px);
   line-height: 1.2;
   text-wrap: balance;
@@ -405,7 +418,7 @@ onMounted(() => load());
 }
 
 .travel-photo-link:focus-visible {
-  outline: 3px solid var(--feed-coral);
+  outline: 3px solid var(--tm-accent);
   outline-offset: -3px;
 }
 

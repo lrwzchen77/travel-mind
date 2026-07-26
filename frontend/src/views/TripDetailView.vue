@@ -9,7 +9,11 @@ import PublicTravelDataPanel from '../components/PublicTravelDataPanel.vue';
 import { consumerText } from '../data/consumerText.js';
 import { currentTripDayIndex, tripCalendar } from '../utils/tripDeparture.js';
 import { normalizeRouteIntent, ROUTE_INTENT_KEY } from '../map/trackEditor.js';
-import { BrainCircuit, CircleCheck, Coffee, Gauge, Zap } from 'lucide-vue-next';
+import { ArrowRight, BrainCircuit, CircleCheck, Coffee, Gauge, Zap } from 'lucide-vue-next';
+import { useReveal } from '../composables/useReveal.js';
+
+const root = ref(null);
+useReveal(root);
 
 const route = useRoute();
 const router = useRouter();
@@ -290,7 +294,8 @@ onMounted(load);
 </script>
 
 <template>
-  <section class="trip-hero">
+  <div ref="root">
+  <section class="trip-hero" data-reveal>
     <div class="trip-hero-copy">
       <p class="eyebrow">我的旅行计划</p>
       <h1>{{ plan.city || '行程详情' }}</h1>
@@ -378,7 +383,7 @@ onMounted(load);
       <div>
         <h3>现在去哪</h3>
         <a v-for="stop in departureStops" :key="`${stop.type}-${stop.name}`" class="trip-departure-stop" :href="mapLink(stop)" target="_blank" rel="noreferrer">
-          <span>{{ stop.type }}</span><strong>{{ stop.name }}</strong><small>AI 建议 · 未预订 · {{ stop.address || departureDay.city || plan.city }} · 去导航 →</small>
+          <span>{{ stop.type }}</span><strong>{{ stop.name }}</strong><small>AI 建议 · 未预订 · {{ stop.address || departureDay.city || plan.city }} · 去导航 <ArrowRight :size="12" :stroke-width="2.4" aria-hidden="true" /></small>
         </a>
         <p v-if="!departureStops.length" class="trip-departure-empty">今天还没有具体停靠点，可以先问 AI 调整。</p>
       </div>
@@ -402,7 +407,7 @@ onMounted(load);
         class="text-link"
         :to="{ path: '/map', query: { city: plan.city } }"
       >
-        全屏地图 →
+        全屏地图 <ArrowRight :size="14" :stroke-width="2.2" aria-hidden="true" />
       </RouterLink>
     </div>
     <TravelMap3D
@@ -469,7 +474,7 @@ onMounted(load);
       <article v-for="source in inspirationSources" :key="source.post_id">
         <span>{{ source.intent === 'must' ? '必须安排' : source.intent === 'priority' ? '优先参考' : '体验参考' }}</span>
         <div><h3>{{ source.title }}</h3><p>{{ source.excerpt }}</p></div>
-        <RouterLink :to="`/inspirations/${source.post_id}`">原帖 →</RouterLink>
+        <RouterLink :to="`/inspirations/${source.post_id}`">原帖 <ArrowRight :size="13" :stroke-width="2.2" aria-hidden="true" /></RouterLink>
       </article>
     </div>
   </section>
@@ -531,7 +536,7 @@ onMounted(load);
             class="text-action text-action--primary"
             :disabled="busy === 'chat'"
             @click="askAbout(`第${day.day_index}天有这些问题：${day.risk_items.join('；')}，请给我具体调整建议。`)"
-          >问怎么调整 →</button>
+          >问怎么调整 <ArrowRight :size="13" :stroke-width="2.2" aria-hidden="true" /></button>
         </article>
         <div v-if="!dailyRisks.length" class="trip-check-clear">
           <strong>每天的节奏都比较稳妥</strong>
@@ -572,11 +577,24 @@ onMounted(load);
         <div class="chat-bubble">
           <h3>Travel Mind</h3>
           <p>{{ item.reply }}</p>
-          <button type="button" class="text-action text-action--primary" @click="replanWith(item.reply)">按这条建议重新规划 →</button>
+          <button type="button" class="text-action text-action--primary" @click="replanWith(item.reply)">按这条建议重新规划 <ArrowRight :size="13" :stroke-width="2.2" aria-hidden="true" /></button>
         </div>
       </template>
     </div>
   </section>
+
+    <section class="chapter-bridge" data-reveal>
+      <div class="chapter-bridge-copy">
+        <p class="chapter-bridge-eyebrow">下一章 · 07 记录</p>
+        <h2 class="chapter-bridge-title">这趟走完，写成回忆</h2>
+        <p class="chapter-bridge-lead">行程落幕，回忆开始。把照片、感受、意外收进旅行记录，给未来留一份可翻阅的注脚。</p>
+      </div>
+      <RouterLink class="chapter-bridge-cta" to="/memories">
+        <span>去写旅行记录</span>
+        <ArrowRight :size="18" :stroke-width="2.2" />
+      </RouterLink>
+    </section>
+  </div>
 </template>
 
 <style scoped>
@@ -594,15 +612,15 @@ onMounted(load);
   align-items: center;
   gap: 7px;
   padding: 6px 10px 6px 6px;
-  border: 1px solid rgba(23, 63, 80, .14);
+  border: 1px solid var(--tm-line);
   border-radius: 999px;
-  background: rgba(255, 250, 241, .9);
-  color: #173f50;
+  background: var(--tm-paper);
+  color: var(--tm-ink);
   cursor: pointer;
   font-size: 11px;
   font-weight: 800;
 }
 .saved-route-strip button:hover,
-.saved-route-strip button:focus-visible { border-color: #e87022; outline: 2px solid rgba(232, 112, 34, .18); outline-offset: 2px; }
-.saved-route-strip b { display: grid; width: 25px; height: 25px; place-items: center; border-radius: 50%; background: #e87022; color: white; font: 900 10px/1 var(--font-mono, monospace); }
+.saved-route-strip button:focus-visible { border-color: var(--tm-accent); outline: 2px solid var(--tm-accent-soft); outline-offset: 2px; }
+.saved-route-strip b { display: grid; width: 25px; height: 25px; place-items: center; border-radius: 50%; background: var(--tm-accent); color: #160d05; font: 900 10px/1 var(--font-mono, monospace); }
 </style>

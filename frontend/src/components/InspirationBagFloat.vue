@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
+import { Sparkles, ArrowRight } from 'lucide-vue-next';
 import { communityApi } from '../api/community.js';
 
 const router = useRouter();
@@ -53,7 +54,7 @@ onUnmounted(() => {
       aria-label="打开灵感包"
       @click.stop="open = !open"
     >
-      <span class="inspiration-bag-icon" aria-hidden="true">✦</span>
+      <span class="inspiration-bag-icon" aria-hidden="true"><Sparkles :size="20" :stroke-width="2" /></span>
       <span><strong>灵感包</strong><small>{{ count ? `${count} 篇待规划` : '去挑攻略' }}</small></span>
       <b v-if="count">{{ count }}</b>
     </button>
@@ -61,7 +62,7 @@ onUnmounted(() => {
     <aside v-show="open" class="inspiration-bag-popover" aria-label="灵感包预览">
       <div class="inspiration-bag-popover-head">
         <div><p class="eyebrow">本次旅行素材</p><h2>{{ count ? `${count} 篇已加入` : '灵感包还是空的' }}</h2></div>
-        <RouterLink to="/inspiration-bag" @click="close">管理 →</RouterLink>
+        <RouterLink to="/inspiration-bag" @click="close">管理 <ArrowRight :size="13" :stroke-width="2.2" /></RouterLink>
       </div>
       <p v-if="error" class="error-line">{{ error }}</p>
       <p v-else-if="loading" class="panel-hint">正在整理灵感…</p>

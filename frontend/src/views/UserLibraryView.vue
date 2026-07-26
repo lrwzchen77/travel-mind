@@ -1,7 +1,9 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { ArrowRight } from 'lucide-vue-next';
 import { RouterLink, useRoute } from 'vue-router';
 import { resourceApi } from '../api/resources.js';
+import PagePrologue from '../components/PagePrologue.vue';
 import { cityImageByName } from '../data/cityImages.js';
 
 const route = useRoute();
@@ -144,10 +146,7 @@ onMounted(load);
 </script>
 
 <template>
-  <section class="page-intro">
-    <p class="eyebrow">{{ pageCopy.eyebrow }}</p>
-    <h1>{{ pageTitle }}</h1>
-  </section>
+  <PagePrologue index="08" :eyebrow="pageCopy.eyebrow" :title="pageTitle" :lead="pageCopy.lead || '把这一类内容集中归档，方便随时回看。'" />
 
   <div class="section-head">
     <div>
@@ -238,13 +237,13 @@ onMounted(load);
         />
         <div>
           <h2>{{ itemTitle(item) }}</h2>
-          <p>继续查看这座城 →</p>
+          <p>继续查看这座城 <ArrowRight :size="15" :stroke-width="2.2" /></p>
         </div>
       </RouterLink>
       <template v-else>
         <h2>{{ itemTitle(item) }}</h2>
         <p>{{ itemBody(item) }}</p>
-        <RouterLink v-if="resourceKey === 'favorites' || resourceKey === 'ai-records'" class="text-link" :to="reuseLink(item)">带去规划 →</RouterLink>
+        <RouterLink v-if="resourceKey === 'favorites' || resourceKey === 'ai-records'" class="text-link" :to="reuseLink(item)">带去规划 <ArrowRight :size="15" :stroke-width="2.2" /></RouterLink>
       </template>
     </article>
   </div>
