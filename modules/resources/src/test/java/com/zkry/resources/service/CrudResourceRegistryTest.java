@@ -11,9 +11,9 @@ class CrudResourceRegistryTest {
         CrudResourceRegistry registry = new CrudResourceRegistry();
 
         assertThat(registry.get("cities").tableName()).isEqualTo("tm_city");
-        assertThat(registry.get("attractions").tableName()).isEqualTo("tm_attraction");
-        assertThat(registry.get("hotels").tableName()).isEqualTo("tm_hotel");
-        assertThat(registry.get("restaurants").tableName()).isEqualTo("tm_restaurant");
+        assertThat(registry.get("attractions").tableName()).isEqualTo("tm_map_poi");
+        assertThat(registry.get("hotels").tableName()).isEqualTo("tm_map_poi");
+        assertThat(registry.get("restaurants").tableName()).isEqualTo("tm_map_poi");
         assertThat(registry.get("travel-tags").tableName()).isEqualTo("tm_travel_tag");
         assertThat(registry.get("favorites").tableName()).isEqualTo("tm_favorite");
         assertThat(registry.get("travel-notes").tableName()).isEqualTo("tm_travel_note");
@@ -26,5 +26,6 @@ class CrudResourceRegistryTest {
 
         assertThat(registry.get("cities").searchColumns()).contains("name", "province", "description");
         assertThat(registry.get("attractions").filterColumns()).contains("city_id", "category", "tags", "rating");
+        assertThat(registry.get("attractions").scopeValue()).isEqualTo("attraction");
     }
 }

@@ -351,11 +351,19 @@ public class TripMemoryService {
 
     private Map<String, Object> ownedTrip(long userId, long tripId) {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
-                SELECT id, title, destination_city, summary FROM tm_trip_plan
+                SELECT id, title, destination_city, summary, end_date,
+                       end_date IS NOT NULL AND end_date <= CURRENT_DATE AS has_ended
+                FROM tm_trip_plan
                 WHERE id = :tripId AND user_id = :userId AND deleted = 0 LIMIT 1
                 """, Map.of("tripId", tripId, "userId", userId));
         if (rows.isEmpty()) throw new BizException("行程不存在或无权操作。");
-        return rows.get(0);
+        Map<String, Object> trip = rows.get(0);
+        Object ended = trip.get("has_ended");
+        boolean hasEnded = Boolean.TRUE.equals(ended) || ended instanceof Number number && number.intValue() == 1;
+        if (!hasEnded) {
+            throw new BizException("行程结束后才能创建旅行记忆。");
+        }
+        return trip;
     }
 
     private Map<String, Object> ownedMemory(long userId, long memoryId) {

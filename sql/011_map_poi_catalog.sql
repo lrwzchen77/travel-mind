@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS tm_map_poi (
   source VARCHAR(32) NOT NULL,
   source_id VARCHAR(160) NOT NULL,
   city VARCHAR(64) NOT NULL,
+  city_id BIGINT NULL,
   name VARCHAR(160) NOT NULL,
   kind VARCHAR(32) NOT NULL,
   longitude DECIMAL(11,7) NOT NULL,
@@ -20,8 +21,11 @@ CREATE TABLE IF NOT EXISTS tm_map_poi (
   source_updated_at VARCHAR(64) NULL,
   last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   status TINYINT NOT NULL DEFAULT 1,
+  create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   deleted TINYINT NOT NULL DEFAULT 0,
   UNIQUE KEY uk_map_poi_source (source, source_id),
   INDEX idx_map_poi_city_kind (city, kind, status, deleted),
+  INDEX idx_map_poi_city_id_kind (city_id, kind, status, deleted),
   INDEX idx_map_poi_last_seen (last_seen_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

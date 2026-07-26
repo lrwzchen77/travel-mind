@@ -67,16 +67,18 @@ function detail(item) {
   if (resourceKey.value === 'cities') return item.description || `${item.name}，值得慢慢逛一逛`;
   if (resourceKey.value === 'hotels') {
     const score = item.rating ? `${item.rating} 分` : '评分待补充';
-    const price = consumerText(item.price_range) || '价位待确认';
+    const price = item.cost != null ? `参考 ¥${item.cost}` : consumerText(item.price_range) || '价位待确认';
     return `${score} · ${price}`;
   }
   if (resourceKey.value === 'restaurants') {
     const score = item.rating ? `${item.rating} 分` : '评分待补充';
-    const cost = item.average_cost != null ? `人均约 ¥${item.average_cost}` : '人均待确认';
+    const costValue = item.cost ?? item.average_cost;
+    const cost = costValue != null ? `人均约 ¥${costValue}` : '人均待确认';
     return `${score} · ${cost}`;
   }
   const score = item.rating ? `${item.rating} 分` : '评分待补充';
-  const ticket = item.price != null ? `门票约 ¥${item.price}` : '门票待确认';
+  const ticketValue = item.cost ?? item.price;
+  const ticket = ticketValue != null ? `门票约 ¥${ticketValue}` : '门票待确认';
   return `${score} · ${ticket}`;
 }
 

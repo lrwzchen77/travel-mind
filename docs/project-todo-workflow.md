@@ -202,12 +202,14 @@ The CRUD features must serve travel planning. Avoid unrelated admin features.
   - `tm_trip_day`.
   - `tm_trip_item`.
   - `tm_ai_analysis_record`.
+  - `tm_map_poi`（景点、住宿、餐饮统一主数据；高德全量落库，管理员手动补充）。
 - [x] Add seed data:
   - sample cities.
   - sample attractions.
   - sample hotels.
   - sample restaurants.
   - sample travel tags.
+- [x] Replace the three demo content tables in discovery/admin reads with the shared `tm_map_poi` catalog.
 - [x] Implement backend CRUD APIs:
   - paged list.
   - detail.
@@ -629,6 +631,11 @@ Create the following documents:
 - [x] The system includes large model API integration.
 - [x] The system includes at least one deep learning or machine learning feature.
 - [x] The system includes enough traditional CRUD features.
+- [x] Redis participates in the public travel-map snapshot cache with source fallback.
+- [x] Qdrant stores 512-dimensional private travel-memory vectors for evidence retrieval.
+- [x] The operations portal can query and maintain user accounts and travel preferences.
+- [x] Private travel memories can be created only after the owned trip has ended.
+- [x] Python AI health reports YOLO, TravelComfort, embedding, and Qdrant readiness with degradation state.
 - [x] The system has complete agile process documents.
 - [x] Git history shows Wang-ke-li, Chen Wenzhe, Zhu Qicheng, and Zhang Shuai.
 - [x] Wang-ke-li is clearly visible as team lead and core technical contributor.

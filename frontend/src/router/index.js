@@ -27,6 +27,8 @@ import AdminSettingsView from '../views/admin/AdminSettingsView.vue';
 
 const fieldLabels = {
   id: '编号', name: '名称', username: '账号', nickname: '昵称', phone: '手机号', email: '邮箱',
+  budget_level: '预算等级', travel_style: '旅行风格', preferred_city: '偏好城市', preferred_tags: '偏好标签',
+  transportation: '交通偏好', hotel_level: '住宿偏好', diet_preference: '饮食偏好',
   province: '省份', country: '国家', popularity: '热度', status: '状态', city_id: '城市',
   category: '分类', rating: '评分', price: '参考价', tags: '标签', price_range: '价位',
   cuisine: '菜系', average_cost: '人均', user_id: '用户', target_type: '类型', target_id: '目标',
@@ -48,10 +50,11 @@ const discoveryRoutes = [
 
 const adminResources = [
   ['users', '用户管理', ['id', 'username', 'nickname', 'phone', 'email', 'status']],
+  ['user-preferences', '用户偏好', ['id', 'user_id', 'budget_level', 'travel_style', 'preferred_city', 'transportation', 'hotel_level', 'diet_preference']],
   ['cities', '城市内容', ['id', 'name', 'province', 'country', 'popularity', 'status']],
-  ['attractions', '景点内容', ['id', 'city_id', 'name', 'category', 'rating', 'price', 'status']],
-  ['hotels', '住宿内容', ['id', 'city_id', 'name', 'category', 'rating', 'price_range', 'status']],
-  ['restaurants', '餐饮内容', ['id', 'city_id', 'name', 'cuisine', 'rating', 'average_cost', 'status']],
+  ['attractions', '景点内容', ['id', 'city', 'name', 'category', 'rating', 'cost', 'source', 'status']],
+  ['hotels', '住宿内容', ['id', 'city', 'name', 'category', 'rating', 'cost', 'source', 'status']],
+  ['restaurants', '餐饮内容', ['id', 'city', 'name', 'category', 'rating', 'cost', 'source', 'status']],
   ['map-pois', '地图地点库', ['id', 'city', 'name', 'kind', 'source', 'rating', 'status']],
   ['travel-tags', '标签体系', ['id', 'name', 'category', 'status']],
   ['travel-notes', '用户笔记', ['id', 'user_id', 'title', 'visibility', 'status']],

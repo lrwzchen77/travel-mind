@@ -75,10 +75,27 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
     return vectors
 
 
+def embedding_model_ready() -> bool:
+    try:
+        return int(_model().get_sentence_embedding_dimension()) == VECTOR_SIZE
+    except (EmbeddingUnavailable, TypeError, ValueError):
+        return False
+
+
 class QdrantMemoryStore:
     def __init__(self, base_url: str | None = None, api_key: str | None = None):
         self.base_url = (base_url or os.getenv("QDRANT_URL", "http://localhost:6333")).rstrip("/")
         self.headers = {"api-key": api_key or os.getenv("QDRANT_API_KEY", "")} if api_key or os.getenv("QDRANT_API_KEY") else {}
+
+    def ready(self) -> bool:
+        try:
+            response = httpx.get(f"{self.base_url}/collections/{COLLECTION}", headers=self.headers, timeout=3)
+            if response.status_code != 200:
+                return False
+            vectors = response.json().get("result", {}).get("config", {}).get("params", {}).get("vectors", {})
+            return vectors.get("size") == VECTOR_SIZE and str(vectors.get("distance", "")).lower() == "cosine"
+        except (httpx.HTTPError, TypeError, ValueError):
+            return False
 
     def ensure_collection(self) -> None:
         with httpx.Client(timeout=10) as client:

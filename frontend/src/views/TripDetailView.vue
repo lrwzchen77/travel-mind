@@ -87,7 +87,8 @@ const modelVersionLabel = computed(() => {
   const version = String(comfortData.value.model_version || '').match(/v\d+$/i)?.[0] || 'v1';
   return comfortData.value.model_mode === 'trained_travel_comfort' ? `TravelComfort ${version}` : '规则评估';
 });
-const feedbackAllowed = computed(() => Boolean(plan.value.end_date) && plan.value.end_date <= localDate());
+const tripEnded = computed(() => Boolean(plan.value.end_date) && plan.value.end_date <= localDate());
+const feedbackAllowed = computed(() => tripEnded.value);
 const dailyRisks = computed(() => (comfortData.value.daily_risks || []).filter((day) => day.risk_items?.length));
 const riskLevelLabel = computed(() => ({
   low: '整体轻松',
@@ -306,8 +307,8 @@ onMounted(load);
       <p v-else-if="!detail" class="lead">正在打开这趟行程…</p>
     </div>
     <div v-if="detail" class="trip-hero-actions">
-      <button type="button" class="btn-coral" :disabled="busy === 'memory'" @click="createMemory">
-        {{ busy === 'memory' ? '正在记录…' : '记录这趟旅行' }}
+      <button type="button" class="btn-coral" :disabled="busy === 'memory' || !tripEnded" @click="createMemory">
+        {{ busy === 'memory' ? '正在记录…' : (tripEnded ? '记录这趟旅行' : '行程结束后可记录') }}
       </button>
       <button type="button" class="btn-ghost" @click="departureMode = !departureMode">
         {{ departureMode ? '收起出发模式' : '进入出发模式' }}

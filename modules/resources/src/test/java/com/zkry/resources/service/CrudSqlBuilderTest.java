@@ -81,4 +81,16 @@ class CrudSqlBuilderTest {
             "status", "1"
         ));
     }
+
+    @Test
+    void scopesUnifiedPoiContentByKind() {
+        CrudResourceDefinition definition = new CrudResourceRegistry().get("hotels");
+
+        CrudSqlBuilder.QuerySpec spec = new CrudSqlBuilder().buildListQuery(definition,
+            ResourceSearchCriteria.of(null, 2001L, null, null, null, null, null, null,
+                null, null, null, "1", 1, 10));
+
+        assertThat(spec.sql()).contains("FROM tm_map_poi", "kind = :resourceScope", "city_id = :cityId");
+        assertThat(spec.params()).containsEntry("resourceScope", "hotel");
+    }
 }

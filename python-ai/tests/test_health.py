@@ -1,12 +1,18 @@
 import httpx
 import pytest
 
-from app.main import app
+import app.main as main
 
 
 @pytest.mark.anyio
-async def test_health_endpoint_returns_service_status():
-    transport = httpx.ASGITransport(app=app)
+async def test_health_endpoint_returns_service_status(monkeypatch):
+    monkeypatch.setattr(main, "ai_readiness", lambda: {
+        "travel_risk_yolo": "ready",
+        "travel_comfort": "ready",
+        "memory_embedding": "ready",
+        "qdrant": "ready",
+    })
+    transport = httpx.ASGITransport(app=main.app)
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
         response = await client.get("/health")
 
@@ -17,6 +23,13 @@ async def test_health_endpoint_returns_service_status():
         "data": {
             "service": "travel-mind-python-ai",
             "status": "healthy",
-            "mode": "phase-1",
+            "readiness": "ready",
+            "models": {
+                "travel_risk_yolo": "ready",
+                "travel_comfort": "ready",
+                "memory_embedding": "ready",
+                "qdrant": "ready",
+            },
+            "fallback_enabled": True,
         },
     }

@@ -45,6 +45,7 @@ const groups = [
     label: '用户与业务',
     items: [
       { path: '/admin/resources/users', label: '用户', icon: UsersRound },
+      { path: '/admin/resources/user-preferences', label: '用户偏好', icon: Settings },
       { path: '/admin/resources/trip-plans', label: '行程', icon: Route },
       { path: '/admin/resources/travel-notes', label: '笔记', icon: NotebookText },
       { path: '/admin/resources/ai-records', label: 'AI 记录', icon: Bot },

@@ -58,6 +58,18 @@ class TripMemoryServiceTest {
     }
 
     @Test
+    void refusesMemoryBeforeTheTripEnds() {
+        NamedParameterJdbcTemplate jdbc = org.mockito.Mockito.mock(NamedParameterJdbcTemplate.class);
+        when(jdbc.queryForList(contains("FROM tm_trip_plan"), any(Map.class))).thenReturn(List.of(Map.of(
+            "id", 9001L, "title", "未来行程", "destination_city", "杭州", "summary", "待出发", "has_ended", 0)));
+        TripMemoryService service = new TripMemoryService(jdbc);
+
+        assertThatThrownBy(() -> service.createFromTrip(1001L, 9001L))
+            .isInstanceOf(BizException.class).hasMessage("行程结束后才能创建旅行记忆。");
+        verify(jdbc, never()).update(anyString(), any(MapSqlParameterSource.class));
+    }
+
+    @Test
     void refusesReadAndDeleteForAnotherUsersMemory() {
         NamedParameterJdbcTemplate jdbc = org.mockito.Mockito.mock(NamedParameterJdbcTemplate.class);
         when(jdbc.queryForList(contains("FROM tm_trip_memory WHERE id"), any(Map.class))).thenReturn(List.of());
@@ -193,7 +205,7 @@ class TripMemoryServiceTest {
     }
 
     private Map<String, Object> tripRow() {
-        return Map.of("id", 9001L, "title", "杭州两日游", "destination_city", "杭州", "summary", "慢游西湖");
+        return Map.of("id", 9001L, "title", "杭州两日游", "destination_city", "杭州", "summary", "慢游西湖", "has_ended", 1);
     }
 
     private Map<String, Object> memoryRow() {

@@ -105,11 +105,12 @@ function resourcePlanningLink(item, type) {
 function resourceFacts(item, type) {
   if (type === 'attractions') return [
     consumerText(item.address),
-    item.price != null ? `门票约 ¥${item.price}` : '',
+    (item.cost ?? item.price) != null ? `门票约 ¥${item.cost ?? item.price}` : '',
     item.opening_hours ? `开放时间 ${consumerText(item.opening_hours)}` : '',
   ].filter(Boolean);
-  if (type === 'hotels') return [item.address, item.price_range].filter(Boolean).map(consumerText);
-  return [consumerText(item.address), item.average_cost != null ? `人均约 ¥${item.average_cost}` : ''].filter(Boolean);
+  if (type === 'hotels') return [item.address, item.cost != null ? `参考 ¥${item.cost}` : item.price_range].filter(Boolean).map(consumerText);
+  const cost = item.cost ?? item.average_cost;
+  return [consumerText(item.address), cost != null ? `人均约 ¥${cost}` : ''].filter(Boolean);
 }
 
 onMounted(load);

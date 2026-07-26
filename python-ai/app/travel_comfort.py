@@ -89,6 +89,10 @@ def predict_comfort(payload: Mapping[str, Any]) -> dict[str, Any] | None:
         return None
 
 
+def comfort_model_ready() -> bool:
+    return _load_bundle() is not None
+
+
 def reset_model_cache() -> None:
     global _MODEL_BUNDLE, _MODEL_PATH
     _MODEL_BUNDLE = None

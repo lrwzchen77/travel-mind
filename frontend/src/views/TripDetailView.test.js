@@ -82,6 +82,7 @@ describe('行程详情新增能力', () => {
   });
 
   it('creates an idempotent memory from this trip and opens it', async () => {
+    mocks.detail.mockResolvedValueOnce({ ...plan, data: { ...plan.data, start_date: '2026-01-01', end_date: '2026-01-02' } });
     const wrapper = mountPage();
     await flushPromises();
     await wrapper.get('.trip-hero-actions .btn-coral').trigger('click');
@@ -201,6 +202,8 @@ describe('行程详情新增能力', () => {
     expect(wrapper.get('.trip-comfort-result').text()).toContain('87.5%');
     expect(wrapper.findAll('.trip-comfort-feedback button').every((button) => button.attributes('disabled') !== undefined)).toBe(true);
     expect(wrapper.get('.trip-comfort-feedback').text()).toContain('行程结束后开放反馈');
+    expect(wrapper.get('.trip-hero-actions .btn-coral').attributes('disabled')).toBeDefined();
+    expect(wrapper.get('.trip-hero-actions .btn-coral').text()).toBe('行程结束后可记录');
   });
 
   it('saves post-trip comfort feedback and marks the selected label', async () => {

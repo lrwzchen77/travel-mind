@@ -40,30 +40,33 @@ public class CrudResourceRegistry {
         ));
         register(new CrudResourceDefinition(
             "attractions",
-            "tm_attraction",
+            "tm_map_poi",
             "id",
-            List.of("name", "address", "description"),
+            List.of("name", "address", "tags"),
             List.of("city_id", "category", "tags", "rating", "status"),
-            List.of("city_id", "name", "category", "address", "description", "rating", "price", "tags",
-                "opening_hours", "image_url", "status")
+            List.of("city_id", "city", "name", "longitude", "latitude", "category", "address", "rating", "cost",
+                "tags", "opening_hours", "image_url", "status"),
+            "kind", "attraction"
         ));
         register(new CrudResourceDefinition(
             "hotels",
-            "tm_hotel",
+            "tm_map_poi",
             "id",
-            List.of("name", "address", "description"),
+            List.of("name", "address", "tags"),
             List.of("city_id", "category", "tags", "rating", "status"),
-            List.of("city_id", "name", "category", "address", "description", "rating", "price_range", "tags",
-                "image_url", "status")
+            List.of("city_id", "city", "name", "longitude", "latitude", "category", "address", "rating", "cost",
+                "tags", "opening_hours", "image_url", "status"),
+            "kind", "hotel"
         ));
         register(new CrudResourceDefinition(
             "restaurants",
-            "tm_restaurant",
+            "tm_map_poi",
             "id",
-            List.of("name", "cuisine", "address", "description"),
+            List.of("name", "address", "tags"),
             List.of("city_id", "category", "tags", "rating", "status"),
-            List.of("city_id", "name", "category", "cuisine", "address", "description", "rating", "average_cost",
-                "tags", "image_url", "status")
+            List.of("city_id", "city", "name", "longitude", "latitude", "category", "address", "rating", "cost",
+                "tags", "opening_hours", "image_url", "status"),
+            "kind", "restaurant"
         ));
         register(new CrudResourceDefinition(
             "map-pois",
@@ -71,7 +74,7 @@ public class CrudResourceRegistry {
             "id",
             List.of("name", "city", "address", "tags"),
             List.of("kind", "source", "category", "rating", "status"),
-            List.of("source", "source_id", "city", "name", "kind", "longitude", "latitude", "address",
+            List.of("city_id", "city", "name", "kind", "longitude", "latitude", "address",
                 "category", "opening_hours", "rating", "cost", "image_url", "tags", "status")
         ));
         register(new CrudResourceDefinition(

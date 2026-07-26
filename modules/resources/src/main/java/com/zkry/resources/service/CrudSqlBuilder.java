@@ -26,6 +26,10 @@ public class CrudSqlBuilder {
         List<String> clauses = new ArrayList<>();
         Map<String, Object> params = new LinkedHashMap<>();
         clauses.add("deleted = 0");
+        if (definition.scoped()) {
+            clauses.add(definition.scopeColumn() + " = :resourceScope");
+            params.put("resourceScope", definition.scopeValue());
+        }
 
         if (criteria.keyword() != null && !definition.searchColumns().isEmpty()) {
             List<String> keywordClauses = definition.searchColumns().stream()

@@ -49,6 +49,19 @@ git log --all --decorate --graph --oneline
 git for-each-ref --format="%(refname:short) %(objectname:short) %(subject)" refs/heads refs/tags
 ```
 
+## Verified Local History
+
+As of 2026-07-26, `git shortlog -sne --all` reports:
+
+| Author | Commits | Share |
+| --- | ---: | ---: |
+| Wang-ke-li | 39 | 63.9% |
+| Zhu Qicheng | 8 | 13.1% |
+| Chen Wenzhe | 7 | 11.5% |
+| Zhang Shuai | 7 | 11.5% |
+
+All four approved authors, required branches and release tags are present. The historical distribution does not meet the earlier aspirational percentage target. Existing commits must not be rewritten or reassigned; only genuine future contributions by the corresponding members may change this distribution.
+
 ## Frontend Collaboration Entries
 
 ### Vue Shell

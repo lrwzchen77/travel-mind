@@ -15,6 +15,8 @@ describe('管理端布局', () => {
   it('opens and closes the mobile navigation', async () => {
     const wrapper = mount(AdminLayout);
 
+    expect(wrapper.text()).toContain('用户偏好');
+
     await wrapper.get('.admin-mobile-toggle').trigger('click');
     expect(wrapper.get('.admin-sidebar').classes()).toContain('is-open');
     expect(wrapper.find('.admin-sidebar-scrim').exists()).toBe(true);

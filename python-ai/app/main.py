@@ -13,13 +13,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from app.memory import MemoryAnalysisRequest, analyze_memory
-from app.travel_comfort import predict_comfort
+from app.travel_comfort import comfort_model_ready, predict_comfort
 from app.memory_knowledge import (
     EmbeddingUnavailable,
     MemoryDeleteRequest,
     MemoryIndexRequest,
     MemoryQueryRequest,
+    QdrantMemoryStore,
     delete_memory,
+    embedding_model_ready,
     index_memory,
     query_memory,
 )
@@ -53,15 +55,41 @@ def ok(data: dict[str, Any]) -> dict[str, Any]:
 
 @app.get("/health")
 def health():
+    models = ai_readiness()
     return {
         "code": 0,
         "message": "success",
         "data": {
             "service": "travel-mind-python-ai",
             "status": "healthy",
-            "mode": "phase-1",
+            "readiness": "ready" if all(value == "ready" for value in models.values()) else "degraded",
+            "models": models,
+            "fallback_enabled": True,
         },
     }
+
+
+def ai_readiness() -> dict[str, str]:
+    return {
+        "travel_risk_yolo": "ready" if _yolo_model_ready() else "rule_fallback",
+        "travel_comfort": "ready" if comfort_model_ready() else "rule_fallback",
+        "memory_embedding": "ready" if embedding_model_ready() else "unavailable",
+        "qdrant": "ready" if QdrantMemoryStore().ready() else "unavailable",
+    }
+
+
+def _yolo_model_ready() -> bool:
+    model_path = os.getenv("TRAVEL_MIND_YOLO_MODEL", "").strip()
+    if not model_path:
+        return False
+    path = _resolve_project_path(model_path)
+    if not path.is_file():
+        return False
+    try:
+        _get_yolo_model(str(path))
+        return True
+    except Exception:
+        return False
 
 
 class TripDayInput(BaseModel):

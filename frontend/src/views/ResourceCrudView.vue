@@ -40,6 +40,7 @@ const fieldLabels = computed(() => route.meta.fieldLabels || {});
 const canToggleStatus = computed(() => route.meta.canToggleStatus !== false);
 const isTravelNotes = computed(() => resourceKey.value === 'travel-notes');
 const isAdmin = computed(() => route.meta.admin === true);
+const isPoiResource = computed(() => ['attractions', 'hotels', 'restaurants', 'map-pois'].includes(resourceKey.value));
 const isDiscover = computed(() =>
   !isAdmin.value && ['cities', 'attractions', 'hotels', 'restaurants'].includes(resourceKey.value),
 );
@@ -135,6 +136,14 @@ function edit(record) {
 
 function resetForm() {
   editingId.value = null;
+  if (isPoiResource.value) {
+    const payload = {
+      city: '', name: '', longitude: 0, latitude: 0, category: '', rating: null, cost: null, tags: '', imageUrl: '',
+    };
+    if (resourceKey.value === 'map-pois') payload.kind = 'attraction';
+    formText.value = JSON.stringify(payload, null, 2);
+    return;
+  }
   formText.value = '{\n  "name": ""\n}';
 }
 
@@ -183,7 +192,7 @@ onMounted(load);
     <input v-model="filters.tag" placeholder="标签" @keyup.enter="load" />
     <input v-model="filters.status" placeholder="状态" @keyup.enter="load" />
     <button type="button" class="btn-coral" @click="load">搜索</button>
-    <button type="button" class="btn-ghost" @click="showEditor = true; resetForm()">添加</button>
+    <button type="button" class="btn-ghost" @click="showEditor = true; resetForm()">{{ isPoiResource ? '手动导入' : '添加' }}</button>
   </section>
 
   <p v-if="error" class="error-line">{{ error }}</p>
@@ -252,7 +261,7 @@ onMounted(load);
     </div>
 
     <form v-if="showEditor" class="editor-panel field-stack" @submit.prevent="save">
-      <h2 class="panel-title">{{ editingId ? '改一改' : '添加一条' }}</h2>
+      <h2 class="panel-title">{{ editingId ? '改一改' : (isPoiResource ? '手动导入补充数据' : '添加一条') }}</h2>
       <textarea v-model="formText" class="code-area" rows="14" spellcheck="false" />
       <div class="actions">
         <button type="submit" class="btn-coral">保存</button>

@@ -61,6 +61,8 @@ python -m venv .venv
 
 Health check: `GET http://localhost:19080/health`.
 
+The response distinguishes service liveness from model readiness for TravelRisk-YOLO, TravelComfort, the memory embedding model, and Qdrant. Missing optional models are reported as degraded together with the active fallback path.
+
 AI endpoints:
 
 - `POST http://localhost:19080/api/vision/detect`

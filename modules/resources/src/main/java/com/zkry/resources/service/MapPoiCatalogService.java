@@ -49,13 +49,15 @@ public class MapPoiCatalogService {
         Map<String, ?>[] batch = rows.toArray(Map[]::new);
         jdbcTemplate.batchUpdate("""
             INSERT INTO tm_map_poi
-              (source, source_id, city, name, kind, longitude, latitude, address, category, opening_hours,
+              (source, source_id, city, city_id, name, kind, longitude, latitude, address, category, opening_hours,
                rating, cost, image_url, tags, source_updated_at)
             VALUES
-              (:source, :sourceId, :city, :name, :kind, :longitude, :latitude, :address, :category, :openingHours,
+              (:source, :sourceId, :city,
+               (SELECT id FROM tm_city WHERE name = :city AND deleted = 0 ORDER BY status DESC LIMIT 1),
+               :name, :kind, :longitude, :latitude, :address, :category, :openingHours,
                :rating, :cost, :imageUrl, :tags, :updatedAt)
             ON DUPLICATE KEY UPDATE
-              city = VALUES(city), name = VALUES(name), kind = VALUES(kind), longitude = VALUES(longitude),
+              city = VALUES(city), city_id = VALUES(city_id), name = VALUES(name), kind = VALUES(kind), longitude = VALUES(longitude),
               latitude = VALUES(latitude), address = VALUES(address), category = VALUES(category),
               opening_hours = VALUES(opening_hours), rating = VALUES(rating), cost = VALUES(cost),
               image_url = VALUES(image_url), tags = VALUES(tags), source_updated_at = VALUES(source_updated_at),
