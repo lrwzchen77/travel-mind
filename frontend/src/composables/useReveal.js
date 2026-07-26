@@ -37,9 +37,9 @@ export function useReveal(rootRef) {
 
   onMounted(() => {
     const root = rootRef?.value || document;
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-    if (reduced) {
+    if (reduced || typeof IntersectionObserver === 'undefined') {
       scan(root);
       root.querySelectorAll('[data-reveal]').forEach((el) => el.classList.add('is-inview'));
       ready.value = true;

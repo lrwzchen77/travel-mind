@@ -5,29 +5,24 @@
  * 跨页面共享这套语法后，整个应用读起来像一本连续的旅行手记，
  * 而不是一组互不相干的功能页。
  */
-import { computed } from 'vue';
-import { useRoute } from 'vue-router';
 import { ArrowRight } from 'lucide-vue-next';
 
 const props = defineProps({
   index: { type: String, default: '' },
   eyebrow: { type: String, default: '' },
-  title: { type: String, required: true },
+  title: { type: String, default: '' },
   lead: { type: String, default: '' },
   nextLabel: { type: String, default: '' },
-  nextTo: { type: String, default: '' },
+  nextTo: { type: [String, Object], default: '' },
   align: { type: String, default: 'start' },
 });
 
-const route = useRoute();
-const routeName = computed(() => String(route.name || ''));
-const stamp = computed(() => props.index || routeName.value.slice(0, 3).toUpperCase());
 </script>
 
 <template>
   <header class="page-prologue" :class="`is-${align}`">
     <div class="page-prologue-rail" aria-hidden="true">
-      <span class="page-prologue-stamp">{{ stamp }}</span>
+      <span class="page-prologue-stamp">{{ index }}</span>
       <span class="page-prologue-rule" />
       <span class="page-prologue-dot" />
     </div>

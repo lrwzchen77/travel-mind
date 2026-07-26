@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../api/trip.js', () => ({ tripApi: { publicMap: mocks.publicMap } }));
 vi.mock('vue-router', () => ({
+  RouterLink: { props: ['to'], template: '<a><slot /></a>' },
   useRoute: () => mocks.route,
   useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
 }));
