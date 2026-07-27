@@ -39,9 +39,11 @@ public class CommunityService {
     private static final Pattern PUBLIC_UPLOAD = Pattern.compile(
         "^/public-uploads/[0-9a-fA-F-]{36}\\.png$");
     private final NamedParameterJdbcTemplate jdbcTemplate;
+    private final NotificationService notifications;
 
-    public CommunityService(NamedParameterJdbcTemplate jdbcTemplate) {
+    public CommunityService(NamedParameterJdbcTemplate jdbcTemplate, NotificationService notifications) {
         this.jdbcTemplate = jdbcTemplate;
+        this.notifications = notifications;
     }
 
     public PageResult<Map<String, Object>> posts(String keyword, String city, String topic, int pageNum, int pageSize) {
@@ -181,7 +183,8 @@ public class CommunityService {
         Long total = jdbcTemplate.queryForObject(
             "SELECT COUNT(1) FROM tm_travel_note WHERE user_id = :userId AND deleted = 0", Map.of("userId", userId), Long.class);
         List<Map<String, Object>> records = jdbcTemplate.queryForList("""
-                SELECT n.id, n.title, n.content, n.topic, n.cover_image, n.tags, n.visibility, n.status, n.create_time,
+                SELECT n.id, n.title, n.content, n.topic, n.cover_image, n.tags, n.visibility, n.status,
+                       n.review_reason, n.reviewed_at, n.create_time,
                        c.name AS city,
                        (SELECT COUNT(1) FROM tm_travel_note_like l WHERE l.travel_note_id = n.id) AS like_count,
                        (SELECT COUNT(1) FROM tm_travel_note_comment cm WHERE cm.travel_note_id = n.id AND cm.deleted = 0) AS comment_count
@@ -191,6 +194,54 @@ public class CommunityService {
                 """, new MapSqlParameterSource().addValue("userId", userId).addValue("limit", safeSize)
             .addValue("offset", (safePage - 1) * safeSize));
         return PageResult.of(records, total == null ? 0 : total, safePage, safeSize);
+    }
+
+    @Transactional
+    public Map<String, Object> updatePost(long userId, long postId, Map<String, Object> payload) {
+        Map<String, Object> post = ownPost(userId, postId);
+        String title = required(payload, "title", 128, "请填写标题。");
+        String content = required(payload, "content", 8000, "请写下旅行体验。");
+        String topic = text(payload, "topic", 32);
+        if (!TOPICS.contains(topic)) throw new BizException("请选择吃、住、玩、路线或避坑分类。");
+        boolean publicPost = "public".equals(post.get("visibility"));
+        jdbcTemplate.update("""
+            UPDATE tm_travel_note
+            SET title = :title, content = :content, topic = :topic, tags = :tags,
+                status = :status, review_reason = NULL, reviewed_by = NULL, reviewed_at = NULL
+            WHERE id = :id AND user_id = :userId AND deleted = 0
+            """, Map.of("title", title, "content", content, "topic", topic,
+                "tags", text(payload, "tags", 255), "status", publicPost ? 0 : 1, "id", postId, "userId", userId));
+        return ownPost(userId, postId);
+    }
+
+    @Transactional
+    public Map<String, Object> submitPost(long userId, long postId) {
+        ownPost(userId, postId);
+        jdbcTemplate.update("""
+            UPDATE tm_travel_note
+            SET visibility = 'public', status = 0, review_reason = NULL, reviewed_by = NULL, reviewed_at = NULL
+            WHERE id = :id AND user_id = :userId AND deleted = 0
+            """, Map.of("id", postId, "userId", userId));
+        return ownPost(userId, postId);
+    }
+
+    @Transactional
+    public Map<String, Object> reviewPost(long adminId, long postId, int status, String reason) {
+        if (status != 1 && status != 2) throw new BizException("审核状态无效。");
+        String safeReason = reason == null ? "" : reason.trim();
+        if (status == 2 && safeReason.isBlank()) throw new BizException("驳回时请填写原因。");
+        if (safeReason.length() > 500) throw new BizException("审核原因过长。");
+        Map<String, Object> post = ownPost(null, postId);
+        int changed = jdbcTemplate.update("""
+            UPDATE tm_travel_note
+            SET status = :status, review_reason = :reason, reviewed_by = :adminId, reviewed_at = CURRENT_TIMESTAMP
+            WHERE id = :id AND deleted = 0 AND visibility = 'public'
+            """, Map.of("status", status, "reason", safeReason, "adminId", adminId, "id", postId));
+        if (changed == 0) throw new BizException("公开分享不存在。");
+        notifications.notify(((Number) post.get("user_id")).longValue(), "community_review",
+            status == 1 ? "分享已通过审核" : "分享需要修改",
+            status == 1 ? String.valueOf(post.get("title")) + " 已在社区公开。" : safeReason, "/my-posts");
+        return ownPost(null, postId);
     }
 
     @Transactional
@@ -331,6 +382,18 @@ public class CommunityService {
                 WHERE i.user_id = :userId AND i.travel_note_id = :postId AND i.deleted = 0
                 """, Map.of("userId", userId, "postId", postId)).stream().findFirst()
             .orElseThrow(() -> new BizException("加入灵感包失败。"));
+    }
+
+    private Map<String, Object> ownPost(Long userId, long postId) {
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("id", postId);
+        if (userId != null) params.addValue("userId", userId);
+        return jdbcTemplate.queryForList("""
+            SELECT id, user_id, title, content, topic, tags, cover_image, visibility, status,
+                   review_reason, reviewed_by, reviewed_at, create_time, update_time
+            FROM tm_travel_note
+            WHERE id = :id AND deleted = 0
+            """ + (userId == null ? "" : " AND user_id = :userId") + " LIMIT 1", params).stream().findFirst()
+            .orElseThrow(() -> new BizException("分享不存在或无权操作。"));
     }
 
     private Map<String, Object> reaction(long userId, long postId) {

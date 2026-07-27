@@ -45,6 +45,21 @@ export function createResourceApi(client = http) {
     updateProfile(payload) {
       return client.put('/user/profile', payload).then(unwrap);
     },
+    changePassword(payload) {
+      return client.put('/user/account/password', payload).then(unwrap);
+    },
+    exportAccount() {
+      return client.get('/user/account/export').then(unwrap);
+    },
+    deactivateAccount() {
+      return client.delete('/user/account').then(unwrap);
+    },
+    resetPassword(userId, newPassword) {
+      return client.put(`/admin/users/${userId}/password`, { newPassword }).then(unwrap);
+    },
+    updateRole(userId, role) {
+      return client.put(`/admin/users/${userId}/role`, { role }).then(unwrap);
+    },
   };
 }
 

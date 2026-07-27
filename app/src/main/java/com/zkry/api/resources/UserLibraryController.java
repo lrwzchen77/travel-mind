@@ -63,8 +63,13 @@ public class UserLibraryController {
         @RequestBody Map<String, Object> payload
     ) {
         requireWritable(resourceKey);
-        requireOwner(resourceKey, id);
-        return R.ok(crudResourceService.update(resourceKey, id, writablePayload(resourceKey, payload)));
+        Map<String, Object> existing = requireOwner(resourceKey, id);
+        Map<String, Object> values = writablePayload(resourceKey, payload);
+        if ("travel-notes".equals(resourceKey) && "public".equals(existing.get("visibility"))) {
+            values.put("status", 0);
+            values.put("review_reason", null);
+        }
+        return R.ok(crudResourceService.update(resourceKey, id, values));
     }
 
     @DeleteMapping("/{resourceKey}/{id}")
@@ -75,13 +80,14 @@ public class UserLibraryController {
         return R.ok();
     }
 
-    private void requireOwner(String resourceKey, long id) {
+    private Map<String, Object> requireOwner(String resourceKey, long id) {
         Map<String, Object> resource = crudResourceService.detail(resourceKey, id);
         Object userId = resource.get("user_id");
         long ownerId = userId instanceof Number number ? number.longValue() : -1L;
         if (ownerId != LoginHelper.getUserId()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Resource not found");
         }
+        return resource;
     }
 
     private void requireWritable(String resourceKey) {

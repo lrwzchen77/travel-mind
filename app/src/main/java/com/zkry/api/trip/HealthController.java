@@ -29,7 +29,7 @@ public class HealthController {
     ) {
         this.jdbc = jdbc;
         this.redis = redis;
-        this.pythonHealth = URI.create(pythonBaseUrl.replaceAll("/+$", "") + "/health");
+        this.pythonHealth = URI.create(pythonBaseUrl.replaceAll("/+$", "") + "/ready");
     }
 
     @GetMapping("/health")

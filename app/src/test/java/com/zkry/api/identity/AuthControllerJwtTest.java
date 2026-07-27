@@ -3,6 +3,7 @@ package com.zkry.api.identity;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -91,6 +92,21 @@ class AuthControllerJwtTest {
     }
 
     @Test
+    void registrationCreatesConsumerAndReturnsLoggedInSession() throws Exception {
+        IdentityAccount account = account(2001L, "new_traveler", "新旅行者", "user");
+        when(identityService.authenticate("new_traveler", "secure-password", "user")).thenReturn(account);
+
+        mvc.perform(post("/api/user/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"new_traveler\",\"nickname\":\"新旅行者\",\"password\":\"secure-password\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.tokenValue").isNotEmpty())
+            .andExpect(jsonPath("$.data.user.roles[0]").value("user"));
+
+        verify(identityService).register("new_traveler", "新旅行者", "secure-password");
+    }
+
+    @Test
     void tamperedAndExpiredTokensAreRejected() throws Exception {
         String token = login("user", account(1001L, "demo", "旅行者", "user"));
         char replacement = token.endsWith("a") ? 'b' : 'a';
@@ -108,8 +124,20 @@ class AuthControllerJwtTest {
             .andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void credentialVersionChangeInvalidatesExistingToken() throws Exception {
+        IdentityAccount original = account(1001L, "demo", "旅行者", "user");
+        String token = login("user", original);
+        when(identityService.findByUserId(1001L)).thenReturn(
+            new IdentityAccount(1001L, "demo", "旅行者", "hash", "user", 1, 1));
+
+        mvc.perform(get("/api/user/auth/me").header("Authorization", token))
+            .andExpect(status().isUnauthorized());
+    }
+
     private String login(String portal, IdentityAccount account) throws Exception {
         when(identityService.authenticate(anyString(), anyString(), anyString())).thenReturn(account);
+        when(identityService.findByUserId(account.userId())).thenReturn(account);
         String body = mvc.perform(post("/api/{portal}/auth/login", portal)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"username\":\"" + account.username() + "\",\"password\":\"secret\"}"))
@@ -121,6 +149,6 @@ class AuthControllerJwtTest {
     }
 
     private IdentityAccount account(long id, String username, String nickname, String role) {
-        return new IdentityAccount(id, username, nickname, "hash", role, 1);
+        return new IdentityAccount(id, username, nickname, "hash", role, 1, 0);
     }
 }

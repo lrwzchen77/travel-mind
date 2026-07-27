@@ -1,12 +1,14 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue';
-import { RouterLink } from 'vue-router';
+import { RouterLink, useRouter } from 'vue-router';
 import { Contact, Backpack, Utensils, ArrowRight } from 'lucide-vue-next';
 import { resourceApi } from '../api/resources.js';
 import PagePrologue from '../components/PagePrologue.vue';
 import { useReveal } from '../composables/useReveal.js';
+import { authSession } from '../auth/session.js';
 
 const root = ref(null);
+const router = useRouter();
 useReveal(root);
 
 const form = reactive({
@@ -30,6 +32,8 @@ const dietOptions = ['本地菜', '清淡', '爱吃辣', '少油少盐', '素食
 const error = ref('');
 const message = ref('');
 const saving = ref(false);
+const password = reactive({ currentPassword: '', newPassword: '', confirmPassword: '' });
+const accountBusy = ref('');
 
 function selectedList(field) {
   return String(form[field] || '')
@@ -95,6 +99,55 @@ async function save() {
     error.value = err?.message || '保存失败';
   } finally {
     saving.value = false;
+  }
+}
+
+async function changePassword() {
+  if (password.newPassword !== password.confirmPassword) {
+    error.value = '两次输入的新密码不一致。';
+    return;
+  }
+  accountBusy.value = 'password';
+  error.value = '';
+  try {
+    await resourceApi.changePassword(password);
+    authSession.clear();
+    await router.push('/login');
+  } catch (err) {
+    error.value = err?.message || '密码修改失败';
+  } finally {
+    accountBusy.value = '';
+  }
+}
+
+async function exportAccount() {
+  accountBusy.value = 'export';
+  try {
+    const data = await resourceApi.exportAccount();
+    const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `travel-mind-account-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    error.value = err?.message || '账号数据导出失败';
+  } finally {
+    accountBusy.value = '';
+  }
+}
+
+async function deactivateAccount() {
+  if (!window.confirm('确定停用账号吗？停用后将立即退出，恢复需联系管理员。')) return;
+  accountBusy.value = 'deactivate';
+  try {
+    await resourceApi.deactivateAccount();
+    authSession.clear();
+    await router.push('/login');
+  } catch (err) {
+    error.value = err?.message || '账号停用失败';
+  } finally {
+    accountBusy.value = '';
   }
 }
 
@@ -253,6 +306,20 @@ onMounted(load);
       <RouterLink class="btn-link btn-ghost" to="/map">保存后去规划 <ArrowRight :size="15" :stroke-width="2.2" /></RouterLink>
     </div>
   </form>
+
+  <section class="glass-panel profile-card" data-reveal>
+    <div class="profile-card-head"><div><h2>账号与数据</h2></div></div>
+    <form class="profile-fields" @submit.prevent="changePassword">
+      <label><span>当前密码</span><input v-model="password.currentPassword" type="password" autocomplete="current-password" required /></label>
+      <label><span>新密码</span><input v-model="password.newPassword" type="password" minlength="10" maxlength="128" autocomplete="new-password" required /></label>
+      <label><span>确认新密码</span><input v-model="password.confirmPassword" type="password" minlength="10" maxlength="128" autocomplete="new-password" required /></label>
+      <div class="actions"><button type="submit" class="btn-ghost" :disabled="accountBusy === 'password'">{{ accountBusy === 'password' ? '修改中…' : '修改密码' }}</button></div>
+    </form>
+    <div class="actions" style="margin-top: 18px;">
+      <button type="button" class="btn-ghost" :disabled="accountBusy === 'export'" @click="exportAccount">{{ accountBusy === 'export' ? '导出中…' : '导出我的数据' }}</button>
+      <button type="button" class="btn-danger" :disabled="accountBusy === 'deactivate'" @click="deactivateAccount">停用账号</button>
+    </div>
+  </section>
 
   <section class="chapter-bridge" data-reveal>
     <div class="chapter-bridge-copy">

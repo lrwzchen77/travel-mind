@@ -5,7 +5,9 @@ import com.zkry.common.core.domain.R;
 import com.zkry.resources.service.CrudResourceService;
 import com.zkry.resources.service.ResourceSearchCriteria;
 import com.zkry.identity.service.IdentityService;
+import com.zkry.common.core.exception.BizException;
 import java.util.Map;
+import java.util.LinkedHashMap;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -70,7 +72,14 @@ public class ResourceCrudController {
         @PathVariable long id,
         @RequestBody Map<String, Object> payload
     ) {
-        return R.ok(crudResourceService.update(resourceKey, id, payload));
+        if (!"users".equals(resourceKey) || payload == null || !payload.containsKey("status")) {
+            return R.ok(crudResourceService.update(resourceKey, id, payload));
+        }
+        Map<String, Object> profile = new LinkedHashMap<>(payload);
+        int status = status(profile.remove("status"));
+        if (!profile.isEmpty()) crudResourceService.update(resourceKey, id, profile);
+        identityService.updateStatus(id, status);
+        return R.ok(crudResourceService.detail(resourceKey, id));
     }
 
     @PutMapping("/{resourceKey}/{id}/status")
@@ -79,6 +88,13 @@ public class ResourceCrudController {
         @PathVariable long id,
         @RequestParam int status
     ) {
+        if ("travel-notes".equals(resourceKey)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请使用内容审核接口并填写审核结论");
+        }
+        if ("users".equals(resourceKey)) {
+            identityService.updateStatus(id, status);
+            return R.ok(crudResourceService.detail(resourceKey, id));
+        }
         return R.ok(crudResourceService.updateStatus(resourceKey, id, status));
     }
 
@@ -89,5 +105,15 @@ public class ResourceCrudController {
         }
         crudResourceService.delete(resourceKey, id);
         return R.ok();
+    }
+
+    private int status(Object value) {
+        try {
+            int status = value instanceof Number number ? number.intValue() : Integer.parseInt(String.valueOf(value));
+            if (status != 0 && status != 1) throw new NumberFormatException();
+            return status;
+        } catch (NumberFormatException ex) {
+            throw new BizException("账号状态无效。");
+        }
     }
 }

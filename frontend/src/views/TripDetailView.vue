@@ -31,9 +31,11 @@ const expenses = ref({ budget: 0, actual: 0, remaining: 0, items: [] });
 const expenseForm = reactive({ category: 'food', title: '', amount: '', spent_on: '' });
 const expenseError = ref('');
 const mapRef = ref(null);
+const editDraft = ref(null);
 
 const plan = computed(() => detail.value?.data || {});
 const days = computed(() => plan.value.days || []);
+const editDays = computed(() => editDraft.value?.data?.days || []);
 const budget = computed(() => plan.value.budget || {});
 const expenseItems = computed(() => expenses.value.items || []);
 const expenseOverBudget = computed(() => Number(expenses.value.remaining || 0) < 0);
@@ -245,6 +247,28 @@ async function copyPlan() {
   }
 }
 
+function startEdit() {
+  editDraft.value = JSON.parse(JSON.stringify(detail.value));
+}
+
+function addAttraction(day) {
+  if (!Array.isArray(day.attractions)) day.attractions = [];
+  day.attractions.push({ name: '', address: '', description: '', ticket_price: 0 });
+}
+
+async function savePlan() {
+  busy.value = 'edit';
+  error.value = '';
+  try {
+    detail.value = await tripApi.update(route.params.id, editDraft.value);
+    editDraft.value = null;
+  } catch (err) {
+    error.value = err?.message || '行程保存失败';
+  } finally {
+    busy.value = '';
+  }
+}
+
 async function createMemory() {
   busy.value = 'memory';
   error.value = '';
@@ -316,6 +340,7 @@ onMounted(load);
       <button type="button" class="btn-ghost" :disabled="busy === 'copy'" @click="copyPlan">
         {{ busy === 'copy' ? '复制中…' : '复制一程' }}
       </button>
+      <button v-if="!editDraft" type="button" class="btn-ghost" @click="startEdit">编辑行程</button>
       <button type="button" class="btn-danger" :disabled="busy === 'delete'" @click="deletePlan">
         {{ busy === 'delete' ? '删除中…' : '丢掉这程' }}
       </button>
@@ -328,7 +353,30 @@ onMounted(load);
 
   <PublicTravelDataPanel v-if="plan.public_data?.length" :items="plan.public_data" />
 
-  <section v-if="days.length" class="trip-route-section" aria-labelledby="trip-route-title">
+  <form v-if="editDraft" class="glass-panel field-stack" @submit.prevent="savePlan">
+    <div class="section-head"><div><p class="eyebrow">手动调整</p><h2>编辑这趟行程</h2></div></div>
+    <label><span class="field-label">整体建议</span><textarea v-model="editDraft.data.overall_suggestions" maxlength="1000" rows="3" /></label>
+    <article v-for="(day, dayIndex) in editDays" :key="dayIndex" class="route-card field-stack">
+      <h3>Day {{ dayIndex + 1 }} · {{ day.date || '日期待定' }}</h3>
+      <label><span class="field-label">当天说明</span><textarea v-model="day.description" maxlength="1000" rows="2" /></label>
+      <label><span class="field-label">交通</span><input v-model="day.transportation" maxlength="128" /></label>
+      <div v-for="(item, itemIndex) in (day.attractions || [])" :key="itemIndex" class="field-row">
+        <label><span class="field-label">景点</span><input v-model="item.name" maxlength="128" required /></label>
+        <label><span class="field-label">地址</span><input v-model="item.address" maxlength="255" /></label>
+        <button type="button" class="btn-danger" @click="day.attractions.splice(itemIndex, 1)">移除</button>
+      </div>
+      <div v-for="(item, itemIndex) in (day.meals || [])" :key="`meal-${itemIndex}`" class="field-row">
+        <label><span class="field-label">餐饮</span><input v-model="item.name" maxlength="128" required /></label>
+        <label><span class="field-label">地址</span><input v-model="item.address" maxlength="255" /></label>
+        <button type="button" class="btn-danger" @click="day.meals.splice(itemIndex, 1)">移除</button>
+      </div>
+      <label v-if="day.hotel"><span class="field-label">住宿</span><input v-model="day.hotel.name" maxlength="128" /></label>
+      <button type="button" class="btn-ghost" @click="addAttraction(day)">添加景点</button>
+    </article>
+    <div class="actions"><button type="submit" class="btn-coral" :disabled="busy === 'edit'">{{ busy === 'edit' ? '保存中…' : '保存行程' }}</button><button type="button" class="btn-ghost" @click="editDraft = null">取消</button></div>
+  </form>
+
+  <section v-if="days.length && !editDraft" class="trip-route-section" aria-labelledby="trip-route-title">
     <div class="section-head">
       <div>
         <p class="eyebrow">先看每天怎么走</p>
@@ -340,7 +388,7 @@ onMounted(load);
       <article v-for="(day, idx) in days" :key="day.day_index ?? idx" class="route-day">
         <div class="route-axis"><span class="route-node" /></div>
         <div class="route-card">
-          <h3>Day {{ day.day_index || idx + 1 }} · {{ day.date || '日期待定' }}</h3>
+          <h3>Day {{ day.day_index != null ? Number(day.day_index) + 1 : idx + 1 }} · {{ day.date || '日期待定' }}</h3>
           <p class="day-meta">
             {{ day.description || day.city || '今天的安排' }}
             <template v-if="day.transportation"> · {{ day.transportation }}</template>

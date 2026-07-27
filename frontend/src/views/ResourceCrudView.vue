@@ -5,6 +5,7 @@ import { resourceApi } from '../api/resources.js';
 import { adminAiApi as aiApi } from '../api/ai.js';
 import {
   ArrowRight,
+  CircleCheck,
   Pencil,
   Power,
   Route as RouteIcon,
@@ -12,7 +13,9 @@ import {
   SearchX,
   Sparkles,
   Trash2,
+  XCircle,
 } from 'lucide-vue-next';
+import { communityApi } from '../api/community.js';
 import { useReveal } from '../composables/useReveal.js';
 import PagePrologue from '../components/PagePrologue.vue';
 
@@ -62,8 +65,32 @@ function labelOf(field) {
 
 function statusText(value) {
   if (value === 1 || value === '1') return '开放';
-  if (value === 0 || value === '0') return '下线';
+  if (value === 0 || value === '0') return isTravelNotes.value ? '待审核' : '下线';
+  if (value === 2 || value === '2') return '已驳回';
   return value;
+}
+
+async function reviewNote(record, status) {
+  const reason = status === 2 ? window.prompt('请填写驳回原因（用户可见）') : '';
+  if (status === 2 && !reason?.trim()) return;
+  try {
+    await communityApi.reviewPost(record.id, status, reason);
+    await load();
+  } catch (err) {
+    error.value = err?.message || '审核失败';
+  }
+}
+
+async function resetUserPassword(record) {
+  const password = window.prompt(`为账号 ${record.username} 设置新密码（至少 10 位）`);
+  if (!password) return;
+  try { await resourceApi.resetPassword(record.id, password); } catch (err) { error.value = err?.message || '密码重置失败'; }
+}
+
+async function changeUserRole(record) {
+  const role = window.prompt('输入角色：user 或 admin', 'user');
+  if (!['user', 'admin'].includes(role)) return;
+  try { await resourceApi.updateRole(record.id, role); } catch (err) { error.value = err?.message || '角色修改失败'; }
 }
 
 function cellValue(record, field) {
@@ -284,13 +311,17 @@ onMounted(load);
                 @click="analyzeNote(record)"
               ><Sparkles :size="16" aria-hidden="true" /></button>
               <button
-                v-if="canToggleStatus && 'status' in record"
+                v-if="canToggleStatus && !isTravelNotes && 'status' in record"
                 type="button"
                 class="table-icon-button"
                 :aria-label="Number(record.status) === 1 ? '下线' : '上线'"
                 :title="Number(record.status) === 1 ? '下线' : '上线'"
                 @click="toggleStatus(record)"
               ><Power :size="16" aria-hidden="true" /></button>
+              <button v-if="isTravelNotes && record.visibility === 'public' && Number(record.status) !== 1" type="button" class="table-icon-button is-primary" aria-label="审核通过" title="审核通过" @click="reviewNote(record, 1)"><CircleCheck :size="16" aria-hidden="true" /></button>
+              <button v-if="isTravelNotes && record.visibility === 'public' && Number(record.status) !== 2" type="button" class="table-icon-button is-danger" aria-label="驳回" title="驳回并填写原因" @click="reviewNote(record, 2)"><XCircle :size="16" aria-hidden="true" /></button>
+              <button v-if="resourceKey === 'users'" type="button" class="table-icon-button" aria-label="重置密码" title="重置密码" @click="resetUserPassword(record)">密</button>
+              <button v-if="resourceKey === 'users'" type="button" class="table-icon-button" aria-label="修改角色" title="修改角色" @click="changeUserRole(record)">权</button>
               <button v-if="canDelete" type="button" class="table-icon-button is-danger" aria-label="删除" title="删除" @click="remove(record)"><Trash2 :size="16" aria-hidden="true" /></button>
             </td>
           </tr>

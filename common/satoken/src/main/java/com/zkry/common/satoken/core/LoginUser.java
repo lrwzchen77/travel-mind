@@ -16,9 +16,9 @@ import java.util.Set;
  *
  * <p>2. 避免把密码、盐值、手机号、邮箱等敏感字段放入 JWT。
  *
- * <p>3. 高频接口可以直接从 JWT 拿角色和权限，减少不必要的数据库查询。
+ * <p>3. 业务鉴权直接读取 JWT；请求入口只查询最小账号状态以支持即时失效。
  *
- * <p>如果用户角色或权限发生变化，需要让用户重新登录获取新 JWT。
+ * <p>用户角色、状态或密码发生变化时，authVersion 会让旧 JWT 立即失效。
  */
 public record LoginUser(
     /**
@@ -38,7 +38,7 @@ public record LoginUser(
     /**
      * 当前用户拥有的角色编码。
      *
-     * <p>例如 admin、user、operator。角色是粗粒度身份，适合判断“是否管理员”等场景。
+     * <p>例如 admin、user。角色是粗粒度身份，适合判断“是否管理员”等场景。
      */
     Set<String> roles,
 
@@ -47,7 +47,10 @@ public record LoginUser(
      *
      * <p>例如 user:list、credit:adjust。权限是细粒度能力，适合控制具体菜单、按钮和接口。
      */
-    Set<String> permissions
+    Set<String> permissions,
+
+    /** 账号凭据版本；密码、角色或状态变化后旧 JWT 立即失效。 */
+    long authVersion
 ) implements Serializable {
 
     /**

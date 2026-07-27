@@ -16,6 +16,17 @@ describe('authentication API', () => {
     expect(authSession.hasRole('admin')).toBe(true);
   });
 
+  it('registers a consumer and stores its session', async () => {
+    const session = { tokenName: 'Authorization', tokenValue: 'token-2', user: { roles: ['user'] } };
+    const http = { post: vi.fn().mockResolvedValue({ data: { data: session } }) };
+    const profile = { username: 'traveler', nickname: '旅行者', password: 'secure-password' };
+
+    await createAuthApi(http).register(profile);
+
+    expect(http.post).toHaveBeenCalledWith('/user/auth/register', profile);
+    expect(authSession.token()).toBe('token-2');
+  });
+
   it('always discards the local JWT when logout finishes', async () => {
     authSession.save({ tokenValue: 'jwt', user: { roles: ['user'] } });
     const http = { post: vi.fn().mockRejectedValue(new Error('offline')) };

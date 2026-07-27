@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { ArrowRight } from 'lucide-vue-next';
 import { RouterLink } from 'vue-router';
 import { communityApi } from '../api/community.js';
@@ -12,6 +12,8 @@ const total = ref(0);
 const page = ref(1);
 const loading = ref(false);
 const error = ref('');
+const editingId = ref(null);
+const editForm = reactive({ title: '', content: '', topic: 'route', tags: '' });
 const topicLabel = { food: '吃什么', stay: '住哪里', play: '去哪玩', route: '路线', tip: '避坑' };
 
 const publishedCount = computed(() => posts.value.filter((post) => post.visibility === 'public' && Number(post.status) === 1).length);
@@ -23,7 +25,7 @@ function status(post) {
   if (post.visibility !== 'public') return { label: '仅自己可见', hint: '这篇内容没有投递到旅行社区。', class: 'is-private' };
   if (Number(post.status) === 1) return { label: '已发布', hint: '旅行者现在可以搜索和引用这篇分享。', class: 'is-published' };
   if (Number(post.status) === 0) return { label: '审核中', hint: '审核通过后会出现在旅行社区。', class: 'is-pending' };
-  return { label: '未通过', hint: '当前暂不支持直接编辑，请根据社区规则重新发布，或联系服务提供方了解原因。', class: 'is-rejected' };
+  return { label: '未通过', hint: post.review_reason || '请修改内容后重新提交审核。', class: 'is-rejected' };
 }
 
 function cover(post) {
@@ -33,6 +35,30 @@ function cover(post) {
 function excerpt(post) {
   const text = String(post.content || '');
   return text.length > 100 ? `${text.slice(0, 100)}…` : text;
+}
+
+function startEdit(post) {
+  editingId.value = post.id;
+  Object.assign(editForm, { title: post.title || '', content: post.content || '', topic: post.topic || 'route', tags: post.tags || '' });
+}
+
+async function saveEdit() {
+  try {
+    await communityApi.updatePost(editingId.value, editForm);
+    editingId.value = null;
+    await load();
+  } catch (err) {
+    error.value = err?.message || '修改失败。';
+  }
+}
+
+async function submit(post) {
+  try {
+    await communityApi.submitPost(post.id);
+    await load();
+  } catch (err) {
+    error.value = err?.message || '提交审核失败。';
+  }
 }
 
 async function load(pageNum = 1) {
@@ -80,7 +106,17 @@ onMounted(load);
         <h2 v-else>{{ post.title }}</h2>
         <p>{{ post.city || '目的地待补充' }} · {{ excerpt(post) }}</p>
         <small>{{ status(post).hint }}</small>
-        <RouterLink v-if="status(post).class === 'is-rejected'" class="text-link" to="/inspirations">重新发布 <ArrowRight :size="15" :stroke-width="2.2" /></RouterLink>
+        <div v-if="editingId !== post.id" class="actions">
+          <button type="button" class="btn-ghost" @click="startEdit(post)">编辑</button>
+          <button v-if="post.visibility !== 'public'" type="button" class="btn-coral" @click="submit(post)">提交审核</button>
+        </div>
+        <form v-else class="field-stack" @submit.prevent="saveEdit">
+          <input v-model="editForm.title" maxlength="128" required aria-label="标题" />
+          <select v-model="editForm.topic" aria-label="类型"><option v-for="(label, value) in topicLabel" :key="value" :value="value">{{ label }}</option></select>
+          <input v-model="editForm.tags" maxlength="255" placeholder="标签" aria-label="标签" />
+          <textarea v-model="editForm.content" maxlength="8000" rows="6" required aria-label="内容" />
+          <div class="actions"><button type="submit" class="btn-coral">{{ post.visibility === 'public' ? '保存并重新审核' : '保存' }}</button><button type="button" class="btn-ghost" @click="editingId = null">取消</button></div>
+        </form>
       </div>
     </article>
   </div>

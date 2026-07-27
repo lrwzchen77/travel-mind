@@ -110,7 +110,12 @@ function ensureCityMarkers(map) {
     const el = document.createElement('button');
     el.type = 'button';
     el.className = 'map-pin';
-    el.innerHTML = `<span class="map-pin-dot"></span><span class="map-pin-label">${dest.city}</span>`;
+    const dot = document.createElement('span');
+    dot.className = 'map-pin-dot';
+    const label = document.createElement('span');
+    label.className = 'map-pin-label';
+    label.textContent = dest.city;
+    el.append(dot, label);
     el.title = dest.city;
     el.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -180,7 +185,9 @@ function showPublicPopup(map, item) {
   content.className = 'travel-node-detail';
   const visual = document.createElement('div');
   visual.className = 'travel-node-visual';
-  visual.innerHTML = `<span>${PUBLIC_MARKER_ICONS[item.kind] || PUBLIC_MARKER_ICONS.attraction}</span>`;
+  const icon = document.createElement('span');
+  icon.textContent = PUBLIC_MARKER_ICONS[item.kind] || PUBLIC_MARKER_ICONS.attraction;
+  visual.append(icon);
   if (item.image_url) {
     const image = document.createElement('img');
     image.src = item.image_url;
@@ -261,7 +268,9 @@ function addPublicMarker(map, item, kind, onClick) {
   if (item.id) el.dataset.poiId = String(item.id);
   el.title = item.name;
   el.setAttribute('aria-label', `${item.name}，在地图上查看`);
-  el.innerHTML = `<span>${PUBLIC_MARKER_ICONS[kind]}</span>`;
+  const icon = document.createElement('span');
+  icon.textContent = PUBLIC_MARKER_ICONS[kind];
+  el.append(icon);
   el.addEventListener('mouseenter', () => showPublicPopup(map, item));
   el.addEventListener('mouseleave', hidePublicPopup);
   el.addEventListener('focus', () => showPublicPopup(map, item));
@@ -544,7 +553,10 @@ function addPoiMarkers(map, dest) {
   dest.pois.slice(0, performanceProfile.maxPoiMarkers).forEach((poi) => {
     const el = document.createElement('div');
     el.className = 'map-poi';
-    el.innerHTML = `<span></span><em>${poi.name}</em>`;
+    const dot = document.createElement('span');
+    const name = document.createElement('em');
+    name.textContent = poi.name;
+    el.append(dot, name);
     poiMarkers.push(
       new maplibregl.Marker({ element: el, anchor: 'left' })
         .setLngLat([poi.lng, poi.lat])

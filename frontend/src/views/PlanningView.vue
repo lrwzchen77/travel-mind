@@ -2,7 +2,6 @@
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { ArrowLeft, ArrowRight, Zap } from 'lucide-vue-next';
 import { useRoute, useRouter, RouterLink } from 'vue-router';
-import { http } from '../api/http.js';
 import { resourceApi } from '../api/resources.js';
 import { tripApi } from '../api/trip.js';
 import { authSession } from '../auth/session.js';
@@ -180,6 +179,43 @@ function planningConstraints() {
   ].join('\n');
 }
 
+function trackTask(controller) {
+  return waitForTripTask({
+    taskId: task.value.task_id,
+    loadStatus: (taskId) => tripApi.status(taskId),
+    signal: controller.signal,
+    onUpdate: (state) => { task.value = state; },
+  });
+}
+
+async function cancelTask() {
+  if (!task.value?.task_id) return;
+  try {
+    task.value = await tripApi.cancelTask(task.value.task_id);
+    taskAbortController?.abort();
+  } catch (err) {
+    error.value = err?.message || '取消失败';
+  }
+}
+
+async function retryTask() {
+  if (!task.value?.task_id) return;
+  const previousId = task.value.task_id;
+  const controller = new AbortController();
+  taskAbortController = controller;
+  loading.value = true;
+  error.value = '';
+  try {
+    task.value = await tripApi.retryTask(previousId);
+    const finalState = await trackTask(controller);
+    result.value = finalState.result;
+  } catch (err) {
+    if (err?.name !== 'AbortError') error.value = err?.message || '重试失败';
+  } finally {
+    if (taskAbortController === controller) { loading.value = false; taskAbortController = null; }
+  }
+}
+
 async function submit() {
   const travelDays = Number(form.travel_days);
   if (!routeIntent.value) {
@@ -251,17 +287,7 @@ async function submit() {
       ...(routeIntent.value ? { route_intent: routeIntent.value } : {}),
     };
     task.value = await tripApi.submitPlan(payload);
-    const finalState = await waitForTripTask({
-      taskId: task.value.task_id,
-      wsUrl: task.value.ws_url,
-      loadStatus: (taskId) => tripApi.status(taskId),
-      apiBaseUrl: http.defaults.baseURL,
-      token: authSession.token(),
-      signal: controller.signal,
-      onUpdate: (state) => {
-        task.value = state;
-      },
-    });
+    const finalState = await trackTask(controller);
     result.value = finalState.result;
     if (result.value) {
       try {
@@ -426,6 +452,8 @@ onUnmounted(() => taskAbortController?.abort());
         <button type="submit" class="btn-coral" :disabled="loading">
           {{ loading ? '正在为你排程…' : `按这 ${routeIntent.nodes.length} 个节点生成行程` }}
         </button>
+        <button v-if="loading && task?.task_id" type="button" class="btn-ghost" @click="cancelTask">取消任务</button>
+        <button v-if="['failed', 'cancelled'].includes(taskStatus)" type="button" class="btn-ghost" @click="retryTask">重试任务</button>
       </div>
     </form>
 

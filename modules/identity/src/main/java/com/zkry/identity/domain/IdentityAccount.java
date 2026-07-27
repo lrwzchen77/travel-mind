@@ -8,7 +8,8 @@ public record IdentityAccount(
     String nickname,
     String passwordHash,
     String roleCode,
-    int status
+    int status,
+    long authVersion
 ) {
 
     public Set<String> roles() {
@@ -18,7 +19,6 @@ public record IdentityAccount(
     public Set<String> permissions() {
         return switch (roleCode) {
             case "admin" -> Set.of("admin:access", "resource:manage", "user:manage", "settings:manage");
-            case "operator" -> Set.of("admin:access", "resource:manage");
             default -> Set.of("trip:manage", "profile:manage", "favorite:manage");
         };
     }

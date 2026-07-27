@@ -9,6 +9,7 @@ from typing import Any
 
 import httpx
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from app.memory import MemoryAnalysisRequest, analyze_memory
@@ -57,18 +58,27 @@ def _require_internal_service(x_internal_service_token: str | None = Header(defa
 
 @app.get("/health")
 def health():
-    models = ai_readiness()
     return {
         "code": 0,
         "message": "success",
         "data": {
             "service": "travel-mind-python-ai",
             "status": "healthy",
-            "readiness": "ready" if all(value == "ready" for value in models.values()) else "degraded",
-            "models": models,
-            "fallback_enabled": True,
         },
     }
+
+
+@app.get("/ready")
+def ready():
+    models = ai_readiness()
+    required_ready = models["memory_embedding"] == "ready" and models["qdrant"] == "ready"
+    payload = ok({
+        "service": "travel-mind-python-ai",
+        "status": "ready" if required_ready else "unavailable",
+        "models": models,
+        "fallback_enabled": True,
+    })
+    return payload if required_ready else JSONResponse(status_code=503, content=payload)
 
 
 def ai_readiness() -> dict[str, str]:

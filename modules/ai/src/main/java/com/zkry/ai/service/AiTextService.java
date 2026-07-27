@@ -34,6 +34,10 @@ public class AiTextService {
         return available;
     }
 
+    public String modelName() {
+        return runtimeSettingsService.stringValue(TravelMindSettingKeys.OPENAI_MODEL).orElse(DEFAULT_MODEL);
+    }
+
     /**
      * 统一封装文本生成。业务层只关心是否生成出文本；失败返回 empty。
      */

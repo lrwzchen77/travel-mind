@@ -40,13 +40,37 @@ public class AssistantConversationService {
     public List<Map<String, Object>> messages(long userId, long conversationId, int limit) {
         conversation(userId, conversationId);
         List<Map<String, Object>> messages = jdbcTemplate.queryForList("""
-                SELECT id, role, content, metadata_json, create_time
+                SELECT id, role, content, metadata_json,
+                       JSON_UNQUOTE(JSON_EXTRACT(metadata_json, '$.mode')) AS mode,
+                       JSON_UNQUOTE(JSON_EXTRACT(metadata_json, '$.model')) AS model,
+                       create_time
                 FROM tm_ai_message WHERE conversation_id = :conversationId
                 ORDER BY id DESC LIMIT :limit
                 """, new MapSqlParameterSource().addValue("conversationId", conversationId).addValue("limit", Math.min(Math.max(limit, 1), 20)))
             ;
         Collections.reverse(messages);
         return messages;
+    }
+
+    @Transactional
+    public Map<String, Object> rename(long userId, long conversationId, String title) {
+        String safeTitle = title == null ? "" : title.trim();
+        if (safeTitle.isEmpty() || safeTitle.length() > 128) throw new BizException("对话标题应为 1 到 128 字。");
+        int changed = jdbcTemplate.update("""
+            UPDATE tm_ai_conversation SET title = :title
+            WHERE id = :id AND user_id = :userId AND deleted = 0
+            """, Map.of("title", safeTitle, "id", conversationId, "userId", userId));
+        if (changed == 0) throw new BizException("对话不存在或无权操作。");
+        return conversation(userId, conversationId);
+    }
+
+    @Transactional
+    public void delete(long userId, long conversationId) {
+        int changed = jdbcTemplate.update("""
+            UPDATE tm_ai_conversation SET deleted = 1
+            WHERE id = :id AND user_id = :userId AND deleted = 0
+            """, Map.of("id", conversationId, "userId", userId));
+        if (changed == 0) throw new BizException("对话不存在或无权操作。");
     }
 
     @Transactional

@@ -60,10 +60,12 @@ public class SaTokenConfig implements WebMvcConfigurer {
             .addPathPatterns("/api/**")
             .excludePathPatterns(
                 "/api/user/auth/login",
+                "/api/user/auth/register",
                 "/api/admin/auth/login",
                 "/api/public/**",
                 "/api/poi/**",
-                "/health"
+                "/health",
+                "/ready"
             );
 
         registry.addInterceptor(new SaInterceptor(handle -> {
@@ -76,7 +78,7 @@ public class SaTokenConfig implements WebMvcConfigurer {
             if (!skipAuthCheck()) StpUtil.checkRole("user");
         }))
             .addPathPatterns("/api/user/**")
-            .excludePathPatterns("/api/user/auth/login");
+            .excludePathPatterns("/api/user/auth/login", "/api/user/auth/register");
     }
 
     private static boolean skipAuthCheck() {

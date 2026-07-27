@@ -35,6 +35,7 @@ Health check:
 
 ```bash
 curl http://localhost:8080/health
+curl http://localhost:8080/ready
 ```
 
 ## Python AI
@@ -47,6 +48,7 @@ cd python-ai
 ```
 
 The bundled self-trained model is configured as `python-ai/models/travel-risk-yolo-best.pt`. Without it, deterministic rule fallback is used.
+`/health` is liveness only. `/ready` performs real embedding-model and Qdrant checks and returns HTTP 503 when either required dependency is unavailable.
 
 Private travel-memory indexing also requires `MEMORY_SERVICE_TOKEN`, `MEMORY_SCOPE_SECRET`, `QDRANT_URL`, and
 `BAAI/bge-small-zh-v1.5`. The embedding model is downloaded on first use (roughly 100 MB). Production must set
@@ -74,6 +76,19 @@ docker compose -f compose.prod.yml up -d --build
 
 Only Nginx is published. It serves the SPA and proxies `/api` and `/public-uploads` to the internal Java service. Private uploads remain authenticated and are shared only between Java and Python containers.
 
+Prometheus runs inside the Compose network and scrapes the backend management port. Alert rules cover backend availability, 5xx rate, and JVM heap pressure under `ops/prometheus`.
+
+## Backup and recovery
+
+Run from PowerShell. Backups contain MySQL, Qdrant and uploaded files plus SHA-256 metadata:
+
+```powershell
+.\scripts\backup.ps1
+.\scripts\restore.ps1 -BackupDirectory .\backups\20260727-120000 -ConfirmRestore
+```
+
+Restore intentionally replaces current data and restarts the dependent services. Verify `/ready` and run the smoke test immediately afterward.
+
 ## Release Verification
 
 Before delivery, run:
@@ -87,3 +102,9 @@ cd frontend && npm run build
 ```
 
 Then smoke test backend health, Python health, frontend routes, CRUD, trip planning, trip history, Java-Python AI endpoints, and failure fallbacks.
+
+With the full stack running, the dependency-free account lifecycle smoke test is:
+
+```powershell
+.\scripts\smoke-e2e.ps1
+```

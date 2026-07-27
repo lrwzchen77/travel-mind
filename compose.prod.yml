@@ -56,7 +56,7 @@ services:
     depends_on:
       - qdrant
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:19080/health', timeout=3)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:19080/ready', timeout=3)"]
       interval: 15s
       timeout: 5s
       retries: 20
@@ -116,6 +116,17 @@ services:
       backend:
         condition: service_healthy
 
+  prometheus:
+    image: prom/prometheus:v3.4.2
+    restart: unless-stopped
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=15d"]
+    volumes:
+      - ./ops/prometheus:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+    depends_on:
+      backend:
+        condition: service_healthy
+
 volumes:
   mysql-data:
   redis-data:
@@ -123,3 +134,4 @@ volumes:
   uploads:
   model-cache:
   backend-logs:
+  prometheus-data:

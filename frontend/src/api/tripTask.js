@@ -55,7 +55,7 @@ export function waitForTripTask({
         settle(resolve, state);
         return true;
       }
-      if (status === 'failed') {
+      if (status === 'failed' || status === 'cancelled') {
         const error = new Error(state.error || '规划失败');
         error.taskState = state;
         settle(reject, error);

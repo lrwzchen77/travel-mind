@@ -13,6 +13,7 @@ import com.zkry.trip.dto.TripRequest;
 import com.zkry.trip.dto.RouteIntent;
 import com.zkry.trip.dto.RouteNode;
 import com.zkry.trip.dto.TripTaskEvent;
+import com.zkry.resources.service.NotificationService;
 import java.time.LocalDate;
 import java.time.Duration;
 import java.time.format.DateTimeParseException;
@@ -27,6 +28,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicInteger;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
@@ -37,7 +40,7 @@ import org.springframework.stereotype.Service;
 /**
  * 旅行规划任务状态机。
  *
- * <p>Controller 只负责提交请求；真正的异步执行、阶段推进、WebSocket 事件推送都在这里。
+ * <p>Controller 只负责提交请求；真正的异步执行和阶段推进都在这里。
  * 它不直接实现小红书/高德/LLM 细节，而是按阶段调用 {@link TripResearchService}
  * 和 {@link TripAiPlannerService}，让主流程保持可读。
  */
@@ -48,6 +51,7 @@ public class TripTaskService {
     private static final String TASK_KEY_PREFIX = "travelmind:trip-task:";
 
     private final Map<String, TripTaskState> tasks = new ConcurrentHashMap<>();
+    private final Map<String, Future<?>> futures = new ConcurrentHashMap<>();
     private final ThreadPoolExecutor executorService;
     private final RedisUtils redis;
     private final Duration stateTtl;
@@ -59,6 +63,7 @@ public class TripTaskService {
     private final TripPlanReviewer tripPlanReviewer;
     private final TravelAiApplicationService travelAiApplicationService;
     private final boolean xhsEnabled;
+    private final NotificationService notifications;
 
     public TripTaskService(
         TripAiPlannerService tripAiPlannerService,
@@ -68,6 +73,7 @@ public class TripTaskService {
         TripPlanPersistenceService tripPlanPersistenceService,
         TripPlanReviewer tripPlanReviewer,
         TravelAiApplicationService travelAiApplicationService,
+        NotificationService notifications,
         RedisUtils redis,
         @Value("${travelmind.content.xhs.enabled:false}") boolean xhsEnabled,
         @Value("${travelmind.trip.tasks.workers:4}") int workers,
@@ -81,6 +87,7 @@ public class TripTaskService {
         this.tripPlanPersistenceService = tripPlanPersistenceService;
         this.tripPlanReviewer = tripPlanReviewer;
         this.travelAiApplicationService = travelAiApplicationService;
+        this.notifications = notifications;
         this.redis = redis;
         this.xhsEnabled = xhsEnabled;
         this.stateTtl = Duration.ofMinutes(Math.max(stateTtlMinutes, 1));
@@ -101,7 +108,7 @@ public class TripTaskService {
     /**
      * 提交旅行规划任务。
      *
-     * <p>接口不会同步等 LLM 全部跑完，而是立刻返回 taskId 和 WebSocket 地址。
+     * <p>接口不会同步等 LLM 全部跑完，而是立刻返回 taskId，前端通过状态接口轮询。
      * 真正耗时的资料研究、规划、图谱构建会在后台线程里执行。
      */
     public SubmitTripPlanResponse submit(TripRequest request, long userId) {
@@ -119,9 +126,15 @@ public class TripTaskService {
             request.safePreferences(),
             tripAiPlannerService.isAvailable());
         update(taskId, TripTaskStatus.PROCESSING, TripTaskStage.SUBMITTED, 5, TripTaskMessages.SUBMITTED, null, null);
+        FutureTask<Void> future = new FutureTask<>(() -> {
+            runPlanning(taskId, userId, request);
+            return null;
+        });
+        futures.put(taskId, future);
         try {
-            executorService.execute(() -> runPlanning(taskId, userId, request));
+            executorService.execute(future);
         } catch (RejectedExecutionException ex) {
+            futures.remove(taskId);
             tasks.remove(taskId);
             deletePersisted(taskId);
             throw new BizException("规划任务繁忙，请稍后重试。");
@@ -150,7 +163,7 @@ public class TripTaskService {
             payload.put("result", state.result);
             return payload;
         }
-        if (TripTaskStatus.FAILED.equals(state.status)) {
+        if (TripTaskStatus.FAILED.equals(state.status) || TripTaskStatus.CANCELLED.equals(state.status)) {
             payload.put("error", state.error);
             payload.put("request_payload", state.requestPayload());
             return payload;
@@ -168,6 +181,23 @@ public class TripTaskService {
             throw new TripTaskNotFoundException(taskId);
         }
         return state;
+    }
+
+    public Map<String, Object> cancel(String taskId, long userId) {
+        TripTaskState state = task(taskId, userId);
+        if (!TripTaskStatus.PROCESSING.equals(state.status)) throw new BizException("只有进行中的任务可以取消。");
+        update(taskId, TripTaskStatus.CANCELLED, TripTaskStage.CANCELLED, 100, "规划已取消。", null, "规划已取消。");
+        Future<?> future = futures.remove(taskId);
+        if (future != null) future.cancel(true);
+        return status(taskId, userId);
+    }
+
+    public SubmitTripPlanResponse retry(String taskId, long userId) {
+        TripTaskState state = task(taskId, userId);
+        if (!TripTaskStatus.FAILED.equals(state.status) && !TripTaskStatus.CANCELLED.equals(state.status)) {
+            throw new BizException("只有失败或已取消的任务可以重试。");
+        }
+        return submit(state.request, userId);
     }
 
     private TripTaskState task(String taskId, long userId) {
@@ -209,7 +239,14 @@ public class TripTaskService {
             if (!review.passed()) {
                 throw new BizException("行程结构校验未通过：" + String.join("；", review.issues()));
             }
+            ensureActive(taskId);
             long savedPlanId = tripPlanPersistenceService.save(userId, response, request);
+            try {
+                ensureActive(taskId);
+            } catch (BizException ex) {
+                tripPlanPersistenceService.delete(savedPlanId, userId);
+                throw ex;
+            }
             evaluateComfort(userId, savedPlanId, response, request);
             TripPlanResponse savedResponse = new TripPlanResponse(
                 response.success(),
@@ -226,12 +263,22 @@ public class TripTaskService {
             update(taskId, TripTaskStatus.PROCESSING, TripTaskStage.GRAPH_BUILDING, 95, TripTaskMessages.GRAPH_BUILDING, null, null);
             pause();
             update(taskId, TripTaskStatus.COMPLETED, TripTaskStage.COMPLETED, 100, TripTaskMessages.COMPLETED, savedResponse, null);
+            notifications.notify(userId, "trip_task", "行程已生成", "你的旅行计划已经排好，可以打开查看和编辑。",
+                "/trip/" + savedPlanId);
             log.info("[TripTask] 任务执行完成 taskId={} savedPlanId={} elapsedMs={}", taskId, savedPlanId,
                 System.currentTimeMillis() - startedAt);
         } catch (Exception ex) {
+            TripTaskState state = tasks.get(taskId);
+            if (state != null && TripTaskStatus.CANCELLED.equals(state.status)) {
+                log.info("[TripTask] 任务已取消 taskId={}", taskId);
+                return;
+            }
             log.error("[TripTask] 任务执行失败 taskId={} elapsedMs={} reason={}",
                 taskId, System.currentTimeMillis() - startedAt, ex.getMessage(), ex);
             update(taskId, TripTaskStatus.FAILED, TripTaskStage.FAILED, 100, TripTaskMessages.FAILED, null, ex.getMessage());
+            notifications.notify(userId, "trip_task", "行程生成失败", "这次规划没有完成，可以回到规划页重试。", "/planning");
+        } finally {
+            futures.remove(taskId);
         }
     }
 
@@ -338,6 +385,13 @@ public class TripTaskService {
         }
     }
 
+    private void ensureActive(String taskId) {
+        TripTaskState state = tasks.get(taskId);
+        if (state == null || TripTaskStatus.CANCELLED.equals(state.status) || Thread.currentThread().isInterrupted()) {
+            throw new BizException("规划已取消。");
+        }
+    }
+
     private boolean runtimeSettingsComplete() {
         return missingRuntimeSettings().isEmpty();
     }
@@ -367,7 +421,7 @@ public class TripTaskService {
     }
 
     /**
-     * 更新内存任务状态，并推送给所有 WebSocket 订阅者。
+     * 更新内存任务状态，供轮询接口读取。
      *
      * <p>前端进度条、轮询接口和最终结果都来自这里维护的 {@link TripTaskState}。
      */
@@ -496,7 +550,7 @@ public class TripTaskService {
                 message,
                 error == null || error.isBlank() ? null : error,
                 includeResult ? result : null,
-                TripTaskStatus.FAILED.equals(status) ? requestPayload() : null
+                TripTaskStatus.FAILED.equals(status) || TripTaskStatus.CANCELLED.equals(status) ? requestPayload() : null
             );
         }
 

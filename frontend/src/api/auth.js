@@ -11,6 +11,10 @@ export function createAuthApi(client = http) {
       const session = await client.post(`/${portal}/auth/login`, credentials).then(unwrap);
       return authSession.save(session);
     },
+    async register(profile) {
+      const session = await client.post('/user/auth/register', profile).then(unwrap);
+      return authSession.save(session);
+    },
     me(portal) {
       return client.get(`/${portal}/auth/me`).then(unwrap);
     },

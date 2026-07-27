@@ -26,7 +26,7 @@ public class RequestRateLimitInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         String path = request.getRequestURI();
-        String bucket = path.endsWith("/auth/login") ? "login" : path.startsWith("/api/poi/") ? "poi" : "ai";
+        String bucket = path.contains("/auth/") ? "login" : path.startsWith("/api/poi/") ? "poi" : "ai";
         long limit = "login".equals(bucket) ? 10 : "poi".equals(bucket) ? 30 : 60;
         String subject = subject(request);
         String key = "travelmind:rate:" + bucket + ":" + subject;
