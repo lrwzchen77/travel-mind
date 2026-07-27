@@ -8,11 +8,13 @@ import {
   marqueeTags,
 } from '../layout/menu.js';
 import { useReveal } from '../composables/useReveal.js';
+import SplitText from '../components/SplitText.vue';
 import TravelMap3D from '../components/map/AsyncTravelMap3D.vue';
 import { cityImageByName } from '../data/cityImages.js';
 import { supportsPlanning } from '../data/planningSupport.js';
 
 const root = ref(null);
+const heroEl = ref(null);
 const cityIndex = ref(0);
 const hoverCity = ref(null);
 const mapCity = ref('杭州');
@@ -27,6 +29,22 @@ function onMapCity(city) {
 
 function onScroll() {
   scrollY.value = window.scrollY;
+}
+
+// 指针视差：文案与轮廓字随指针反向漂移，营造景深
+function onHeroPointer(e) {
+  const el = heroEl.value;
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  const nx = (e.clientX - rect.left) / rect.width - 0.5;
+  const ny = (e.clientY - rect.top) / rect.height - 0.5;
+  el.style.setProperty('--px', nx.toFixed(3));
+  el.style.setProperty('--py', ny.toFixed(3));
+}
+
+function onHeroLeave() {
+  heroEl.value?.style.setProperty('--px', '0');
+  heroEl.value?.style.setProperty('--py', '0');
 }
 
 onMounted(() => {
@@ -45,7 +63,12 @@ onUnmounted(() => {
 <template>
   <div ref="root" class="home-page">
     <!-- Cinematic hero -->
-    <section class="home-hero home-hero--luxe">
+    <section
+      ref="heroEl"
+      class="home-hero home-hero--luxe"
+      @pointermove="onHeroPointer"
+      @pointerleave="onHeroLeave"
+    >
       <img
         v-for="(city, i) in rotatingCities"
         :key="city"
@@ -57,24 +80,27 @@ onUnmounted(() => {
       />
       <div class="home-hero-shade" aria-hidden="true" />
 
+      <!-- 巨型轮廓字：随指针反向漂移的空间锚点 -->
+      <span class="hero-outline type-outline" aria-hidden="true">NEXT STOP</span>
+
       <div class="hero-copy" data-reveal>
         <p class="hero-kicker">
           <span class="pulse-dot" aria-hidden="true" />
           这个周末去哪玩？
         </p>
         <h1>
-          <span class="hero-line">下一站，</span>
+          <SplitText class="hero-line" text="下一站，" tag="span" :stagger="52" />
           <span class="city-swap" :key="cityIndex">
-            <em>{{ rotatingCities[cityIndex] }}</em>
+            <SplitText :text="rotatingCities[cityIndex]" tag="em" :stagger="96" :delay="140" />
           </span>
         </h1>
         <p class="hero-sub">把一条灵感，折叠成一份走得通的行程。</p>
         <div class="hero-actions">
-          <RouterLink class="btn-link btn-coral btn-glow" :to="{ path: '/map', query: { city: rotatingCities[cityIndex] } }">
+          <RouterLink class="btn-link btn-coral btn-glow btn-fluid" data-magnetic :to="{ path: '/map', query: { city: rotatingCities[cityIndex] } }">
             开始规划我的行程
             <span class="btn-arrow" aria-hidden="true"><ArrowRight :size="16" :stroke-width="2.4" /></span>
           </RouterLink>
-          <RouterLink class="btn-link btn-light" to="/trip-history">看看我的行程</RouterLink>
+          <RouterLink class="btn-link btn-light" data-magnetic to="/trip-history">看看我的行程</RouterLink>
         </div>
       </div>
 
@@ -97,7 +123,7 @@ onUnmounted(() => {
     <!-- Destinations -->
     <div class="section-head" data-reveal>
       <div>
-        <p class="eyebrow">先选一座城</p>
+        <p class="eyebrow"><span class="type-index">S.01</span> 先选一座城</p>
         <h2>人气目的地</h2>
       </div>
       <RouterLink class="text-link" to="/cities">
@@ -141,7 +167,7 @@ onUnmounted(() => {
     <!-- Map -->
     <div class="section-head" data-reveal>
       <div>
-        <p class="eyebrow">再看路线距离</p>
+        <p class="eyebrow"><span class="type-index">S.02</span> 再看路线距离</p>
         <h2>立体地图 · 下一站</h2>
       </div>
       <RouterLink class="text-link" to="/map">
@@ -203,6 +229,41 @@ onUnmounted(() => {
 
 <style scoped>
 .hero-line { display: block; color: rgba(255, 255, 255, 0.78); }
+
+/* 巨型轮廓字：悬浮在画面右上，随指针同向漂移（浅景层） */
+.hero-outline {
+  position: absolute;
+  top: clamp(20px, 4vw, 48px);
+  right: clamp(16px, 3vw, 48px);
+  z-index: 1;
+  font-size: clamp(52px, 10vw, 170px);
+  line-height: 0.9;
+  opacity: 0.55;
+  -webkit-text-stroke-color: rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+  transform: translate3d(calc(var(--px, 0) * 26px), calc(var(--py, 0) * 18px), 0);
+  transition: transform 0.6s var(--ease-out-expo);
+}
+
+/* 标题反向漂移（深景层），与轮廓字形成视差对位 */
+.home-hero h1 {
+  transform: translate3d(calc(var(--px, 0) * -12px), calc(var(--py, 0) * -8px), 0);
+  transition: transform 0.6s var(--ease-out-expo);
+}
+
+/* 逐字渐变着色：字符级 transform 会破坏父层 background-clip，改为每字自带渐变 */
+.city-swap {
+  background: none;
+  -webkit-text-fill-color: currentColor;
+}
+.city-swap :deep(em.split-text) { font-style: normal; animation: none; }
+.city-swap :deep(.split-char) {
+  background: linear-gradient(120deg, var(--tm-accent) 0%, var(--tm-sun) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
 .hero-sub {
   margin: 22px 0 0;
   max-width: 460px;

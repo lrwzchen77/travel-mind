@@ -30,6 +30,54 @@ export const auxiliaryNav = [
 /** 扁平列表，供路由/测试校验。 */
 export const navigationItems = [...new Map([...primaryNav, ...auxiliaryNav, ...accountNav].map((item) => [item.path, item])).values()];
 
+/** 跨页面章节码：用 00–09 编号每个主路由，帘幕换页与 HUD 仪表共用。 */
+export const chapterMap = {
+  dashboard: ['00', '序'],
+  planning: ['01', '规划'],
+  'explore-map': ['02', '地图'],
+  inspirations: ['03', '社区'],
+  'inspiration-detail': ['03', '社区'],
+  cities: ['04', '城市'],
+  'city-detail': ['04', '城市'],
+  'discovery-detail': ['05', '发现'],
+  attractions: ['05', '去哪玩'],
+  hotels: ['05', '住哪里'],
+  restaurants: ['05', '吃什么'],
+  'trip-history': ['06', '行程'],
+  'trip-detail': ['06', '行程'],
+  memories: ['07', '记录'],
+  'memory-detail': ['07', '记录'],
+  'my-posts': ['08', '我的'],
+  'inspiration-bag': ['08', '灵感包'],
+  assistant: ['09', '助手'],
+  'ai-lab': ['09', '助手'],
+  favorites: ['08', '收藏'],
+  'travel-notes': ['08', '笔记'],
+  'ai-records': ['08', '足迹'],
+  profile: ['08', '偏好'],
+  notifications: ['08', '消息'],
+  // 管理端章节：A 系编号，与用户端 00–09 手记语法同源但自成一册
+  'admin-dashboard': ['A0', '运营'],
+  'admin-cities': ['A1', '资源'],
+  'admin-attractions': ['A1', '资源'],
+  'admin-hotels': ['A1', '资源'],
+  'admin-restaurants': ['A1', '资源'],
+  'admin-map-pois': ['A1', '资源'],
+  'admin-travel-tags': ['A1', '资源'],
+  'admin-users': ['A2', '用户'],
+  'admin-user-preferences': ['A2', '用户'],
+  'admin-trip-plans': ['A2', '用户'],
+  'admin-travel-notes': ['A2', '用户'],
+  'admin-ai-records': ['A2', '用户'],
+  'admin-settings': ['A3', '配置'],
+  'admin-ai-tools': ['A3', '工具'],
+};
+
+/** 取某路由的章节码，未登记的路由返回占位破折号。 */
+export function chapterFor(routeName) {
+  return chapterMap[routeName] || ['—', '—'];
+}
+
 /** 首页轮播/高亮城市名 */
 export const rotatingCities = ['杭州', '成都', '北京'];
 

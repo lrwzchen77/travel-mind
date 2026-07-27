@@ -17,6 +17,7 @@ import {
 } from 'lucide-vue-next';
 import { communityApi } from '../api/community.js';
 import { useReveal } from '../composables/useReveal.js';
+import { chapterFor } from '../layout/menu.js';
 import PagePrologue from '../components/PagePrologue.vue';
 
 const root = ref(null);
@@ -218,7 +219,7 @@ onMounted(load);
   <div ref="root" class="resource-page" :class="{ 'resource-page--admin': isAdmin }">
   <section v-if="isAdmin" class="admin-hero admin-hero--slim" data-reveal>
     <PagePrologue
-      index="A2 · 资源"
+      :index="chapterFor(route.name).join(' · ')"
       eyebrow="Resource Management"
     >
       <template #title><em>{{ title }}</em></template>

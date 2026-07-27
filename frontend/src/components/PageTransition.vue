@@ -1,16 +1,52 @@
 <script setup>
 /**
  * PageTransition — 电影级页面切换
- * 用层级化的位移 + 不透明度 + 裁切，让每次跳转像翻页而非硬切。
+ * 两层协同：
+ * 1. 帘幕扫光：路由切换时暗幕自下而上扫过视口，中央闪现目标章节码；
+ * 2. 页面层级化位移 + 模糊散焦，让翻页像镜头推拉而非硬切。
  * 配合 PagePrologue 的序号语法，整站读起来像连续手记。
  */
-import { RouterView } from 'vue-router';
+import { onBeforeUnmount, ref, watch } from 'vue';
+import { RouterView, useRoute } from 'vue-router';
+import { chapterFor } from '../layout/menu.js';
+
+const route = useRoute();
+const sweeping = ref(false);
+const chapter = ref(chapterFor(route.name));
+let sweepTimer;
+let sweepFrame;
+
+// 首屏不扫幕；后续每次路径切换触发一次帘幕
+watch(() => route.path, () => {
+  chapter.value = chapterFor(route.name);
+  sweeping.value = false;
+  if (sweepTimer) window.clearTimeout(sweepTimer);
+  if (sweepFrame) window.cancelAnimationFrame(sweepFrame);
+  // 下一帧重新挂 is-sweep，保证动画可重复触发
+  sweepFrame = window.requestAnimationFrame(() => {
+    sweepFrame = 0;
+    sweeping.value = true;
+    sweepTimer = window.setTimeout(() => { sweeping.value = false; }, 950);
+  });
+});
+
+onBeforeUnmount(() => {
+  if (sweepFrame) window.cancelAnimationFrame(sweepFrame);
+  if (sweepTimer) window.clearTimeout(sweepTimer);
+});
 </script>
 
 <template>
-  <RouterView v-slot="{ Component, route }">
+  <div class="page-curtain" :class="{ 'is-sweep': sweeping }" aria-hidden="true">
+    <div class="page-curtain-code">
+      <b>{{ chapter[0] }}</b>
+      <span>{{ chapter[1] }}</span>
+    </div>
+  </div>
+
+  <RouterView v-slot="{ Component, route: viewRoute }">
     <Transition name="page" mode="out-in">
-      <div :key="route.path" class="page-transition-shell">
+      <div :key="viewRoute.path" class="page-transition-shell">
         <component :is="Component" />
       </div>
     </Transition>

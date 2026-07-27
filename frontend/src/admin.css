@@ -242,8 +242,11 @@
   border-color: var(--tm-danger-soft);
 }
 
-/* ── Topbar · 运营台状态条 ── */
+/* ── Topbar · 运营台状态条（吸顶 HUD：时钟 + 滚动光谱进度丝线）── */
 .admin-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -253,6 +256,31 @@
   border-bottom: 1px solid var(--tm-line);
   background: color-mix(in srgb, var(--tm-paper) 72%, transparent);
   backdrop-filter: blur(20px) saturate(1.4);
+}
+.admin-topbar-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  pointer-events: none;
+}
+.admin-topbar-progress i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  transform: scaleX(var(--scroll-progress, 0));
+  transform-origin: 0 50%;
+  background: linear-gradient(90deg, var(--tm-accent-deep), var(--tm-accent), var(--tm-sun));
+  transition: transform 80ms linear;
+}
+.admin-topbar-clock {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  color: var(--tm-muted);
+  font-variant-numeric: tabular-nums;
 }
 .admin-topbar-title { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
 .admin-topbar-kicker {
@@ -324,6 +352,16 @@
 }
 .admin-main .site-main { padding: 0; }
 .admin-main .page-intro { margin-bottom: 22px; }
+
+/* ── 工作区尾部字标 · 与用户端 footer-wordmark 同源，按管理列宽缩尺
+   （复合选择器抬高特异度：experience.css 在 admin.css 之后加载）── */
+.footer-wordmark.admin-wordmark {
+  margin-top: auto;
+  padding-bottom: 10px;
+}
+.footer-wordmark.admin-wordmark span {
+  font-size: clamp(52px, 9.5vw, 168px);
+}
 
 /* ── Section head · 管理视图内分节标题 ── */
 .admin-section-head {
@@ -522,6 +560,22 @@
   height: 2px;
   background: linear-gradient(90deg, var(--tm-accent), transparent);
 }
+/* 英文轮廓背景词：实验性排版锚点，与用户端 type-outline 同一语法 */
+.admin-hero-word {
+  position: absolute;
+  right: clamp(-40px, -2vw, -16px);
+  bottom: clamp(-28px, -1.5vw, -12px);
+  z-index: 0;
+  font-size: clamp(88px, 15vw, 240px);
+  line-height: 0.8;
+  opacity: 0.5;
+  pointer-events: none;
+}
+.admin-hero-rail,
+.admin-hero-eyebrow,
+.admin-hero-title,
+.admin-hero-lead,
+.admin-hero-kpis { position: relative; z-index: 1; }
 .admin-hero-rail {
   display: flex;
   align-items: center;
@@ -2171,6 +2225,7 @@
 @media (max-width: 980px) {
   .admin-shell { grid-template-columns: 190px minmax(0, 1fr); }
   .admin-hero-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-topbar-clock { display: none; }
   .admin-mobile-toggle { display: grid; }
   .admin-sidebar {
     position: fixed;

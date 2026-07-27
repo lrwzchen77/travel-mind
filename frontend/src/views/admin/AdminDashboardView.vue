@@ -231,6 +231,7 @@ onMounted(load);
 <template>
   <div ref="root" class="admin-command">
     <section class="admin-hero" data-reveal>
+      <span class="admin-hero-word type-outline" aria-hidden="true">OPS</span>
       <div class="admin-hero-rail">
         <span class="admin-hero-stamp">A0 · 运营</span>
         <span class="admin-hero-rule" aria-hidden="true" />
@@ -249,7 +250,7 @@ onMounted(load);
           <RouterLink :to="`/admin/resources/${item.key}`">查看{{ item.routeKey }}</RouterLink>
         </article>
       </div>
-      <button type="button" class="admin-hero-refresh" :disabled="syncing" @click="load">
+      <button type="button" class="admin-hero-refresh" :disabled="syncing" data-magnetic @click="load">
         <RefreshCw :size="16" :class="{ 'is-spinning': syncing }" aria-hidden="true" />
         {{ syncing ? '同步中' : '刷新数据' }}
       </button>
@@ -410,9 +411,9 @@ onMounted(load);
     </section>
 
     <section class="admin-command-actions" aria-label="运营操作入口" data-reveal>
-      <RouterLink to="/admin/resources/cities"><MapPinned :size="18" aria-hidden="true" /><span>维护目的地内容</span></RouterLink>
-      <RouterLink to="/admin/resources/users"><UsersRound :size="18" aria-hidden="true" /><span>处理用户与行程</span></RouterLink>
-      <RouterLink to="/admin/settings"><Database :size="18" aria-hidden="true" /><span>检查运行配置</span></RouterLink>
+      <RouterLink to="/admin/resources/cities" data-magnetic><MapPinned :size="18" aria-hidden="true" /><span>维护目的地内容</span></RouterLink>
+      <RouterLink to="/admin/resources/users" data-magnetic><UsersRound :size="18" aria-hidden="true" /><span>处理用户与行程</span></RouterLink>
+      <RouterLink to="/admin/settings" data-magnetic><Database :size="18" aria-hidden="true" /><span>检查运行配置</span></RouterLink>
     </section>
 
     <section class="chapter-bridge" data-reveal>
@@ -421,7 +422,7 @@ onMounted(load);
         <h2 class="chapter-bridge-title">系统配置与外部服务</h2>
         <p class="chapter-bridge-lead">校验地图 Key、采集 Cookie 与大模型连接，确保所有上游通道稳定在线。</p>
       </div>
-      <RouterLink class="chapter-bridge-cta" to="/admin/settings">
+      <RouterLink class="chapter-bridge-cta" to="/admin/settings" data-magnetic>
         <span>去运行配置</span>
         <ArrowRight :size="18" :stroke-width="2.2" aria-hidden="true" />
       </RouterLink>

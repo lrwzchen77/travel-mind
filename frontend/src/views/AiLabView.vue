@@ -1,13 +1,19 @@
 <script setup>
 import { computed, reactive, ref } from 'vue';
+import { useRoute } from 'vue-router';
 import { Camera, Compass, PenLine } from 'lucide-vue-next';
 import { adminAiApi as aiApi } from '../api/ai.js';
 import ImageDropUpload from '../components/ImageDropUpload.vue';
 import PagePrologue from '../components/PagePrologue.vue';
 import { useReveal } from '../composables/useReveal.js';
+import { chapterFor } from '../layout/menu.js';
 
 const root = ref(null);
 useReveal(root);
+
+// 同一视图服务两个门户：用户端 09 · 助手 / 管理端 A3 · 工具，序号跟随路由章节码
+const route = useRoute();
+const chapterIndex = chapterFor(route.name).join(' · ');
 
 const loading = ref('');
 const error = ref('');
@@ -74,7 +80,7 @@ async function run(name, action) {
 <template>
   <div ref="root" class="ai-lab-page">
     <PagePrologue
-      index="09 · 助手"
+      :index="chapterIndex"
       eyebrow="AI Atelier"
       title="旅行灵感小工具"
       lead="三个轻量实验：看图认地方、估行程累不累、读懂一段游记。把模型的能力拆成可触摸的小动作。"

@@ -64,7 +64,7 @@ onMounted(load);
   <div ref="root" class="admin-settings-page">
     <section class="admin-hero admin-hero--slim" data-reveal>
       <PagePrologue
-        index="A1 · 配置"
+        index="A3 · 配置"
         eyebrow="System Settings"
         title="外部服务与<em>模型连接</em>"
         :lead="mutable ? '开发环境可临时调整上游配置；重启后恢复环境变量。' : '生产环境由密钥和环境变量统一管理，此页面只显示配置状态。'"

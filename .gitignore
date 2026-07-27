@@ -26,6 +26,7 @@ logs/
 .codegraph
 .cursor
 .browser-pilot/
+test-results/
 
 # Local failed image-download artifact (contains HTML, not JPEG data).
 python-ai/west-lake-night-food.jpg

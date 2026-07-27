@@ -2,6 +2,10 @@
 import { computed, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import PageTransition from '../components/PageTransition.vue';
+import { chapterFor } from './menu.js';
+import { useMagnetic } from '../composables/useMagnetic.js';
+import { useReveal } from '../composables/useReveal.js';
+import { useHudMetrics } from '../composables/useHudMetrics.js';
 import { authApi } from '../api/auth.js';
 import { authSession } from '../auth/session.js';
 import {
@@ -28,12 +32,15 @@ const route = useRoute();
 const router = useRouter();
 const user = computed(() => authSession.user());
 const menuOpen = ref(false);
-const chapterMap = {
-  'admin-dashboard': '00 · 运营',
-  'admin-settings': '01 · 配置',
-  'admin-ai-tools': '02 · 工具',
-};
-const chapterCode = computed(() => chapterMap[route.name] || '02 · 资源');
+const { clock, scrollProgress } = useHudMetrics();
+
+// 章节码与帘幕换页共用 menu.js 的 chapterMap，管理册走 A 系编号
+const chapter = computed(() => chapterFor(route.name));
+const chapterCode = computed(() => `${chapter.value[0]} · ${chapter.value[1]}`);
+
+// 体验层：磁吸交互 + 布局级 data-reveal（如底部字标）兑底观察
+useMagnetic();
+useReveal();
 const groups = [
   { label: '总览', items: [{ path: '/admin', label: '运营总览', icon: LayoutDashboard }] },
   {
@@ -113,6 +120,7 @@ watch(() => route.fullPath, () => { menuOpen.value = false; });
     </aside>
     <div class="admin-workspace">
       <header class="admin-topbar">
+        <div class="admin-topbar-progress" aria-hidden="true"><i :style="{ '--scroll-progress': scrollProgress }" /></div>
         <button
           type="button"
           class="admin-mobile-toggle"
@@ -126,12 +134,17 @@ watch(() => route.fullPath, () => { menuOpen.value = false; });
           <strong>{{ route.meta.title || '运营工作台' }}</strong>
         </div>
         <div class="admin-topbar-meta">
+          <span class="admin-topbar-clock" aria-hidden="true">{{ clock }} · UTC+8</span>
           <span class="admin-topbar-pulse" aria-hidden="true" />
           <span class="admin-topbar-status">系统在线</span>
-          <RouterLink to="/" target="_blank" class="admin-topbar-link">用户端 <ExternalLink :size="14" aria-hidden="true" /></RouterLink>
+          <RouterLink to="/" target="_blank" rel="noopener" class="admin-topbar-link" data-magnetic>用户端 <ExternalLink :size="14" aria-hidden="true" /></RouterLink>
         </div>
       </header>
       <main class="admin-main"><PageTransition /></main>
+      <!-- 视口级轮廓字标：与用户端页脚同源的空间锚点，滚到底部从地平线升起 -->
+      <div class="footer-wordmark admin-wordmark" data-reveal aria-hidden="true">
+        <span>TM · OPS DECK</span>
+      </div>
     </div>
   </div>
 </template>

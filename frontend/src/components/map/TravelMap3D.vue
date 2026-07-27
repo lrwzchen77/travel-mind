@@ -186,7 +186,7 @@ function showPublicPopup(map, item) {
   const visual = document.createElement('div');
   visual.className = 'travel-node-visual';
   const icon = document.createElement('span');
-  icon.textContent = PUBLIC_MARKER_ICONS[item.kind] || PUBLIC_MARKER_ICONS.attraction;
+  icon.innerHTML = PUBLIC_MARKER_ICONS[item.kind] || PUBLIC_MARKER_ICONS.attraction;
   visual.append(icon);
   if (item.image_url) {
     const image = document.createElement('img');
@@ -269,7 +269,7 @@ function addPublicMarker(map, item, kind, onClick) {
   el.title = item.name;
   el.setAttribute('aria-label', `${item.name}，在地图上查看`);
   const icon = document.createElement('span');
-  icon.textContent = PUBLIC_MARKER_ICONS[kind];
+  icon.innerHTML = PUBLIC_MARKER_ICONS[kind] || PUBLIC_MARKER_ICONS.attraction;
   el.append(icon);
   el.addEventListener('mouseenter', () => showPublicPopup(map, item));
   el.addEventListener('mouseleave', hidePublicPopup);

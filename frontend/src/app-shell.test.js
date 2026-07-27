@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   accountNav,
   auxiliaryNav,
+  chapterFor,
   navigationItems,
   primaryNav,
 } from './layout/menu.js';
@@ -55,6 +56,11 @@ describe('application shell contracts', () => {
     expect(routePaths).toContain('/inspirations/:id');
     expect(routePaths).toContain('/admin/resources/users');
     expect(routePaths).toContain('/admin/settings');
+  });
+
+  it('assigns a chapter code to every route rendered inside an application shell', () => {
+    const shellRoutes = routes.filter((route) => route.children).flatMap((route) => route.children);
+    for (const route of shellRoutes) expect(chapterFor(route.name)[0]).not.toBe('—');
   });
 
   it('creates an API client with the configured base URL', () => {

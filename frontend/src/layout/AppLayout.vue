@@ -1,10 +1,13 @@
 <script setup>
 import { computed, ref, onMounted, onUnmounted, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
-import { Plane, ChevronDown, LogOut, Menu, X, ArrowRight, Compass, Sparkles, Map, BookOpen, BookMarked, Heart, NotebookPen, ScanText, Footprints, SlidersHorizontal, Bell } from 'lucide-vue-next';
-import { accountNav, primaryNav } from './menu.js';
+import { Plane, ChevronDown, LogOut, Menu, X, Compass, Sparkles, Map, BookOpen, BookMarked, Heart, NotebookPen, ScanText, Footprints, SlidersHorizontal, Bell } from 'lucide-vue-next';
+import { accountNav, primaryNav, chapterFor } from './menu.js';
 import PageTransition from '../components/PageTransition.vue';
 import InspirationBagFloat from '../components/InspirationBagFloat.vue';
+import { useMagnetic } from '../composables/useMagnetic.js';
+import { useReveal } from '../composables/useReveal.js';
+import { useHudMetrics } from '../composables/useHudMetrics.js';
 import { authApi } from '../api/auth.js';
 import { authSession } from '../auth/session.js';
 
@@ -26,35 +29,17 @@ const currentUser = ref(authSession.user());
 const userInitial = computed(() => String(currentUser.value?.name || '旅').trim().charAt(0));
 const menuOpen = ref(false);
 const accountOpen = ref(false);
-const scrolled = ref(false);
+const { clock, scrolled, scrollProgress } = useHudMetrics();
 const showInspirationBag = computed(() => currentUser.value && !/^\/memories(?:\/|$)/.test(route.path));
 
-// 跨页面章节码：用 01–09 编号每个主路由，形成"连续手记"的叙事感
-const chapterMap = {
-  dashboard: '00 · 序',
-  planning: '01 · 规划',
-  'explore-map': '02 · 地图',
-  inspirations: '03 · 社区',
-  'inspiration-detail': '03 · 社区',
-  cities: '04 · 城市',
-  'city-detail': '04 · 城市',
-  attractions: '05 · 去哪玩',
-  hotels: '05 · 住哪里',
-  restaurants: '05 · 吃什么',
-  'trip-history': '06 · 行程',
-  'trip-detail': '06 · 行程',
-  memories: '07 · 记录',
-  'memory-detail': '07 · 记录',
-  'my-posts': '08 · 我的',
-  'inspiration-bag': '08 · 灵感包',
-  assistant: '09 · 助手',
-  'ai-lab': '09 · 助手',
-  favorites: '08 · 收藏',
-  'travel-notes': '08 · 笔记',
-  'ai-records': '08 · 足迹',
-  profile: '08 · 偏好',
-};
-const chapterCode = computed(() => chapterMap[route.name] || '— · —');
+// 跨页面章节码：与帘幕换页共用 menu.js 的 chapterMap，形成"连续手记"叙事感
+const chapter = computed(() => chapterFor(route.name));
+const chapterCode = computed(() => `${chapter.value[0]} · ${chapter.value[1]}`);
+
+// 磁吸交互：头部 CTA、账户触发器等带 data-magnetic 的元素
+useMagnetic();
+// 布局层兜底 reveal：视图根之外的 data-reveal（如页脚字标）由 document 根观察
+useReveal();
 
 function closeMenus() {
   menuOpen.value = false;
@@ -65,10 +50,6 @@ function onDocClick(e) {
   if (!e.target.closest?.('.account-menu') && !e.target.closest?.('.nav-toggle')) {
     accountOpen.value = false;
   }
-}
-
-function onScroll() {
-  scrolled.value = window.scrollY > 12;
 }
 
 function isNavActive(path) {
@@ -92,25 +73,27 @@ watch(() => route.fullPath, () => {
 
 onMounted(() => {
   document.addEventListener('click', onDocClick);
-  window.addEventListener('scroll', onScroll, { passive: true });
-  onScroll();
 });
 
 onUnmounted(() => {
   document.removeEventListener('click', onDocClick);
-  window.removeEventListener('scroll', onScroll);
 });
 </script>
 
 <template>
   <div class="app-shell">
-    <!-- 跨页面连续叙事层：固定坐标网格 + 边缘时间码，让翻页感觉是同一块画布 -->
+    <!-- 跨页面连续叙事层：固定坐标网格，让翻页感觉是同一块画布 -->
     <div class="app-atmosphere" aria-hidden="true">
       <div class="app-atmosphere-grid" />
-      <div class="app-atmosphere-code">
-        <span class="app-atmosphere-code-label">TM · CHAPTER</span>
-        <span class="app-atmosphere-code-value">{{ chapterCode }}</span>
-      </div>
+    </div>
+
+    <!-- HUD 取景框仪表：四角坐标刻度 + 滚动光谱进度线 -->
+    <div class="hud-frame" aria-hidden="true">
+      <div class="hud-progress"><i :style="{ '--scroll-progress': scrollProgress }" /></div>
+      <span class="hud-corner hud-corner--tl">TM / FIELD NOTES</span>
+      <span class="hud-corner hud-corner--tr">{{ clock }} · UTC+8</span>
+      <span class="hud-corner hud-corner--bl">CHAPTER <b>{{ chapterCode }}</b></span>
+      <span class="hud-corner hud-corner--br">SCROLL <b>{{ Math.round(scrollProgress * 100) }}%</b></span>
     </div>
 
     <header class="site-header" :class="{ 'is-scrolled': scrolled }">
@@ -150,7 +133,7 @@ onUnmounted(() => {
             {{ item.label }}
           </RouterLink>
 
-          <RouterLink to="/map" class="header-cta" @click="closeMenus">
+          <RouterLink to="/map" class="header-cta btn-fluid" data-magnetic @click="closeMenus">
             <Compass :size="16" :stroke-width="2.2" />
             <span class="cta-shine" aria-hidden="true" />
             生成行程
@@ -201,6 +184,10 @@ onUnmounted(() => {
     <InspirationBagFloat v-if="showInspirationBag" />
 
     <footer class="site-footer">
+      <!-- 视口级轮廓字标：滚动到底时从地平线升起 -->
+      <div class="footer-wordmark" data-reveal aria-hidden="true">
+        <span>TRAVEL MIND</span>
+      </div>
       <div class="site-footer-inner">
         <div>
           <strong>Travel Mind</strong>
