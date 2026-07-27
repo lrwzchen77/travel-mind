@@ -86,23 +86,23 @@ class TripMemoryServiceTest {
     void acceptsOnlyExistingControlledUploadAndStoresRelativePath(@TempDir Path temp) throws Exception {
         String previous = System.getProperty("user.dir");
         String name = "123e4567-e89b-12d3-a456-426614174000.jpg";
-        Files.createDirectories(temp.resolve("uploads"));
-        Files.writeString(temp.resolve("uploads").resolve(name), "image");
+        Path uploads = Files.createDirectories(temp.resolve("uploads/private/1001"));
+        Files.writeString(uploads.resolve(name), "image");
         System.setProperty("user.dir", temp.toString());
         try {
             NamedParameterJdbcTemplate jdbc = jdbcForPhoto();
             TripMemoryService service = new TripMemoryService(jdbc);
             Map<String, Object> photo = service.addPhoto(1001L, 3001L,
-                Map.of("url", "http://localhost:8080/uploads/" + name, "latitude", "30.1", "longitude", "120.2"));
+                Map.of("url", "/private-uploads/1001/" + name, "latitude", "30.1", "longitude", "120.2"));
 
-            assertThat(photo).containsEntry("source_url", "/uploads/" + name);
+            assertThat(photo).containsEntry("source_url", "/private-uploads/1001/" + name);
             ArgumentCaptor<MapSqlParameterSource> params = ArgumentCaptor.forClass(MapSqlParameterSource.class);
             verify(jdbc).update(contains("INSERT INTO tm_trip_memory_item"), params.capture());
-            assertThat(params.getValue().getValue("sourceUrl")).isEqualTo("/uploads/" + name);
+            assertThat(params.getValue().getValue("sourceUrl")).isEqualTo("/private-uploads/1001/" + name);
             assertThatThrownBy(() -> service.addPhoto(1001L, 3001L, Map.of("url", "https://example.com/photo.jpg")))
-                .isInstanceOf(BizException.class).hasMessage("照片地址不是受控上传路径。");
+                .isInstanceOf(BizException.class).hasMessage("照片地址不是当前用户的受控上传路径。");
             assertThatThrownBy(() -> service.addPhoto(1001L, 3001L,
-                Map.of("url", "/uploads/123e4567-e89b-12d3-a456-426614174999.png")))
+                Map.of("url", "/private-uploads/1001/123e4567-e89b-12d3-a456-426614174999.png")))
                 .isInstanceOf(BizException.class).hasMessage("上传的照片不存在。");
         } finally {
             System.setProperty("user.dir", previous);
@@ -201,7 +201,7 @@ class TripMemoryServiceTest {
     }
 
     private String lastPhotoPath(org.mockito.invocation.InvocationOnMock ignored) {
-        return "/uploads/123e4567-e89b-12d3-a456-426614174000.jpg";
+        return "/private-uploads/1001/123e4567-e89b-12d3-a456-426614174000.jpg";
     }
 
     private Map<String, Object> tripRow() {

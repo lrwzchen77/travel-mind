@@ -28,6 +28,10 @@ public class AiAgentService {
         return aiTextService.isAvailable();
     }
 
+    public String modelName() {
+        return aiTextService.modelName();
+    }
+
     /** 无工具对话的增量输出；流失败时返回空流，由调用方决定降级内容。 */
     public Flux<String> stream(TravelMindAgent agent, String instruction, String userPrompt) {
         Optional<ChatModel> chatModel = aiTextService.chatModel();
@@ -104,7 +108,7 @@ public class AiAgentService {
                 .name(agentName)
                 .model(chatModel.get())
                 .instruction(instruction)
-                .enableLogging(true)
+                .enableLogging(false)
                 .methodTools(methodTools == null ? new Object[0] : methodTools)
                 .build();
             String safeThreadId = threadId == null || threadId.isBlank() ? agentName : threadId;

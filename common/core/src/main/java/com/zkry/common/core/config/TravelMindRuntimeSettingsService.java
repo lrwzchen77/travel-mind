@@ -57,7 +57,19 @@ public class TravelMindRuntimeSettingsService {
         if (updates == null) {
             return;
         }
-        settings.putAll(updates);
+        updates.forEach((key, value) -> {
+            if (!settings.containsKey(key)) {
+                throw new IllegalArgumentException("Unknown runtime setting: " + key);
+            }
+            String text = value == null ? "" : String.valueOf(value).trim();
+            if (text.length() > 8192) {
+                throw new IllegalArgumentException("Runtime setting is too long: " + key);
+            }
+            if (TravelMindSettingKeys.XHS_MODE.equals(key) && !Set.of("service", "tool", "both").contains(text)) {
+                throw new IllegalArgumentException("Invalid Xiaohongshu mode");
+            }
+            settings.put(key, text);
+        });
     }
 
     public synchronized Optional<String> stringValue(String key) {

@@ -30,7 +30,7 @@ describe('图片拖拽上传', () => {
   });
 
   it('拖入合法图片后上传、回写并预览', async () => {
-    image.mockResolvedValue({ url: '/uploads/trip.webp' });
+    image.mockResolvedValue({ url: '/private-uploads/1001/trip.webp' });
     let wrapper;
     wrapper = mount(ImageDropUpload, {
       props: {
@@ -46,8 +46,9 @@ describe('图片拖拽上传', () => {
     await flushPromises();
 
     expect(image).toHaveBeenCalledWith(file);
-    expect(wrapper.emitted('update:modelValue')[0]).toEqual(['/uploads/trip.webp']);
-    expect(wrapper.find('img').attributes()).toMatchObject({ src: '/uploads/trip.webp', alt: '已上传图片预览' });
+    expect(wrapper.emitted('update:modelValue')[0]).toEqual(['/private-uploads/1001/trip.webp']);
+    expect(wrapper.find('img').attributes('src')).toMatch(/^blob:/);
+    expect(wrapper.find('img').attributes('alt')).toBe('已上传图片预览');
     expect(wrapper.classes()).toContain('has-image');
     expect(wrapper.classes()).not.toContain('is-dragging');
   });

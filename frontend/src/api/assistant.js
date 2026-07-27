@@ -1,7 +1,7 @@
 import { http } from './http.js';
 import { authSession } from '../auth/session.js';
 
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api').replace(/\/$/, '');
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
 
 function unwrap(response) {
   return response.data?.data ?? response.data;
@@ -46,6 +46,9 @@ export function createAssistantApi(client = http) {
   return {
     conversations() { return client.get('/user/assistant/conversations').then(unwrap); },
     conversation(id) { return client.get(`/user/assistant/conversations/${id}`).then(unwrap); },
+    rename(id, title) { return client.put(`/user/assistant/conversations/${id}`, { title }).then(unwrap); },
+    remove(id) { return client.delete(`/user/assistant/conversations/${id}`).then(unwrap); },
+    stop(id) { return client.post(`/user/assistant/conversations/${id}/stop`).then(unwrap); },
     askStream(payload, onEvent) { return askStream(payload, onEvent); },
   };
 }

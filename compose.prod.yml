@@ -1,0 +1,137 @@
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: travelmind
+      MYSQL_USER: travelmind
+      MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+
+  qdrant:
+    image: qdrant/qdrant:v1.15.4
+    restart: unless-stopped
+    volumes:
+      - qdrant-data:/qdrant/storage
+
+  python-ai:
+    build:
+      context: .
+      dockerfile: python-ai/Dockerfile
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      MEMORY_SERVICE_TOKEN: ${MEMORY_SERVICE_TOKEN:?MEMORY_SERVICE_TOKEN is required}
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-}
+      MEMORY_EMBEDDING_MODEL: ${MEMORY_EMBEDDING_MODEL:-BAAI/bge-small-zh-v1.5}
+      TRAVEL_MIND_YOLO_MODEL: python-ai/models/travel-risk-yolo-best.pt
+      YOLO_CONFIG_DIR: /tmp/ultralytics
+    volumes:
+      - uploads:/app/uploads
+      - model-cache:/app/.cache
+    depends_on:
+      - qdrant
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:19080/ready', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:mysql://mysql:3306/travelmind?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      DB_USERNAME: travelmind
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      WEB_ALLOWED_ORIGINS: ${WEB_ALLOWED_ORIGINS:?WEB_ALLOWED_ORIGINS is required}
+      PYTHON_AI_BASE_URL: http://python-ai:19080
+      MEMORY_SERVICE_TOKEN: ${MEMORY_SERVICE_TOKEN:?MEMORY_SERVICE_TOKEN is required}
+      MEMORY_SCOPE_SECRET: ${MEMORY_SCOPE_SECRET:?MEMORY_SCOPE_SECRET is required}
+      TRAVELMIND_BOOTSTRAP_ADMIN_USERNAME: ${TRAVELMIND_BOOTSTRAP_ADMIN_USERNAME:?TRAVELMIND_BOOTSTRAP_ADMIN_USERNAME is required}
+      TRAVELMIND_BOOTSTRAP_ADMIN_PASSWORD: ${TRAVELMIND_BOOTSTRAP_ADMIN_PASSWORD:?TRAVELMIND_BOOTSTRAP_ADMIN_PASSWORD is required}
+      TRAVELMIND_BOOTSTRAP_ADMIN_NICKNAME: ${TRAVELMIND_BOOTSTRAP_ADMIN_NICKNAME:-系统管理员}
+      AI_OPENAI_API_KEY: ${AI_OPENAI_API_KEY:-}
+      AI_OPENAI_BASE_URL: ${AI_OPENAI_BASE_URL:-https://api.deepseek.com}
+      AI_OPENAI_MODEL: ${AI_OPENAI_MODEL:-deepseek-v4-flash}
+      AMAP_ENABLED: ${AMAP_ENABLED:-false}
+      AMAP_KEY: ${AMAP_KEY:-}
+      XHS_ENABLED: ${XHS_ENABLED:-false}
+      XHS_MODE: ${XHS_MODE:-tool}
+      XHS_COOKIE: ${XHS_COOKIE:-}
+    volumes:
+      - uploads:/app/uploads
+      - backend-logs:/app/logs
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      python-ai:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-80}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  prometheus:
+    image: prom/prometheus:v3.4.2
+    restart: unless-stopped
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=15d"]
+    volumes:
+      - ./ops/prometheus:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  mysql-data:
+  redis-data:
+  qdrant-data:
+  uploads:
+  model-cache:
+  backend-logs:
+  prometheus-data:

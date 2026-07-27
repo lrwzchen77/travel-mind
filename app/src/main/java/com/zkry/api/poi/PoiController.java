@@ -23,6 +23,8 @@ public class PoiController {
 
     @GetMapping("/photo")
     public PoiPhotoResponse photo(@RequestParam String name, @RequestParam(required = false) String city) {
+        name = bounded(name, 120, "地点名称");
+        city = city == null ? null : bounded(city, 64, "城市名称");
         long startedAt = System.currentTimeMillis();
         String keyword = (city == null || city.isBlank() ? name : city + " " + name) + " 风景";
         log.info("[POI] 收到景点图片请求 name={} city={} keyword={}", name, safe(city), keyword);
@@ -41,5 +43,11 @@ public class PoiController {
 
     private String safe(String value) {
         return value == null || value.isBlank() ? "-" : value;
+    }
+
+    private String bounded(String value, int max, String label) {
+        String result = value == null ? "" : value.trim();
+        if (result.isBlank() || result.length() > max) throw new IllegalArgumentException(label + "无效。");
+        return result;
     }
 }

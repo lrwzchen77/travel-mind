@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -135,6 +136,21 @@ public class TripController {
 
     private String safe(String value) {
         return value == null || value.isBlank() ? "-" : value;
+    }
+
+    @PostMapping("/tasks/{taskId}/cancel")
+    public Map<String, Object> cancel(@PathVariable String taskId) {
+        return tripTaskService.cancel(taskId, LoginHelper.getUserId());
+    }
+
+    @PostMapping("/tasks/{taskId}/retry")
+    public SubmitTripPlanResponse retry(@PathVariable String taskId) {
+        return tripTaskService.retry(taskId, LoginHelper.getUserId());
+    }
+
+    @PutMapping("/{id}")
+    public TripPlanResponse update(@PathVariable long id, @RequestBody TripPlanResponse response) {
+        return tripPlanPersistenceService.update(id, LoginHelper.getUserId(), response);
     }
 
     private TripRequest attachCommunitySources(TripRequest request) {

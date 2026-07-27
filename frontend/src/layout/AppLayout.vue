@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, onMounted, onUnmounted, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
-import { Plane, ChevronDown, LogOut, Menu, X, ArrowRight, Compass, Sparkles, Map, BookOpen, BookMarked, Heart, NotebookPen, ScanText, Footprints, SlidersHorizontal } from 'lucide-vue-next';
+import { Plane, ChevronDown, LogOut, Menu, X, ArrowRight, Compass, Sparkles, Map, BookOpen, BookMarked, Heart, NotebookPen, ScanText, Footprints, SlidersHorizontal, Bell } from 'lucide-vue-next';
 import { accountNav, primaryNav } from './menu.js';
 import PageTransition from '../components/PageTransition.vue';
 import InspirationBagFloat from '../components/InspirationBagFloat.vue';
@@ -9,6 +9,7 @@ import { authApi } from '../api/auth.js';
 import { authSession } from '../auth/session.js';
 
 const accountIcon = {
+  '/notifications': Bell,
   '/memories': BookMarked,
   '/journals': BookOpen,
   '/inspiration-bag': Sparkles,
@@ -217,7 +218,7 @@ onUnmounted(() => {
         </div>
         <div class="footer-disclosures">
           <details id="service-terms"><summary>服务边界与用户协议</summary><p>Travel Mind 提供旅行信息整理和 AI 规划建议，不直接完成酒店、门票或交通预订。价格、库存、营业和预约要求以实际服务方为准。使用规划结果前，请根据自身健康、天气和当地规定作出判断。</p></details>
-          <details id="privacy-notice"><summary>隐私与内容公开说明</summary><p>账号信息、行程、偏好和你主动上传的内容用于提供规划与回忆功能。旅行记录默认仅自己可见；只有在你确认发布并通过审核后，内容才会进入社区。演示环境请勿上传证件、支付凭证等敏感信息。当前版本尚未开放账号自助注销，如需处理数据，请联系服务提供方。</p></details>
+          <details id="privacy-notice"><summary>隐私与内容公开说明</summary><p>账号信息、行程、偏好和你主动上传的内容用于提供规划与回忆功能。旅行记录默认仅自己可见；只有在你确认发布并通过审核后，内容才会进入社区。演示环境请勿上传证件、支付凭证等敏感信息。你可以在偏好页导出个人数据或停用账号。</p></details>
         </div>
       </div>
     </footer>
@@ -225,10 +226,8 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* 让内容层在氛围层之上；氛围层本身已全局定义在 theme.css */
+/* 主内容位于氛围层之上；页头和浮层沿用全局层级，避免被正文覆盖。 */
 .app-shell { position: relative; z-index: 1; }
-.site-header,
 .site-main,
-.site-footer,
-.inspiration-bag-float { position: relative; z-index: 2; }
+.site-footer { position: relative; z-index: 2; }
 </style>

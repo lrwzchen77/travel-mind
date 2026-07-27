@@ -17,6 +17,7 @@ public final class TripTaskStage {
     public static final String GRAPH_BUILDING = "graph_building";
     public static final String COMPLETED = "completed";
     public static final String FAILED = "failed";
+    public static final String CANCELLED = "cancelled";
 
     private TripTaskStage() {
     }

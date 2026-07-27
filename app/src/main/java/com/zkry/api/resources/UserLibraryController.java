@@ -47,8 +47,12 @@ public class UserLibraryController {
     @PostMapping("/{resourceKey}")
     public R<Map<String, Object>> create(@PathVariable String resourceKey, @RequestBody Map<String, Object> payload) {
         requireWritable(resourceKey);
-        Map<String, Object> ownedPayload = new LinkedHashMap<>(payload == null ? Map.of() : payload);
+        Map<String, Object> ownedPayload = writablePayload(resourceKey, payload);
         ownedPayload.put("user_id", LoginHelper.getUserId());
+        if ("travel-notes".equals(resourceKey)) {
+            ownedPayload.put("visibility", "private");
+            ownedPayload.put("status", 1);
+        }
         return R.ok(crudResourceService.create(resourceKey, ownedPayload));
     }
 
@@ -58,12 +62,17 @@ public class UserLibraryController {
         @PathVariable long id,
         @RequestBody Map<String, Object> payload
     ) {
+        if (!"travel-notes".equals(resourceKey)) {
+            throw new ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED, "Resource is not editable");
+        }
         requireWritable(resourceKey);
-        requireOwner(resourceKey, id);
-        Map<String, Object> ownedPayload = new LinkedHashMap<>(payload == null ? Map.of() : payload);
-        ownedPayload.remove("user_id");
-        ownedPayload.remove("userId");
-        return R.ok(crudResourceService.update(resourceKey, id, ownedPayload));
+        Map<String, Object> existing = requireOwner(resourceKey, id);
+        Map<String, Object> values = writablePayload(resourceKey, payload);
+        if ("travel-notes".equals(resourceKey) && "public".equals(existing.get("visibility"))) {
+            values.put("status", 0);
+            values.put("review_reason", null);
+        }
+        return R.ok(crudResourceService.update(resourceKey, id, values));
     }
 
     @DeleteMapping("/{resourceKey}/{id}")
@@ -74,13 +83,14 @@ public class UserLibraryController {
         return R.ok();
     }
 
-    private void requireOwner(String resourceKey, long id) {
+    private Map<String, Object> requireOwner(String resourceKey, long id) {
         Map<String, Object> resource = crudResourceService.detail(resourceKey, id);
         Object userId = resource.get("user_id");
         long ownerId = userId instanceof Number number ? number.longValue() : -1L;
         if (ownerId != LoginHelper.getUserId()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Resource not found");
         }
+        return resource;
     }
 
     private void requireWritable(String resourceKey) {
@@ -94,5 +104,16 @@ public class UserLibraryController {
         if (!USER_RESOURCES.contains(resourceKey)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Resource not found");
         }
+    }
+
+    private Map<String, Object> writablePayload(String resourceKey, Map<String, Object> payload) {
+        Set<String> allowed = "favorites".equals(resourceKey)
+            ? Set.of("target_type", "target_id", "note")
+            : Set.of("city_id", "attraction_id", "title", "content");
+        Map<String, Object> result = new LinkedHashMap<>();
+        if (payload != null) payload.forEach((key, value) -> {
+            if (allowed.contains(key)) result.put(key, value);
+        });
+        return result;
     }
 }

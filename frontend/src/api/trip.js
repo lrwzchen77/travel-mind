@@ -13,14 +13,26 @@ export function createTripApi(client = http) {
     status(taskId) {
       return client.get(`/user/trip/status/${taskId}`).then(unwrap);
     },
+    cancelTask(taskId) {
+      return client.post(`/user/trip/tasks/${taskId}/cancel`).then(unwrap);
+    },
+    retryTask(taskId) {
+      return client.post(`/user/trip/tasks/${taskId}/retry`).then(unwrap);
+    },
     history(limit = 20) {
       return client.get('/user/trip/history', { params: { limit } }).then(unwrap);
     },
     publicMap(city, longitude, latitude) {
       return client.get('/public/travel-map', { params: { city, longitude, latitude }, timeout: 20000 }).then(unwrap);
     },
+    poiPhoto(name, city) {
+      return client.get('/poi/photo', { params: { name, city } }).then(unwrap);
+    },
     detail(id) {
       return client.get(`/user/trip/${id}`).then(unwrap);
+    },
+    update(id, payload) {
+      return client.put(`/user/trip/${id}`, payload).then(unwrap);
     },
     copy(id) {
       return client.post(`/user/trip/${id}/copy`).then(unwrap);

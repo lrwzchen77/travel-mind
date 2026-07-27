@@ -6,6 +6,7 @@ import com.zkry.ai.prompt.TravelMindPromptVariable;
 import com.zkry.ai.service.AiAgentService;
 import com.zkry.ai.service.PromptResourceService;
 import com.zkry.common.core.domain.R;
+import com.zkry.common.core.exception.BizException;
 import com.zkry.common.json.utils.JsonUtils;
 import com.zkry.common.satoken.core.LoginHelper;
 import com.zkry.resources.service.AssistantConversationService;
@@ -16,6 +17,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.io.IOException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,9 +27,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.http.MediaType;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Sinks;
 
 /** 用户端唯一显式 AI 入口；规划和已保存行程仍复用原有专用服务。 */
 @RestController
@@ -37,6 +44,7 @@ public class AssistantController {
     private final TripPlanPersistenceService tripPlans;
     private final AiAgentService aiAgentService;
     private final PromptResourceService prompts;
+    private final ConcurrentMap<Long, GenerationControl> activeGenerations = new ConcurrentHashMap<>();
 
     public AssistantController(AssistantConversationService conversations, CommunityService communityService,
                                TripPlanPersistenceService tripPlans, AiAgentService aiAgentService,
@@ -61,6 +69,27 @@ public class AssistantController {
         return R.ok(result);
     }
 
+    @PutMapping("/conversations/{id}")
+    public R<Map<String, Object>> rename(@PathVariable long id, @RequestBody Map<String, Object> payload) {
+        return R.ok(conversations.rename(LoginHelper.getUserId(), id, text(payload.get("title"), 128)));
+    }
+
+    @DeleteMapping("/conversations/{id}")
+    public R<Void> delete(@PathVariable long id) {
+        long userId = LoginHelper.getUserId();
+        conversations.conversation(userId, id);
+        stopGeneration(id);
+        conversations.delete(userId, id);
+        return R.ok();
+    }
+
+    @PostMapping("/conversations/{id}/stop")
+    public R<Void> stop(@PathVariable long id) {
+        conversations.conversation(LoginHelper.getUserId(), id);
+        stopGeneration(id);
+        return R.ok();
+    }
+
     @PostMapping(value = "/ask/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter askStream(@RequestBody Map<String, Object> payload) {
         long userId = LoginHelper.getUserId();
@@ -70,21 +99,37 @@ public class AssistantController {
         Long tripId = number(payload.get("trip_id"));
         List<Map<String, Object>> sources = communityService.sourcePosts(userId, ids(payload.get("inspiration_ids")));
         long id = conversations.ensure(userId, conversationId, message, tripId);
+        GenerationControl control = new GenerationControl(Sinks.empty(), new AtomicBoolean());
+        if (activeGenerations.putIfAbsent(id, control) != null) throw new BizException("这个对话仍在生成，请先停止。");
         conversations.append(id, "user", message, Map.of("inspiration_ids", sources.stream().map(row -> row.get("post_id")).toList()));
         StringBuilder reply = new StringBuilder();
+        AtomicBoolean modelOutput = new AtomicBoolean();
+        long startedAt = System.currentTimeMillis();
         SseEmitter emitter = new SseEmitter(60_000L);
+        Runnable cancel = () -> {
+            control.stopped().set(true);
+            control.stop().tryEmitEmpty();
+        };
+        emitter.onTimeout(cancel);
+        emitter.onError(error -> cancel.run());
+        send(emitter, "start", Map.of("conversation_id", id));
         replyStream(userId, id, message, tripId, sources)
-            .switchIfEmpty(Flux.just(fallback(message, sources, tripId)))
+            .doOnNext(part -> modelOutput.set(true))
+            .switchIfEmpty(Flux.defer(() -> Flux.just(fallback(message, sources, tripId))))
+            .takeUntilOther(control.stop().asMono())
+            .doFinally(signal -> activeGenerations.remove(id, control))
             .subscribe(part -> {
                 reply.append(part);
                 send(emitter, "delta", Map.of("text", part));
             }, emitter::completeWithError, () -> {
                 String content = reply.toString().trim();
-                conversations.append(id, "assistant", content, Map.of("source_count", sources.size()));
-                send(emitter, "done", Map.of(
-                    "conversation_id", id,
-                    "sources", sources.stream().map(this::sourceCard).toList()
-                ));
+                String mode = control.stopped().get() ? "stopped" : modelOutput.get() ? "model" : "fallback";
+                Map<String, Object> metadata = Map.of("source_count", sources.size(), "mode", mode,
+                    "model", modelOutput.get() ? aiAgentService.modelName() : "local-fallback",
+                    "elapsed_ms", System.currentTimeMillis() - startedAt);
+                if (!content.isBlank()) conversations.append(id, "assistant", content, metadata);
+                send(emitter, "done", Map.of("conversation_id", id, "mode", mode,
+                    "model", metadata.get("model"), "sources", sources.stream().map(this::sourceCard).toList()));
                 emitter.complete();
             });
         return emitter;
@@ -141,7 +186,21 @@ public class AssistantController {
         return ids;
     }
 
+    private void stopGeneration(long conversationId) {
+        GenerationControl control = activeGenerations.get(conversationId);
+        if (control != null) {
+            control.stopped().set(true);
+            control.stop().tryEmitEmpty();
+        }
+    }
+
     private Long number(Object value) { return value instanceof Number number ? number.longValue() : null; }
-    private String text(Object value, int max) { String text = value == null ? "" : String.valueOf(value).trim(); return text.length() > max ? text.substring(0, max) : text; }
+    private String text(Object value, int max) {
+        String text = value == null ? "" : String.valueOf(value).trim();
+        if (text.length() > max) throw new IllegalArgumentException("输入内容过长。");
+        return text;
+    }
     private String excerpt(String value) { return value.length() <= 700 ? value : value.substring(0, 700) + "…"; }
+
+    private record GenerationControl(Sinks.Empty<Void> stop, AtomicBoolean stopped) { }
 }

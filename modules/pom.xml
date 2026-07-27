@@ -17,7 +17,6 @@
     </description>
 
     <modules>
-        <module>demo</module>
         <module>identity</module>
         <module>trip</module>
         <module>resources</module>

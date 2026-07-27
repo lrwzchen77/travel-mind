@@ -9,7 +9,7 @@ from typing import Any
 
 import httpx
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from app.memory import MemoryAnalysisRequest, analyze_memory
@@ -37,13 +37,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(PROJECT_ROOT / ".env", override=False)
 
 app = FastAPI(title="Travel Mind Python AI")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # Lazy-loaded YOLO handle (classify or detect weights)
 _YOLO_MODEL = None
@@ -60,20 +53,39 @@ def ok(data: dict[str, Any]) -> dict[str, Any]:
     return {"code": 0, "message": "success", "data": data}
 
 
+def _require_internal_service(x_internal_service_token: str | None = Header(default=None)) -> None:
+    configured = os.getenv("MEMORY_SERVICE_TOKEN", "").strip()
+    profile = os.getenv("SPRING_PROFILES_ACTIVE", "dev").lower()
+    expected = configured or ("travelmind-dev-memory-token-change-me" if profile != "prod" else "")
+    if not expected:
+        raise HTTPException(status_code=503, detail="internal service token unavailable")
+    if not x_internal_service_token or not hmac.compare_digest(x_internal_service_token, expected):
+        raise HTTPException(status_code=401, detail="invalid internal service token")
+
+
 @app.get("/health")
 def health():
-    models = ai_readiness()
     return {
         "code": 0,
         "message": "success",
         "data": {
             "service": "travel-mind-python-ai",
             "status": "healthy",
-            "readiness": "ready" if all(value == "ready" for value in models.values()) else "degraded",
-            "models": models,
-            "fallback_enabled": True,
         },
     }
+
+
+@app.get("/ready")
+def ready():
+    models = ai_readiness()
+    required_ready = models["memory_embedding"] == "ready" and models["qdrant"] == "ready"
+    payload = ok({
+        "service": "travel-mind-python-ai",
+        "status": "ready" if required_ready else "unavailable",
+        "models": models,
+        "fallback_enabled": True,
+    })
+    return payload if required_ready else JSONResponse(status_code=503, content=payload)
 
 
 def ai_readiness() -> dict[str, str]:
@@ -101,34 +113,40 @@ def _yolo_model_ready() -> bool:
 
 
 class TripDayInput(BaseModel):
-    date: str | None = None
-    city: str | None = None
-    attractions: list[str] = Field(default_factory=list)
-    weather: str | None = None
+    date: str | None = Field(default=None, max_length=32)
+    city: str | None = Field(default=None, max_length=64)
+    attractions: list[str] = Field(default_factory=list, max_length=20)
+    weather: str | None = Field(default=None, max_length=200)
     transfer: bool = False
 
 
 class TripEvaluateRequest(BaseModel):
-    days: list[TripDayInput] = Field(default_factory=list)
-    transportation: str | None = None
-    city_transfers: int = 0
-    preferences: list[str] = Field(default_factory=list)
-    budget: float | None = None
+    days: list[TripDayInput] = Field(default_factory=list, max_length=30)
+    transportation: str | None = Field(default=None, max_length=100)
+    city_transfers: int = Field(default=0, ge=0, le=30)
+    preferences: list[str] = Field(default_factory=list, max_length=20)
+    budget: float | None = Field(default=None, ge=0, le=100_000_000)
 
 
 class ContentAnalyzeRequest(BaseModel):
-    text: str
-    city: str | None = None
-    attraction_name: str | None = None
-    language: str = "zh"
+    text: str = Field(min_length=1, max_length=8000)
+    city: str | None = Field(default=None, max_length=64)
+    attraction_name: str | None = Field(default=None, max_length=128)
+    language: str = Field(default="zh", max_length=16)
 
 
-@app.post("/api/vision/detect")
+@app.post("/api/vision/detect", dependencies=[Depends(_require_internal_service)])
 async def vision_detect(request: Request):
     payload = await _read_vision_payload(request)
     image_url = str(payload.get("image_url") or "")
     filename = str(payload.get("filename") or "")
     image_path = str(payload.get("image_path") or "")
+    if image_path and not payload.get("_temporary_image"):
+        raise HTTPException(status_code=400, detail="client image_path is not allowed")
+    if image_url and not image_url.startswith("data:image/"):
+        raise HTTPException(status_code=400, detail="remote image URLs are not allowed; upload image bytes")
+    if not image_url and not image_path:
+        raise HTTPException(status_code=400, detail="image is required")
     city = str(payload.get("city") or "Unknown city")
     resource_type = str(payload.get("resource_type") or "travel_scene")
     source_image_text = "" if image_url.startswith("data:image/") else image_url
@@ -197,7 +215,7 @@ async def vision_detect(request: Request):
     )
 
 
-@app.post("/api/trip/evaluate")
+@app.post("/api/trip/evaluate", dependencies=[Depends(_require_internal_service)])
 def trip_evaluate(payload: TripEvaluateRequest):
     payload_data = payload.model_dump()
     trained = predict_comfort(payload_data)
@@ -265,7 +283,7 @@ def trip_evaluate(payload: TripEvaluateRequest):
     )
 
 
-@app.post("/api/content/analyze")
+@app.post("/api/content/analyze", dependencies=[Depends(_require_internal_service)])
 def content_analyze(payload: ContentAnalyzeRequest):
     text = payload.text.strip()
     positive_words = ["好", "美", "推荐", "舒服", "适合", "方便", "惊喜", "干净", "安静"]
@@ -313,8 +331,14 @@ async def _read_vision_payload(request: Request) -> dict[str, Any]:
                 raw = await file.read()  # type: ignore[misc]
             except Exception:
                 raw = b""
+            if len(raw) > 8 * 1024 * 1024:
+                raise HTTPException(status_code=413, detail="image exceeds 8MB")
             if raw:
-                suffix = Path(str(payload["filename"])).suffix or ".jpg"
+                suffix = Path(str(payload["filename"])).suffix.lower()
+                if suffix not in {".jpg", ".jpeg", ".png", ".webp"}:
+                    raise HTTPException(status_code=400, detail="unsupported image type")
+                if suffix == ".jpeg":
+                    suffix = ".jpg"
                 tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
                 try:
                     tmp.write(raw)
@@ -329,17 +353,7 @@ async def _read_vision_payload(request: Request) -> dict[str, Any]:
     return {}
 
 
-def _require_memory_service(x_internal_service_token: str | None = Header(default=None)) -> None:
-    configured = os.getenv("MEMORY_SERVICE_TOKEN", "").strip()
-    profile = os.getenv("SPRING_PROFILES_ACTIVE", os.getenv("ENVIRONMENT", "dev")).lower()
-    expected = configured or ("travelmind-dev-memory-token-change-me" if profile != "prod" else "")
-    if not expected:
-        raise HTTPException(status_code=503, detail="memory internal service token unavailable")
-    if not x_internal_service_token or not hmac.compare_digest(x_internal_service_token, expected):
-        raise HTTPException(status_code=401, detail="invalid internal service token")
-
-
-@app.post("/api/memory/analyze", dependencies=[Depends(_require_memory_service)])
+@app.post("/api/memory/analyze", dependencies=[Depends(_require_internal_service)])
 def memory_analyze(payload: MemoryAnalysisRequest):
     try:
         return ok(analyze_memory(payload, _try_yolo_detection))
@@ -347,7 +361,7 @@ def memory_analyze(payload: MemoryAnalysisRequest):
         raise HTTPException(status_code=400, detail=str(ex)) from ex
 
 
-@app.post("/api/memory/index", dependencies=[Depends(_require_memory_service)])
+@app.post("/api/memory/index", dependencies=[Depends(_require_internal_service)])
 def memory_index(payload: MemoryIndexRequest):
     try:
         return ok(index_memory(payload))
@@ -357,7 +371,7 @@ def memory_index(payload: MemoryIndexRequest):
         raise HTTPException(status_code=503, detail="memory vector service unavailable") from ex
 
 
-@app.post("/api/memory/query", dependencies=[Depends(_require_memory_service)])
+@app.post("/api/memory/query", dependencies=[Depends(_require_internal_service)])
 def memory_query(payload: MemoryQueryRequest):
     try:
         return ok(query_memory(payload))
@@ -369,7 +383,7 @@ def memory_query(payload: MemoryQueryRequest):
         raise HTTPException(status_code=503, detail="memory vector service unavailable") from ex
 
 
-@app.post("/api/memory/delete", dependencies=[Depends(_require_memory_service)])
+@app.post("/api/memory/delete", dependencies=[Depends(_require_internal_service)])
 def memory_delete(payload: MemoryDeleteRequest):
     try:
         return ok(delete_memory(payload))
@@ -456,7 +470,7 @@ def _get_yolo_model(model_path: str):
 
 def _try_yolo_detection(image_source: str) -> dict[str, Any] | None:
     """
-    Run TRAVEL_MIND_YOLO_MODEL on image_source (http(s) URL or local path).
+    Run TRAVEL_MIND_YOLO_MODEL on a server-controlled local image path.
 
     Priority: classification probs (TravelRisk yolov8n-cls) → detection boxes.
     On any failure return None so the caller falls back to rule mode (no 500).
@@ -467,10 +481,8 @@ def _try_yolo_detection(image_source: str) -> dict[str, Any] | None:
     path_obj = _resolve_project_path(model_path)
     if not path_obj.is_file():
         return None
-    # Local path must exist; remote URL allowed as-is
-    if not image_source.startswith(("http://", "https://")):
-        if not Path(image_source).is_file():
-            return None
+    if not Path(image_source).is_file():
+        return None
     try:
         model = _get_yolo_model(str(path_obj))
         results = model.predict(source=image_source, verbose=False)

@@ -95,6 +95,7 @@ public class CrudResourceService {
         if (updated == 0) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Resource not found");
         }
+        invalidateAccountIfStatusChanged(definition, id, values);
         return detail(resourceKey, id);
     }
 
@@ -121,7 +122,14 @@ public class CrudResourceService {
         if (updated == 0) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Resource not found");
         }
+        invalidateAccountIfStatusChanged(definition, id, Map.of("status", status));
         return detail(resourceKey, id);
+    }
+
+    private void invalidateAccountIfStatusChanged(CrudResourceDefinition definition, long id, Map<String, Object> values) {
+        if ("tm_user".equals(definition.tableName()) && values.containsKey("status")) {
+            jdbcTemplate.update("UPDATE tm_identity_account SET auth_version = auth_version + 1 WHERE user_id = :id", Map.of("id", id));
+        }
     }
 
     private Map<String, Object> writablePayload(CrudResourceDefinition definition, Map<String, Object> payload) {

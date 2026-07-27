@@ -68,6 +68,37 @@ public class TripPlanPersistenceService {
         return detailQuery(tripId, userId);
     }
 
+    @Transactional
+    public TripPlanResponse update(long tripId, long userId, TripPlanResponse response) {
+        detail(tripId, userId);
+        if (response == null || response.data() == null) throw new BizException("行程内容不能为空。");
+        TripPlan plan = response.data();
+        validateEditablePlan(plan);
+        TripPlanResponse prepared = withPlanId(response, String.valueOf(tripId));
+        int changed = jdbcTemplate.update("""
+            UPDATE tm_trip_plan
+            SET title = :title, destination_city = :city, start_date = :startDate, end_date = :endDate,
+                travel_days = :days, budget = :budget, total_cost = :totalCost, summary = :summary,
+                raw_plan_json = CAST(:rawPlanJson AS JSON), status = 'edited'
+            WHERE id = :id AND user_id = :userId AND deleted = 0
+            """, new MapSqlParameterSource()
+            .addValue("title", title(plan)).addValue("city", plan.city())
+            .addValue("startDate", plan.start_date()).addValue("endDate", plan.end_date())
+            .addValue("days", plan.days().size())
+            .addValue("budget", BigDecimal.valueOf(plan.budget() == null ? 0 : plan.budget().total()))
+            .addValue("totalCost", BigDecimal.valueOf(plan.budget() == null ? 0 : plan.budget().total()))
+            .addValue("summary", plan.overall_suggestions()).addValue("rawPlanJson", JsonUtils.toJsonString(prepared))
+            .addValue("id", tripId).addValue("userId", userId));
+        if (changed == 0) throw new BizException("行程不存在或无权操作。");
+        jdbcTemplate.update("""
+            DELETE i FROM tm_trip_item i JOIN tm_trip_day d ON d.id = i.trip_day_id
+            WHERE d.trip_plan_id = :tripId
+            """, Map.of("tripId", tripId));
+        jdbcTemplate.update("DELETE FROM tm_trip_day WHERE trip_plan_id = :tripId", Map.of("tripId", tripId));
+        saveDays(tripId, plan);
+        return prepared;
+    }
+
     private TripPlanResponse detailQuery(long tripId, Long userId) {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
             "SELECT * FROM tm_trip_plan WHERE id = :id AND deleted = 0"
@@ -189,6 +220,26 @@ public class TripPlanPersistenceService {
 
     private TripPlanResponse withPlanId(TripPlanResponse response, String planId) {
         return new TripPlanResponse(response.success(), response.message(), planId, response.data(), response.graph_data());
+    }
+
+    private void validateEditablePlan(TripPlan plan) {
+        if (isBlank(plan.city()) || plan.city().length() > 128) throw new BizException("目的地城市无效。");
+        List<DayPlan> days = plan.days() == null ? List.of() : plan.days();
+        if (days.isEmpty() || days.size() > 30) throw new BizException("行程天数必须在 1 到 30 天之间。");
+        if (plan.overall_suggestions() != null && plan.overall_suggestions().length() > 1000) throw new BizException("行程建议过长。");
+        for (DayPlan day : days) {
+            if (day == null || day.description() != null && day.description().length() > 1000
+                || day.transportation() != null && day.transportation().length() > 128
+                || day.attractions() != null && day.attractions().size() > 30
+                || day.meals() != null && day.meals().size() > 20) {
+                throw new BizException("单日行程内容过多或格式无效。");
+            }
+            if (day.attractions() != null && day.attractions().stream().anyMatch(item -> item == null || isBlank(item.name()) || item.name().length() > 128)
+                || day.meals() != null && day.meals().stream().anyMatch(item -> item == null || isBlank(item.name()) || item.name().length() > 128)
+                || day.hotel() != null && !isBlank(day.hotel().name()) && day.hotel().name().length() > 128) {
+                throw new BizException("地点名称不能为空且不能超过 128 字。");
+            }
+        }
     }
 
     private TripPlan withSources(

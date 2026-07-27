@@ -102,6 +102,10 @@ function resourcePlanningLink(item, type) {
   };
 }
 
+function resourceDetailLink(item, type) {
+  return `/discover/${type}/${item.id}`;
+}
+
 function resourceFacts(item, type) {
   if (type === 'attractions') return [
     consumerText(item.address),
@@ -192,8 +196,11 @@ onMounted(load);
                 <li v-for="fact in resourceFacts(item, section.key)" :key="fact">{{ fact }}</li>
               </ul>
             </div>
-            <RouterLink v-if="planningAvailable" :to="resourcePlanningLink(item, section.key)">带去规划 <ArrowRight :size="15" :stroke-width="2.2" /></RouterLink>
-            <span v-else class="panel-hint">信息仅供浏览</span>
+            <div class="city-resource-actions">
+              <RouterLink :to="resourceDetailLink(item, section.key)">查看详情</RouterLink>
+              <RouterLink v-if="planningAvailable" :to="resourcePlanningLink(item, section.key)">带去规划 <ArrowRight :size="15" :stroke-width="2.2" /></RouterLink>
+              <span v-else class="panel-hint">信息仅供浏览</span>
+            </div>
           </article>
         </div>
         <p v-else class="panel-hint">这部分信息还在补充，可以在规划时直接写下你的要求。</p>
@@ -230,3 +237,8 @@ onMounted(load);
     </section>
   </div>
 </template>
+
+<style scoped>
+.city-resource-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
+@media (max-width: 720px) { .city-resource-actions { justify-content: flex-start; } }
+</style>

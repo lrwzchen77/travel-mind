@@ -3,7 +3,7 @@ let memorySession = null;
 
 function storage() {
   try {
-    return typeof window === 'undefined' ? null : window.localStorage;
+    return typeof window === 'undefined' ? null : window.sessionStorage;
   } catch {
     return null;
   }
@@ -26,6 +26,10 @@ export const authSession = {
     memorySession = session;
     storage()?.setItem(STORAGE_KEY, JSON.stringify(session));
     return session;
+  },
+  updateUser(user) {
+    const session = read();
+    return session ? this.save({ ...session, user }) : null;
   },
   clear() {
     memorySession = null;

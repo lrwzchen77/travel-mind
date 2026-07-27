@@ -22,5 +22,8 @@
     "@vue/test-utils": "^2.4.6",
     "jsdom": "^27.3.0",
     "vitest": "^4.0.16"
+  },
+  "overrides": {
+    "brace-expansion": "^5.0.8"
   }
 }

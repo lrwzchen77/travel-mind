@@ -28,6 +28,12 @@ public class AuthController {
         return R.ok(login(request, "user"));
     }
 
+    @PostMapping("/user/auth/register")
+    public R<LoginResponse> userRegister(@RequestBody RegisterRequest request) {
+        identityService.register(request.username(), request.nickname(), request.password());
+        return R.ok(login(new LoginRequest(request.username(), request.password()), "user"));
+    }
+
     @PostMapping("/admin/auth/login")
     public R<LoginResponse> adminLogin(@RequestBody LoginRequest request) {
         return R.ok(login(request, "admin"));
@@ -61,7 +67,7 @@ public class AuthController {
     }
 
     private LoginUser toLoginUser(IdentityAccount account) {
-        return new LoginUser(account.userId(), account.nickname(), account.roles(), account.permissions());
+        return new LoginUser(account.userId(), account.nickname(), account.roles(), account.permissions(), account.authVersion());
     }
 
     private SessionUser toSessionUser(LoginUser loginUser) {
@@ -69,6 +75,9 @@ public class AuthController {
     }
 
     public record LoginRequest(String username, String password) {
+    }
+
+    public record RegisterRequest(String username, String nickname, String password) {
     }
 
     public record LoginResponse(String tokenName, String tokenValue, SessionUser user) {

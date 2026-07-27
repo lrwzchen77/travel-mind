@@ -5,16 +5,26 @@ Base URL: `http://localhost:8080`. Sa-Token uses the `Authorization` header. Pub
 ## Authentication
 
 - `POST /api/user/auth/login`: consumer account login.
+- `POST /api/user/auth/register`: create a consumer account and return its login session.
 - `GET /api/user/auth/me`: current consumer session.
 - `POST /api/user/auth/logout`: consumer logout.
 - `POST /api/admin/auth/login`: administrator login.
 - `GET /api/admin/auth/me`: current administrator session.
 - `POST /api/admin/auth/logout`: administrator logout.
+- `PUT /api/user/account/password`: change password and invalidate existing tokens.
+- `GET /api/user/account/export`: export the current user's data.
+- `DELETE /api/user/account`: deactivate the current account.
 
 Login body:
 
 ```json
 {"username": "demo_user", "password": "configured-password"}
+```
+
+Registration body:
+
+```json
+{"username": "traveler", "nickname": "旅行者", "password": "at-least-10-characters"}
 ```
 
 ## Public Discovery
@@ -29,17 +39,27 @@ Public resource keys are `cities`, `attractions`, `hotels`, `restaurants`, and `
 - `GET /api/user/profile`: current user's profile and preferences.
 - `PUT /api/user/profile`: update the current user's profile and preferences.
 - `GET /api/user/library/{resourceKey}`: current user's favorites, notes, or AI records.
-- `POST|PUT|DELETE /api/user/library/{resourceKey}`: current user's favorites and notes only.
+- `POST /api/user/library/{resourceKey}`: create a favorite or private note.
+- `PUT /api/user/library/travel-notes/{id}`: edit an owned note.
+- `DELETE /api/user/library/{resourceKey}/{id}`: delete an owned favorite or note.
 - `POST /api/user/trip/plan`: submit an asynchronous trip task.
 - `GET /api/user/trip/status/{taskId}`: current user's task progress.
 - `GET /api/user/trip/history?limit=8`: current user's saved trips.
 - `GET /api/user/trip/{id}`: owned trip detail.
+- `PUT /api/user/trip/{id}`: edit an owned saved trip.
 - `POST /api/user/trip/{id}/copy`: copy an owned trip.
 - `DELETE /api/user/trip/{id}`: delete an owned trip.
 - `POST /api/user/trip/{id}/chat`: chat about an owned trip.
-- `WS /api/user/trip/ws/{taskId}`: authenticated progress stream; browser clients pass the same token as the `Authorization` query parameter.
+- `POST /api/user/trip/tasks/{taskId}/cancel`: cancel an active planning task.
+- `POST /api/user/trip/tasks/{taskId}/retry`: retry a failed or cancelled planning task.
+- `GET|PUT|DELETE /api/user/assistant/conversations/{id}`: read, rename, or delete an AI conversation.
+- `POST /api/user/assistant/conversations/{id}/stop`: stop active streaming generation.
+- `POST /api/user/assistant/ask/stream`: SSE assistant response with model/fallback metadata.
+- `GET /api/user/notifications`: recent account notifications.
+- `POST /api/user/notifications/{id}/read` and `/read-all`: mark notifications read.
+- `PUT /api/user/inspirations/posts/{id}`: edit a post; public posts return to pending review.
+- `POST /api/user/inspirations/posts/{id}/submit`: submit a private or rejected post for review.
 - `POST /api/user/ai/vision/detect`
-- `POST /api/user/ai/trip/evaluate`
 - `POST /api/user/ai/content/analyze`
 - `GET /api/user/ai/trip/{id}/comfort`
 - `GET /api/user/ai/trip/{id}/comfort/feedback`
@@ -51,13 +71,16 @@ User IDs are taken only from the authenticated session. Client-supplied `userId`
 ## Admin APIs
 
 - `GET|POST /api/admin/resources/{resourceKey}`
-- `GET|PUT|DELETE /api/admin/resources/{resourceKey}/{id}`
+- `PUT|DELETE /api/admin/resources/{resourceKey}/{id}`
 - `PUT /api/admin/resources/{resourceKey}/{id}/status?status=1`
+- `PUT /api/admin/users/{id}/password`: reset a password and invalidate existing tokens.
+- `PUT /api/admin/users/{id}/role`: set `user` or `admin` and invalidate existing tokens.
+- `POST /api/admin/inspirations/{id}/review`: approve (`status=1`) or reject (`status=2`, reason required) community content.
 - `GET /api/admin/settings`: redacted runtime configuration status.
 - `PUT /api/admin/settings`: update runtime configuration in the Java process.
-- `POST /api/admin/ai/**`: administrator AI validation endpoints matching the user AI contract.
+- `POST /api/admin/ai/vision/detect`, `/trip/evaluate`, and `/content/analyze`: administrator AI validation endpoints.
 
-Supported admin resource keys include users, preferences, cities, attractions, hotels, restaurants, tags, favorites, notes, trip plans, and AI records.
+Supported admin resource keys include users, preferences, cities, attractions, hotels, restaurants, tags, notes, trip plans, and AI records. Personal favorites stay inside the user library boundary.
 
 ## Status Rules
 

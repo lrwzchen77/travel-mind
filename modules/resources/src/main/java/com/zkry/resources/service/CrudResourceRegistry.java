@@ -99,7 +99,7 @@ public class CrudResourceRegistry {
             "id",
             List.of("title", "content"),
             List.of("user_id", "city_id", "attraction_id", "status"),
-            List.of("user_id", "city_id", "attraction_id", "title", "content", "visibility", "status")
+            List.of("user_id", "city_id", "attraction_id", "title", "content", "visibility", "status", "review_reason")
         ));
         register(new CrudResourceDefinition(
             "trip-plans",

@@ -14,10 +14,27 @@ Travel Mind is a full-stack intelligent travel planning system with a consumer t
 - `app`, `common`, `modules`: Spring Boot backend modules.
 - `frontend`: Vue 3 application shell with router, API client, menu, and env config.
 - `python-ai`: FastAPI service with health, image detection, trip comfort scoring, and text analysis endpoints.
-- `sql`: MySQL initialization scripts.
+- `app/src/main/resources/db`: Flyway schema migrations and development-only seed data.
 - `docs`: design, API, agile, test, and deploy documents.
 
-## Backend
+## Default Startup
+
+Install Java 17, Maven, Node.js, Python, and Docker through Scoop, then keep the Docker engine running. The project default is the root one-click script:
+
+```powershell
+.\start.ps1
+```
+
+It creates the local `.env` when missing, starts MySQL, Redis, Qdrant, Java, FastAPI, and Vite, waits for health checks, and opens the consumer application. Runtime logs are written to `logs/dev`.
+
+```powershell
+.\start.ps1 -NoBrowser  # start without opening a browser
+.\start.ps1 -Stop       # stop project services
+```
+
+The commands below are retained only for isolated debugging and tests.
+
+## Backend (Manual)
 
 ```bash
 mvn test
@@ -29,11 +46,11 @@ Health check: `GET http://localhost:8080/health`.
 
 The backend automatically imports the ignored root `.env` file. Process environment variables still take precedence.
 
-## Frontend
+## Frontend (Manual)
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm test
 npm run dev
 ```
@@ -47,9 +64,9 @@ Vite runs on `http://localhost:5173` by default.
 
 The dev profile creates BCrypt-backed demo accounts on first startup. Override their passwords with `TRAVELMIND_DEMO_PASSWORD` and `TRAVELMIND_ADMIN_PASSWORD` before startup.
 
-Login returns a signed JWT in the existing `tokenValue` field. Clients send it unchanged in the `Authorization` header (or the WebSocket query parameter of the same name). Set `JWT_SECRET` to a random 32+ byte value outside local development; the production profile has no fallback. `JWT_TTL_SECONDS` defaults to 30 days. Logout discards the JWT on the client: there is intentionally no refresh-token or server-side blacklist flow.
+Login returns a signed JWT in the existing `tokenValue` field. The browser keeps it in session storage and sends it in the `Authorization` header. Set `JWT_SECRET` to a random 32+ byte value outside local development; the production profile has no fallback. `JWT_TTL_SECONDS` defaults to 30 days. Logout discards the JWT on the client: there is intentionally no refresh-token or server-side blacklist flow.
 
-## Python AI
+## Python AI (Manual)
 
 ```bash
 cd python-ai
@@ -65,10 +82,7 @@ The response distinguishes service liveness from model readiness for TravelRisk-
 
 AI endpoints:
 
-- `POST http://localhost:19080/api/vision/detect`
-- `POST http://localhost:19080/api/trip/evaluate`
-- `POST http://localhost:19080/api/content/analyze`
-- Internal-only `POST /api/memory/analyze|index|query|delete` (requires the shared service token)
+- Internal-only vision, trip, content and memory APIs; every endpoint requires the Java-to-Python service token.
 
 Java exposes matching authenticated user endpoints under `/api/user/ai/*` and stores results in `tm_ai_analysis_record`.
 
@@ -80,6 +94,8 @@ with fake vectors.
 ## Configuration
 
 Copy `.env.example` to `.env` and set local values for MySQL, Redis, map/content providers, large-model access, and the Python AI base URL. Java and Python both load this file. Frontend settings are documented in `frontend/.env.example`.
+
+For production, fill every required secret and the one-time bootstrap administrator in `.env`, then run `docker compose -f compose.prod.yml up -d --build`. Only the Nginx frontend is exposed; MySQL, Redis, Qdrant, Java and Python remain on the internal network. Flyway migrates the database and creates the first administrator only when no active administrator exists.
 
 ## Delivery Documents
 

@@ -30,6 +30,7 @@ public final class LoginHelper {
     private static final String NAME = "name";
     private static final String ROLES = "roles";
     private static final String PERMISSIONS = "permissions";
+    private static final String AUTH_VERSION = "authVersion";
 
     /**
      * 工具类不允许实例化。
@@ -41,7 +42,7 @@ public final class LoginHelper {
      * 使用用户 ID 作为登录标识，并把最小登录用户快照写入 JWT。
      *
      * <p>Sa-Token 的 loginId 只需要一个唯一标识，这里选用 userId。
-     * 角色、权限、用户名等展示和鉴权辅助信息放在 JWT claims，避免每次请求都查数据库。
+     * 角色、权限、用户名等展示和鉴权辅助信息放在 JWT claims；入口只校验最小账号状态。
      *
      * @param loginUser 当前登录用户快照
      */
@@ -51,6 +52,7 @@ public final class LoginHelper {
             .setExtra(NAME, loginUser.username())
             .setExtra(ROLES, String.join(",", loginUser.roles()))
             .setExtra(PERMISSIONS, String.join(",", loginUser.permissions()))
+            .setExtra(AUTH_VERSION, loginUser.authVersion())
             .setExtra("exp", Instant.now().getEpochSecond() + timeout);
         StpUtil.login(loginUser.userId(), parameter);
     }
@@ -92,8 +94,19 @@ public final class LoginHelper {
             getUserId(),
             String.valueOf(StpUtil.getExtra(NAME)),
             claimSet(ROLES),
-            claimSet(PERMISSIONS)
+            claimSet(PERMISSIONS),
+            claimLong(AUTH_VERSION)
         );
+    }
+
+    private static long claimLong(String name) {
+        Object value = StpUtil.getExtra(name);
+        if (value instanceof Number number) return number.longValue();
+        try {
+            return Long.parseLong(String.valueOf(value));
+        } catch (NumberFormatException ex) {
+            return -1L;
+        }
     }
 
     private static Set<String> claimSet(String name) {

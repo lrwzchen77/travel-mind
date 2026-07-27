@@ -16,6 +16,8 @@ __pycache__/
 runtime_settings.json
 app/runtime_settings.json
 **/runtime_settings.json
+uploads/
+_tmp_*.ps1
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/

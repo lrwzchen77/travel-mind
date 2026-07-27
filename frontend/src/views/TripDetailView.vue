@@ -32,9 +32,12 @@ const expenses = ref({ budget: 0, actual: 0, remaining: 0, items: [] });
 const expenseForm = reactive({ category: 'food', title: '', amount: '', spent_on: '' });
 const expenseError = ref('');
 const mapRef = ref(null);
+const editDraft = ref(null);
+const poiPhotos = ref({});
 
 const plan = computed(() => detail.value?.data || {});
 const days = computed(() => plan.value.days || []);
+const editDays = computed(() => editDraft.value?.data?.days || []);
 const budget = computed(() => plan.value.budget || {});
 const expenseItems = computed(() => expenses.value.items || []);
 const expenseOverBudget = computed(() => Number(expenses.value.remaining || 0) < 0);
@@ -132,6 +135,7 @@ async function load() {
   error.value = '';
   try {
     detail.value = await tripApi.detail(route.params.id);
+    void loadPoiPhotos();
     try {
       checklist.value = JSON.parse(localStorage.getItem(`travel-mind-trip-checks-${route.params.id}`) || '{}');
     } catch {
@@ -150,6 +154,29 @@ async function load() {
   } catch (err) {
     error.value = err?.response?.data?.msg || err?.message || '打不开这趟行程';
   }
+}
+
+function poiPhotoKey(day, attraction) {
+  return `${day.city || plan.value.city || ''}:${attraction?.name || ''}`;
+}
+
+function dayPhoto(day) {
+  return poiPhotos.value[poiPhotoKey(day, day.attractions?.[0])] || '';
+}
+
+async function loadPoiPhotos() {
+  // ponytail: one cover per day avoids an XHS request per attraction; expand only if the UI adds attraction cards.
+  const targets = days.value
+    .filter((day) => day.attractions?.[0]?.name)
+    .map((day) => ({ day, attraction: day.attractions[0] }))
+    .filter(({ day, attraction }, index, all) => all.findIndex((item) => poiPhotoKey(item.day, item.attraction) === poiPhotoKey(day, attraction)) === index)
+    .slice(0, 8);
+  const results = await Promise.allSettled(targets.map(({ day, attraction }) =>
+    tripApi.poiPhoto(attraction.name, day.city || plan.value.city)));
+  poiPhotos.value = Object.fromEntries(results.flatMap((result, index) => {
+    const url = result.status === 'fulfilled' ? result.value?.data?.photo_url : '';
+    return url ? [[poiPhotoKey(targets[index].day, targets[index].attraction), url]] : [];
+  }));
 }
 
 async function saveComfortFeedback(actualLabel) {
@@ -246,6 +273,28 @@ async function copyPlan() {
   }
 }
 
+function startEdit() {
+  editDraft.value = JSON.parse(JSON.stringify(detail.value));
+}
+
+function addAttraction(day) {
+  if (!Array.isArray(day.attractions)) day.attractions = [];
+  day.attractions.push({ name: '', address: '', description: '', ticket_price: 0 });
+}
+
+async function savePlan() {
+  busy.value = 'edit';
+  error.value = '';
+  try {
+    detail.value = await tripApi.update(route.params.id, editDraft.value);
+    editDraft.value = null;
+  } catch (err) {
+    error.value = err?.message || '行程保存失败';
+  } finally {
+    busy.value = '';
+  }
+}
+
 async function createMemory() {
   busy.value = 'memory';
   error.value = '';
@@ -333,6 +382,7 @@ onMounted(load);
       <button type="button" class="btn-ghost" :disabled="busy === 'copy'" @click="copyPlan">
         {{ busy === 'copy' ? '复制中…' : '复制一程' }}
       </button>
+      <button v-if="!editDraft" type="button" class="btn-ghost" @click="startEdit">编辑行程</button>
       <button type="button" class="btn-danger" :disabled="busy === 'delete'" @click="deletePlan">
         {{ busy === 'delete' ? '删除中…' : '丢掉这程' }}
       </button>
@@ -345,7 +395,30 @@ onMounted(load);
 
   <PublicTravelDataPanel v-if="plan.public_data?.length" :items="plan.public_data" />
 
-  <section v-if="days.length" class="trip-route-section" aria-labelledby="trip-route-title">
+  <form v-if="editDraft" class="glass-panel field-stack" @submit.prevent="savePlan">
+    <div class="section-head"><div><p class="eyebrow">手动调整</p><h2>编辑这趟行程</h2></div></div>
+    <label><span class="field-label">整体建议</span><textarea v-model="editDraft.data.overall_suggestions" maxlength="1000" rows="3" /></label>
+    <article v-for="(day, dayIndex) in editDays" :key="dayIndex" class="route-card field-stack">
+      <h3>Day {{ dayIndex + 1 }} · {{ day.date || '日期待定' }}</h3>
+      <label><span class="field-label">当天说明</span><textarea v-model="day.description" maxlength="1000" rows="2" /></label>
+      <label><span class="field-label">交通</span><input v-model="day.transportation" maxlength="128" /></label>
+      <div v-for="(item, itemIndex) in (day.attractions || [])" :key="itemIndex" class="field-row">
+        <label><span class="field-label">景点</span><input v-model="item.name" maxlength="128" required /></label>
+        <label><span class="field-label">地址</span><input v-model="item.address" maxlength="255" /></label>
+        <button type="button" class="btn-danger" @click="day.attractions.splice(itemIndex, 1)">移除</button>
+      </div>
+      <div v-for="(item, itemIndex) in (day.meals || [])" :key="`meal-${itemIndex}`" class="field-row">
+        <label><span class="field-label">餐饮</span><input v-model="item.name" maxlength="128" required /></label>
+        <label><span class="field-label">地址</span><input v-model="item.address" maxlength="255" /></label>
+        <button type="button" class="btn-danger" @click="day.meals.splice(itemIndex, 1)">移除</button>
+      </div>
+      <label v-if="day.hotel"><span class="field-label">住宿</span><input v-model="day.hotel.name" maxlength="128" /></label>
+      <button type="button" class="btn-ghost" @click="addAttraction(day)">添加景点</button>
+    </article>
+    <div class="actions"><button type="submit" class="btn-coral" :disabled="busy === 'edit'">{{ busy === 'edit' ? '保存中…' : '保存行程' }}</button><button type="button" class="btn-ghost" @click="editDraft = null">取消</button></div>
+  </form>
+
+  <section v-if="days.length && !editDraft" class="trip-route-section" aria-labelledby="trip-route-title">
     <div class="section-head">
       <div>
         <p class="eyebrow">先看每天怎么走</p>
@@ -357,7 +430,11 @@ onMounted(load);
       <article v-for="(day, idx) in days" :key="day.day_index ?? idx" class="route-day">
         <div class="route-axis"><span class="route-node" /></div>
         <div class="route-card">
-          <h3>Day {{ day.day_index || idx + 1 }} · {{ day.date || '日期待定' }}</h3>
+          <figure v-if="dayPhoto(day)" class="route-day-cover">
+            <img :src="dayPhoto(day)" :alt="`${day.attractions[0].name}小红书旅行参考图`" loading="lazy" referrerpolicy="no-referrer" />
+            <figcaption>小红书旅行参考 · {{ day.attractions[0].name }}</figcaption>
+          </figure>
+          <h3>Day {{ day.day_index != null ? Number(day.day_index) + 1 : idx + 1 }} · {{ day.date || '日期待定' }}</h3>
           <p class="day-meta">
             {{ day.description || day.city || '今天的安排' }}
             <template v-if="day.transportation"> · {{ day.transportation }}</template>
@@ -647,4 +724,7 @@ onMounted(load);
 .saved-route-strip button:hover,
 .saved-route-strip button:focus-visible { border-color: var(--tm-accent); outline: 2px solid var(--tm-accent-soft); outline-offset: 2px; }
 .saved-route-strip b { display: grid; width: 25px; height: 25px; place-items: center; border-radius: 50%; background: var(--tm-accent); color: #160d05; font: 900 10px/1 var(--font-mono, monospace); }
+.route-day-cover { position: relative; margin: 0 0 16px; overflow: hidden; border-radius: var(--tm-radius-control); }
+.route-day-cover img { display: block; width: 100%; height: clamp(150px, 22vw, 230px); object-fit: cover; }
+.route-day-cover figcaption { position: absolute; right: 10px; bottom: 9px; padding: 5px 8px; border-radius: var(--tm-radius-pill); background: rgba(10, 12, 16, .74); color: #fff; font-size: 11px; font-weight: 700; }
 </style>

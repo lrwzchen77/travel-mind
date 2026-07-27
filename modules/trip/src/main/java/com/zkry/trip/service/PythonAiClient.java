@@ -106,7 +106,7 @@ public class PythonAiClient {
     }
 
     private <T> PythonAiCallResult<T> post(String path, Object body, Class<T> responseType) {
-        return post(path, body, responseType, null, timeout);
+        return post(path, body, responseType, memoryServiceToken, timeout);
     }
 
     private <T> PythonAiCallResult<T> post(

@@ -13,7 +13,6 @@ services:
       - --collation-server=utf8mb4_unicode_ci
     volumes:
       - travel-mind-mysql-data:/var/lib/mysql
-      - ./sql:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot"]
       interval: 5s

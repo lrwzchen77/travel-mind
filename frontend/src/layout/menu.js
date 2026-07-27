@@ -9,6 +9,7 @@ export const primaryNav = [
 
 /** 账户菜单只承载当前用户拥有的内容与设置。 */
 export const accountNav = [
+  { path: '/notifications', label: '消息中心' },
   { path: '/memories', label: '旅行记录' },
   { path: '/journals', label: '旅行游记' },
   { path: '/recommendations', label: '智能推荐' },

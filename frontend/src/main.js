@@ -9,8 +9,12 @@ import './theme.css';
 import './awwwards.css';
 import './admin.css';
 import { scheduleMapWarmup } from './map/prefetch.js';
+import { refreshAuthSession } from './api/auth.js';
 
-createApp(App).use(router).mount('#app');
+async function start() {
+  await refreshAuthSession();
+  createApp(App).use(router).mount('#app');
+  scheduleMapWarmup();
+}
 
-// 首屏空闲后再预拉地图样式 / MapLibre，进入地图页更快
-scheduleMapWarmup();
+void start();

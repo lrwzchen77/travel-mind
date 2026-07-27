@@ -41,6 +41,7 @@ describe('城市详情信息架构', () => {
     expect(wrapper.text()).toContain('西湖区');
     expect(wrapper.text()).toContain('开放时间 全天');
     expect(wrapper.text()).toContain('人均约 ¥160');
+    expect(wrapper.findAll('.city-resource-actions a').some((link) => JSON.parse(link.attributes('data-to')) === '/discover/attractions/21')).toBe(true);
     expect(wrapper.text()).not.toMatch(/模型|置信度/);
   });
 });

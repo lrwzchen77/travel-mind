@@ -33,7 +33,7 @@ class CommunityServiceTest {
         when(jdbc.queryForList(contains("SELECT n.id, n.user_id"), any(Map.class))).thenReturn(List.of(Map.of(
             "id", 7001L, "title", "西湖慢游", "content", "少走路路线", "visibility", "public", "status", 0
         )));
-        CommunityService service = new CommunityService(jdbc);
+        CommunityService service = new CommunityService(jdbc, org.mockito.Mockito.mock(NotificationService.class));
 
         service.createPost(1001L, Map.of("title", "西湖慢游", "content", "少走路路线", "topic", "route", "city", "杭州", "visibility", "public"));
         service.createPost(1001L, Map.of("title", "私藏早餐", "content", "自己的早餐清单", "topic", "food", "visibility", "private"));
@@ -52,7 +52,7 @@ class CommunityServiceTest {
         NamedParameterJdbcTemplate jdbc = org.mockito.Mockito.mock(NamedParameterJdbcTemplate.class);
         when(jdbc.queryForObject(any(String.class), any(MapSqlParameterSource.class), eq(Long.class))).thenReturn(0L);
         when(jdbc.queryForList(any(String.class), any(MapSqlParameterSource.class))).thenReturn(List.of());
-        CommunityService service = new CommunityService(jdbc);
+        CommunityService service = new CommunityService(jdbc, org.mockito.Mockito.mock(NotificationService.class));
 
         service.posts("西湖", "杭州", "route", 1, 20);
 
@@ -65,7 +65,7 @@ class CommunityServiceTest {
     void unpublishedContentCannotBeCollectedLikedOrCommented() {
         NamedParameterJdbcTemplate jdbc = org.mockito.Mockito.mock(NamedParameterJdbcTemplate.class);
         when(jdbc.queryForList(contains("SELECT n.id, n.user_id"), any(Map.class))).thenReturn(List.of());
-        CommunityService service = new CommunityService(jdbc);
+        CommunityService service = new CommunityService(jdbc, org.mockito.Mockito.mock(NotificationService.class));
 
         assertThatThrownBy(() -> service.addToBag(1001L, 7001L, "must"))
             .isInstanceOf(BizException.class).hasMessage("社区分享不存在或暂不可见。");
@@ -83,7 +83,7 @@ class CommunityServiceTest {
         NamedParameterJdbcTemplate jdbc = org.mockito.Mockito.mock(NamedParameterJdbcTemplate.class);
         when(jdbc.queryForObject(contains("user_id = :userId"), eq(Map.of("userId", 1001L)), eq(Long.class))).thenReturn(1L);
         when(jdbc.queryForList(contains("WHERE n.user_id = :userId"), any(MapSqlParameterSource.class))).thenReturn(List.of());
-        CommunityService service = new CommunityService(jdbc);
+        CommunityService service = new CommunityService(jdbc, org.mockito.Mockito.mock(NotificationService.class));
 
         service.myPosts(1001L, 0, 999);
 
@@ -101,7 +101,7 @@ class CommunityServiceTest {
             .thenReturn(List.of(Map.of("id", 7001L)));
         when(jdbc.queryForObject(contains("WHERE travel_note_id = :postId"), any(Map.class), eq(Long.class)))
             .thenReturn(1L);
-        CommunityService service = new CommunityService(jdbc);
+        CommunityService service = new CommunityService(jdbc, org.mockito.Mockito.mock(NotificationService.class));
 
         service.like(1001L, 7001L);
         service.like(1001L, 7001L);
@@ -118,7 +118,7 @@ class CommunityServiceTest {
         NamedParameterJdbcTemplate jdbc = org.mockito.Mockito.mock(NamedParameterJdbcTemplate.class);
         when(jdbc.queryForList(contains("SELECT n.id, n.title"), any(Map.class)))
             .thenReturn(List.of(Map.of("id", 7001L)));
-        CommunityService service = new CommunityService(jdbc);
+        CommunityService service = new CommunityService(jdbc, org.mockito.Mockito.mock(NotificationService.class));
 
         assertThatThrownBy(() -> service.createComment(1001L, 7001L, Map.of("content", "  ")))
             .isInstanceOf(BizException.class).hasMessage("请填写评论内容。");
@@ -131,7 +131,7 @@ class CommunityServiceTest {
     void onlyTheCommentOwnerCanDeleteFromPublishedPosts() {
         NamedParameterJdbcTemplate jdbc = org.mockito.Mockito.mock(NamedParameterJdbcTemplate.class);
         when(jdbc.update(contains("UPDATE tm_travel_note_comment"), any(Map.class))).thenReturn(1, 0);
-        CommunityService service = new CommunityService(jdbc);
+        CommunityService service = new CommunityService(jdbc, org.mockito.Mockito.mock(NotificationService.class));
 
         service.deleteComment(1001L, 9001L);
         assertThatThrownBy(() -> service.deleteComment(1002L, 9001L))
@@ -151,7 +151,7 @@ class CommunityServiceTest {
             Map.of("item_type", "place", "day_index", 1, "place_name", "西湖", "ai_caption", ""),
             Map.of("item_type", "photo", "day_index", 1, "place_name", "断桥", "ai_caption", "西湖，风景区，照片")));
         when(jdbc.queryForList(contains("SELECT id FROM tm_city"), any(Map.class))).thenReturn(List.of(Map.of("id", 101L)));
-        CommunityService service = new CommunityService(jdbc);
+        CommunityService service = new CommunityService(jdbc, org.mockito.Mockito.mock(NotificationService.class));
 
         Map<String, Object> result = service.publishMemory(1001L, 3001L,
             Map.of("title", "我的杭州慢游", "note", "清晨绕湖走很舒服", "tags", "湖景 慢游"));
@@ -169,14 +169,14 @@ class CommunityServiceTest {
     void memoryPublicationRejectsOtherOwnersAndPrivateDetails() {
         NamedParameterJdbcTemplate denied = org.mockito.Mockito.mock(NamedParameterJdbcTemplate.class);
         when(denied.queryForList(contains("FROM tm_trip_memory\n"), any(Map.class))).thenReturn(List.of());
-        CommunityService deniedService = new CommunityService(denied);
+        CommunityService deniedService = new CommunityService(denied, org.mockito.Mockito.mock(NotificationService.class));
         assertThatThrownBy(() -> deniedService.publishMemory(1002L, 3001L, Map.of()))
             .isInstanceOf(BizException.class).hasMessage("旅行记忆不存在或无权发布。");
 
         NamedParameterJdbcTemplate jdbc = org.mockito.Mockito.mock(NamedParameterJdbcTemplate.class);
         when(jdbc.queryForList(contains("FROM tm_trip_memory\n"), any(Map.class))).thenReturn(List.of(Map.of(
             "title", "杭州两日游", "destination_city", "杭州")));
-        CommunityService service = new CommunityService(jdbc);
+        CommunityService service = new CommunityService(jdbc, org.mockito.Mockito.mock(NotificationService.class));
         assertThatThrownBy(() -> service.publishMemory(1001L, 3001L, Map.of("note", "午餐花了 188 元")))
             .isInstanceOf(BizException.class).hasMessage("公开内容不能包含消费金额、精确坐标或 GPS 信息。");
         verify(jdbc, never()).update(contains("INSERT INTO tm_travel_note"), any(MapSqlParameterSource.class));
@@ -187,8 +187,9 @@ class CommunityServiceTest {
     void memoryPublicationReencodesTheOwnedCoverInsteadOfPublishingOriginalMetadata(@TempDir Path temp) throws Exception {
         String previous = System.getProperty("user.dir");
         Path uploads = Files.createDirectories(temp.resolve("uploads"));
+        Path privateUploads = Files.createDirectories(uploads.resolve("private/1001"));
         String sourceName = "123e4567-e89b-12d3-a456-426614174000.jpg";
-        ImageIO.write(new BufferedImage(4, 3, BufferedImage.TYPE_INT_RGB), "jpg", uploads.resolve(sourceName).toFile());
+        ImageIO.write(new BufferedImage(4, 3, BufferedImage.TYPE_INT_RGB), "jpg", privateUploads.resolve(sourceName).toFile());
         System.setProperty("user.dir", temp.toString());
         try {
             NamedParameterJdbcTemplate jdbc = org.mockito.Mockito.mock(NamedParameterJdbcTemplate.class);
@@ -196,11 +197,11 @@ class CommunityServiceTest {
                 String sql = call.getArgument(0);
                 if (sql.contains("FROM tm_trip_memory\n")) return List.of(Map.of("title", "杭州旅行", "destination_city", "杭州"));
                 if (sql.contains("item_type IN ('place', 'photo')")) return List.of();
-                if (sql.contains("SELECT i.source_url")) return List.of(Map.of("source_url", "/uploads/" + sourceName));
+                if (sql.contains("SELECT i.source_url")) return List.of(Map.of("source_url", "/private-uploads/1001/" + sourceName));
                 if (sql.contains("SELECT id FROM tm_city")) return List.of(Map.of("id", 101L));
                 return List.of();
             });
-            CommunityService service = new CommunityService(jdbc);
+            CommunityService service = new CommunityService(jdbc, org.mockito.Mockito.mock(NotificationService.class));
 
             Map<String, Object> numeric = service.publishMemory(1001L, 3001L,
                 Map.of("photo_item_id", 996889308694955193L));
@@ -209,8 +210,8 @@ class CommunityServiceTest {
 
             for (Map<String, Object> result : List.of(numeric, string)) {
                 String cover = String.valueOf(result.get("cover_image"));
-                assertThat(cover).startsWith("/uploads/").endsWith(".png").doesNotContain(sourceName);
-                Path publicFile = uploads.resolve(Path.of(cover).getFileName());
+                assertThat(cover).startsWith("/public-uploads/").endsWith(".png").doesNotContain(sourceName);
+                Path publicFile = uploads.resolve("public").resolve(Path.of(cover).getFileName());
                 assertThat(publicFile).exists();
                 assertThat(ImageIO.read(publicFile.toFile())).isNotNull();
                 Files.delete(publicFile);
@@ -226,7 +227,7 @@ class CommunityServiceTest {
         when(jdbc.queryForList(contains("FROM tm_trip_memory\n"), any(Map.class))).thenReturn(List.of(Map.of(
             "title", "杭州旅行", "destination_city", "杭州")));
         when(jdbc.queryForList(contains("item_type IN ('place', 'photo')"), any(Map.class))).thenReturn(List.of());
-        CommunityService service = new CommunityService(jdbc);
+        CommunityService service = new CommunityService(jdbc, org.mockito.Mockito.mock(NotificationService.class));
 
         for (String value : List.of("", "0", "12x", "9223372036854775808")) {
             assertThatThrownBy(() -> service.publishMemory(1001L, 3001L, Map.of("photo_item_id", value)))

@@ -34,10 +34,16 @@ public class CommunityService {
         Pattern.CASE_INSENSITIVE);
     private static final int MAX_PUBLIC_COVER_EDGE = 16_384;
     private static final long MAX_PUBLIC_COVER_PIXELS = 40_000_000L;
+    private static final Pattern PRIVATE_UPLOAD = Pattern.compile(
+        "^/private-uploads/(?<user>[0-9]+)/(?<name>[0-9a-fA-F-]{36}\\.(?:jpg|png|webp))$");
+    private static final Pattern PUBLIC_UPLOAD = Pattern.compile(
+        "^/public-uploads/[0-9a-fA-F-]{36}\\.png$");
     private final NamedParameterJdbcTemplate jdbcTemplate;
+    private final NotificationService notifications;
 
-    public CommunityService(NamedParameterJdbcTemplate jdbcTemplate) {
+    public CommunityService(NamedParameterJdbcTemplate jdbcTemplate, NotificationService notifications) {
         this.jdbcTemplate = jdbcTemplate;
+        this.notifications = notifications;
     }
 
     public PageResult<Map<String, Object>> posts(String keyword, String city, String topic, int pageNum, int pageSize) {
@@ -107,16 +113,27 @@ public class CommunityService {
         Long cityId = findCityId(city);
         long id = nextId();
         int status = "public".equals(visibility) ? 0 : 1;
-        jdbcTemplate.update("""
+        String cover = text(payload, "cover_image", 500);
+        Path generatedCover = null;
+        if ("public".equals(visibility) && !cover.isBlank() && !PUBLIC_UPLOAD.matcher(cover).matches()) {
+            generatedCover = sanitizedUserCover(userId, cover);
+            cover = "/public-uploads/" + generatedCover.getFileName();
+        }
+        try {
+            jdbcTemplate.update("""
                 INSERT INTO tm_travel_note
                   (id, user_id, city_id, title, content, visibility, status, topic, cover_image, tags)
                 VALUES (:id, :userId, :cityId, :title, :content, :visibility, :status, :topic, :coverImage, :tags)
                 """, new MapSqlParameterSource()
             .addValue("id", id).addValue("userId", userId).addValue("cityId", cityId)
             .addValue("title", title).addValue("content", content).addValue("visibility", visibility)
-            .addValue("status", status).addValue("topic", topic)
-            .addValue("coverImage", text(payload, "cover_image", 500)).addValue("tags", text(payload, "tags", 255)));
-        return Map.of("id", id, "title", title, "visibility", visibility, "status", status);
+                .addValue("status", status).addValue("topic", topic)
+                .addValue("coverImage", cover).addValue("tags", text(payload, "tags", 255)));
+            return Map.of("id", id, "title", title, "visibility", visibility, "status", status, "cover_image", cover);
+        } catch (RuntimeException ex) {
+            if (generatedCover != null) try { Files.deleteIfExists(generatedCover); } catch (IOException ignored) { }
+            throw ex;
+        }
     }
 
     /** 从本人私有记忆生成脱敏公开副本；公开帖子不保留 memory/item/evidence 关联。 */
@@ -149,10 +166,10 @@ public class CommunityService {
                 "topic", "route",
                 "city", String.valueOf(memory.get("destination_city")),
                 "visibility", "public",
-                "cover_image", sanitizedCover == null ? "" : "/uploads/" + sanitizedCover.getFileName(),
+                "cover_image", sanitizedCover == null ? "" : "/public-uploads/" + sanitizedCover.getFileName(),
                 "tags", joinTags(tags, "真实行程")
             )));
-            post.put("cover_image", sanitizedCover == null ? "" : "/uploads/" + sanitizedCover.getFileName());
+            post.put("cover_image", sanitizedCover == null ? "" : "/public-uploads/" + sanitizedCover.getFileName());
             return post;
         } catch (RuntimeException ex) {
             if (sanitizedCover != null) try { Files.deleteIfExists(sanitizedCover); } catch (IOException ignored) { }
@@ -166,7 +183,8 @@ public class CommunityService {
         Long total = jdbcTemplate.queryForObject(
             "SELECT COUNT(1) FROM tm_travel_note WHERE user_id = :userId AND deleted = 0", Map.of("userId", userId), Long.class);
         List<Map<String, Object>> records = jdbcTemplate.queryForList("""
-                SELECT n.id, n.title, n.content, n.topic, n.cover_image, n.tags, n.visibility, n.status, n.create_time,
+                SELECT n.id, n.title, n.content, n.topic, n.cover_image, n.tags, n.visibility, n.status,
+                       n.review_reason, n.reviewed_at, n.create_time,
                        c.name AS city,
                        (SELECT COUNT(1) FROM tm_travel_note_like l WHERE l.travel_note_id = n.id) AS like_count,
                        (SELECT COUNT(1) FROM tm_travel_note_comment cm WHERE cm.travel_note_id = n.id AND cm.deleted = 0) AS comment_count
@@ -176,6 +194,54 @@ public class CommunityService {
                 """, new MapSqlParameterSource().addValue("userId", userId).addValue("limit", safeSize)
             .addValue("offset", (safePage - 1) * safeSize));
         return PageResult.of(records, total == null ? 0 : total, safePage, safeSize);
+    }
+
+    @Transactional
+    public Map<String, Object> updatePost(long userId, long postId, Map<String, Object> payload) {
+        Map<String, Object> post = ownPost(userId, postId);
+        String title = required(payload, "title", 128, "请填写标题。");
+        String content = required(payload, "content", 8000, "请写下旅行体验。");
+        String topic = text(payload, "topic", 32);
+        if (!TOPICS.contains(topic)) throw new BizException("请选择吃、住、玩、路线或避坑分类。");
+        boolean publicPost = "public".equals(post.get("visibility"));
+        jdbcTemplate.update("""
+            UPDATE tm_travel_note
+            SET title = :title, content = :content, topic = :topic, tags = :tags,
+                status = :status, review_reason = NULL, reviewed_by = NULL, reviewed_at = NULL
+            WHERE id = :id AND user_id = :userId AND deleted = 0
+            """, Map.of("title", title, "content", content, "topic", topic,
+                "tags", text(payload, "tags", 255), "status", publicPost ? 0 : 1, "id", postId, "userId", userId));
+        return ownPost(userId, postId);
+    }
+
+    @Transactional
+    public Map<String, Object> submitPost(long userId, long postId) {
+        ownPost(userId, postId);
+        jdbcTemplate.update("""
+            UPDATE tm_travel_note
+            SET visibility = 'public', status = 0, review_reason = NULL, reviewed_by = NULL, reviewed_at = NULL
+            WHERE id = :id AND user_id = :userId AND deleted = 0
+            """, Map.of("id", postId, "userId", userId));
+        return ownPost(userId, postId);
+    }
+
+    @Transactional
+    public Map<String, Object> reviewPost(long adminId, long postId, int status, String reason) {
+        if (status != 1 && status != 2) throw new BizException("审核状态无效。");
+        String safeReason = reason == null ? "" : reason.trim();
+        if (status == 2 && safeReason.isBlank()) throw new BizException("驳回时请填写原因。");
+        if (safeReason.length() > 500) throw new BizException("审核原因过长。");
+        Map<String, Object> post = ownPost(null, postId);
+        int changed = jdbcTemplate.update("""
+            UPDATE tm_travel_note
+            SET status = :status, review_reason = :reason, reviewed_by = :adminId, reviewed_at = CURRENT_TIMESTAMP
+            WHERE id = :id AND deleted = 0 AND visibility = 'public'
+            """, Map.of("status", status, "reason", safeReason, "adminId", adminId, "id", postId));
+        if (changed == 0) throw new BizException("公开分享不存在。");
+        notifications.notify(((Number) post.get("user_id")).longValue(), "community_review",
+            status == 1 ? "分享已通过审核" : "分享需要修改",
+            status == 1 ? String.valueOf(post.get("title")) + " 已在社区公开。" : safeReason, "/my-posts");
+        return ownPost(null, postId);
     }
 
     @Transactional
@@ -318,6 +384,18 @@ public class CommunityService {
             .orElseThrow(() -> new BizException("加入灵感包失败。"));
     }
 
+    private Map<String, Object> ownPost(Long userId, long postId) {
+        MapSqlParameterSource params = new MapSqlParameterSource().addValue("id", postId);
+        if (userId != null) params.addValue("userId", userId);
+        return jdbcTemplate.queryForList("""
+            SELECT id, user_id, title, content, topic, tags, cover_image, visibility, status,
+                   review_reason, reviewed_by, reviewed_at, create_time, update_time
+            FROM tm_travel_note
+            WHERE id = :id AND deleted = 0
+            """ + (userId == null ? "" : " AND user_id = :userId") + " LIMIT 1", params).stream().findFirst()
+            .orElseThrow(() -> new BizException("分享不存在或无权操作。"));
+    }
+
     private Map<String, Object> reaction(long userId, long postId) {
         Long count = jdbcTemplate.queryForObject(
             "SELECT COUNT(1) FROM tm_travel_note_like WHERE travel_note_id = :postId",
@@ -371,12 +449,34 @@ public class CommunityService {
                 LIMIT 1
                 """, Map.of("userId", userId, "memoryId", memoryId, "photoId", photoId)).stream().findFirst()
             .orElseThrow(() -> new BizException("公开封面不属于当前记忆册。"));
-        String sourceUrl = String.valueOf(photo.get("source_url"));
-        String name = Path.of(sourceUrl).getFileName().toString();
-        Path directory = Path.of(System.getProperty("user.dir"), "uploads").toAbsolutePath().normalize();
-        Path source = directory.resolve(name).normalize();
-        Path target = directory.resolve(UUID.randomUUID() + ".png");
+        Path source = privateFile(userId, String.valueOf(photo.get("source_url")));
+        return writeSanitizedCover(source);
+    }
+
+    private Path sanitizedUserCover(long userId, String sourceUrl) {
+        return writeSanitizedCover(privateFile(userId, sourceUrl));
+    }
+
+    private Path privateFile(long userId, String sourceUrl) {
+        var matcher = PRIVATE_UPLOAD.matcher(sourceUrl == null ? "" : sourceUrl);
+        if (!matcher.matches() || !String.valueOf(userId).equals(matcher.group("user"))) {
+            throw new BizException("公开封面必须来自当前用户的受控上传。");
+        }
+        Path directory = Path.of(System.getProperty("user.dir"), "uploads", "private", String.valueOf(userId))
+            .toAbsolutePath().normalize();
+        Path source = directory.resolve(matcher.group("name")).normalize();
         if (!source.startsWith(directory) || !Files.isRegularFile(source)) throw new BizException("公开封面文件不存在。");
+        return source;
+    }
+
+    private Path writeSanitizedCover(Path source) {
+        Path directory = Path.of(System.getProperty("user.dir"), "uploads", "public").toAbsolutePath().normalize();
+        try {
+            Files.createDirectories(directory);
+        } catch (IOException ex) {
+            throw new BizException("公开封面目录不可用。");
+        }
+        Path target = directory.resolve(UUID.randomUUID() + ".png");
         BufferedImage image = readPublicCover(source);
         try {
             if (!ImageIO.write(image, "png", target.toFile())) throw new IOException("PNG writer unavailable");

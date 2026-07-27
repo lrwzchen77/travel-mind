@@ -9,11 +9,11 @@ export function createResourceApi(client = http) {
     discover(resourceKey, params = {}) {
       return client.get(`/public/resources/${resourceKey}`, { params }).then(unwrap);
     },
+    discoverDetail(resourceKey, id) {
+      return client.get(`/public/resources/${resourceKey}/${id}`).then(unwrap);
+    },
     list(resourceKey, params = {}) {
       return client.get(`/admin/resources/${resourceKey}`, { params }).then(unwrap);
-    },
-    detail(resourceKey, id) {
-      return client.get(`/admin/resources/${resourceKey}/${id}`).then(unwrap);
     },
     create(resourceKey, payload) {
       return client.post(`/admin/resources/${resourceKey}`, payload).then(unwrap);
@@ -33,8 +33,8 @@ export function createResourceApi(client = http) {
     userCreate(resourceKey, payload) {
       return client.post(`/user/library/${resourceKey}`, payload).then(unwrap);
     },
-    userUpdate(resourceKey, id, payload) {
-      return client.put(`/user/library/${resourceKey}/${id}`, payload).then(unwrap);
+    updateNote(id, payload) {
+      return client.put(`/user/library/travel-notes/${id}`, payload).then(unwrap);
     },
     userRemove(resourceKey, id) {
       return client.delete(`/user/library/${resourceKey}/${id}`).then(unwrap);
@@ -44,6 +44,21 @@ export function createResourceApi(client = http) {
     },
     updateProfile(payload) {
       return client.put('/user/profile', payload).then(unwrap);
+    },
+    changePassword(payload) {
+      return client.put('/user/account/password', payload).then(unwrap);
+    },
+    exportAccount() {
+      return client.get('/user/account/export').then(unwrap);
+    },
+    deactivateAccount() {
+      return client.delete('/user/account').then(unwrap);
+    },
+    resetPassword(userId, newPassword) {
+      return client.put(`/admin/users/${userId}/password`, { newPassword }).then(unwrap);
+    },
+    updateRole(userId, role) {
+      return client.put(`/admin/users/${userId}/role`, { role }).then(unwrap);
     },
   };
 }

@@ -29,6 +29,26 @@ async function openConversation(id) {
   try { const data = await assistantApi.conversation(id); activeId.value = data.id; messages.value = data.messages || []; } catch (err) { error.value = err?.message || '这段对话没有打开。'; }
 }
 
+async function renameConversation(item) {
+  const title = window.prompt('新的对话标题', item.title);
+  if (!title?.trim()) return;
+  try { await assistantApi.rename(item.id, title); await loadConversations(); } catch (err) { error.value = err?.message || '重命名失败。'; }
+}
+
+async function deleteConversation(item) {
+  if (!window.confirm(`删除“${item.title}”？`)) return;
+  try {
+    await assistantApi.remove(item.id);
+    if (activeId.value === item.id) newConversation();
+    await loadConversations();
+  } catch (err) { error.value = err?.message || '删除失败。'; }
+}
+
+async function stopGeneration() {
+  if (!activeId.value) return;
+  try { await assistantApi.stop(activeId.value); } catch (err) { error.value = err?.message || '停止失败。'; }
+}
+
 async function ask(question = text.value) {
   const message = String(question || '').trim();
   if (!message || loading.value) return;
@@ -44,8 +64,15 @@ async function ask(question = text.value) {
   text.value = '';
   try {
     await assistantApi.askStream({ message, conversation_id: activeId.value, inspiration_ids: sourceIds.value }, (event, data) => {
+      if (event === 'start') activeId.value = data.conversation_id;
       if (event === 'delta') reply.content += data.text || '';
-      if (event === 'done') { activeId.value = data.conversation_id; reply.sources = data.sources || []; }
+      if (event === 'done') {
+        activeId.value = data.conversation_id;
+        reply.sources = data.sources || [];
+        reply.mode = data.mode;
+        reply.model = data.model;
+        if (data.mode === 'stopped' && !reply.content) reply.content = '已停止生成。';
+      }
     });
     if (!reply.content) throw new Error('AI 没有返回内容。');
     await loadConversations();
@@ -85,7 +112,11 @@ onMounted(loadConversations);
       </div>
       <RouterLink class="assistant-bag-link" to="/inspiration-bag"><span>灵感包</span><strong>{{ sourceCount }} 篇</strong></RouterLink>
       <div v-if="conversations.length" class="assistant-conversation-list">
-        <button v-for="item in conversations" :key="item.id" type="button" class="assistant-conversation" :class="{ 'is-active': activeId === item.id }" @click="openConversation(item.id)">{{ item.title }}</button>
+        <div v-for="item in conversations" :key="item.id" class="assistant-conversation-row">
+          <button type="button" class="assistant-conversation" :class="{ 'is-active': activeId === item.id }" @click="openConversation(item.id)">{{ item.title }}</button>
+          <button type="button" class="text-link" aria-label="重命名对话" @click="renameConversation(item)">改名</button>
+          <button type="button" class="text-link" aria-label="删除对话" @click="deleteConversation(item)">删除</button>
+        </div>
       </div>
     </aside>
     <main class="assistant-main">
@@ -96,12 +127,13 @@ onMounted(loadConversations);
       <div v-if="sourceCount" class="assistant-source-strip" data-reveal><span>已带入 {{ sourceCount }} 篇社区分享</span><RouterLink to="/inspiration-bag">调整灵感包</RouterLink></div>
       <p v-if="error" class="error-line">{{ error }}</p>
       <div class="assistant-messages" aria-live="polite">
-        <article v-for="(item, index) in messages" :key="index" class="assistant-message" :class="`is-${item.role}`" :data-reveal="index < 3 ? '' : null"><strong>{{ item.role === 'user' ? '你' : 'Travel Mind AI' }}</strong><template v-if="item.role === 'assistant'"><div class="assistant-markdown"><template v-for="(block, blockIndex) in markdownBlocks(item.content)" :key="blockIndex"><component :is="block.type === 'heading' ? `h${block.level}` : block.type === 'quote' ? 'blockquote' : 'p'" v-if="block.parts" :class="`markdown-${block.type}`"><template v-for="(part, partIndex) in block.parts" :key="partIndex"><strong v-if="part.type === 'strong'">{{ part.text }}</strong><code v-else-if="part.type === 'code'">{{ part.text }}</code><a v-else-if="part.type === 'link'" :href="part.href" target="_blank" rel="noreferrer">{{ part.text }}</a><template v-else>{{ part.text }}</template></template></component><component :is="block.type === 'ordered-list' ? 'ol' : 'ul'" v-else-if="block.items" :class="`markdown-${block.type}`"><li v-for="(parts, itemIndex) in block.items" :key="itemIndex"><template v-for="(part, partIndex) in parts" :key="partIndex"><strong v-if="part.type === 'strong'">{{ part.text }}</strong><code v-else-if="part.type === 'code'">{{ part.text }}</code><a v-else-if="part.type === 'link'" :href="part.href" target="_blank" rel="noreferrer">{{ part.text }}</a><template v-else>{{ part.text }}</template></template></li></component><pre v-else class="markdown-code"><code>{{ block.text }}</code></pre></template><span v-if="item.streaming" class="assistant-cursor" aria-label="正在生成" /></div></template><p v-else>{{ item.content }}</p><div v-if="item.sources?.length" class="chip-row"><span v-for="source in item.sources" :key="source.post_id" class="chip">参考：{{ source.title }}</span></div></article>
+        <article v-for="(item, index) in messages" :key="index" class="assistant-message" :class="`is-${item.role}`" :data-reveal="index < 3 ? '' : null"><strong>{{ item.role === 'user' ? '你' : 'Travel Mind AI' }}</strong><small v-if="item.role === 'assistant' && item.mode">{{ item.mode === 'fallback' ? '本地降级回复' : item.mode === 'stopped' ? '已停止' : item.model }}</small><template v-if="item.role === 'assistant'"><div class="assistant-markdown"><template v-for="(block, blockIndex) in markdownBlocks(item.content)" :key="blockIndex"><component :is="block.type === 'heading' ? `h${block.level}` : block.type === 'quote' ? 'blockquote' : 'p'" v-if="block.parts" :class="`markdown-${block.type}`"><template v-for="(part, partIndex) in block.parts" :key="partIndex"><strong v-if="part.type === 'strong'">{{ part.text }}</strong><code v-else-if="part.type === 'code'">{{ part.text }}</code><a v-else-if="part.type === 'link'" :href="part.href" target="_blank" rel="noreferrer">{{ part.text }}</a><template v-else>{{ part.text }}</template></template></component><component :is="block.type === 'ordered-list' ? 'ol' : 'ul'" v-else-if="block.items" :class="`markdown-${block.type}`"><li v-for="(parts, itemIndex) in block.items" :key="itemIndex"><template v-for="(part, partIndex) in parts" :key="partIndex"><strong v-if="part.type === 'strong'">{{ part.text }}</strong><code v-else-if="part.type === 'code'">{{ part.text }}</code><a v-else-if="part.type === 'link'" :href="part.href" target="_blank" rel="noreferrer">{{ part.text }}</a><template v-else>{{ part.text }}</template></template></li></component><pre v-else class="markdown-code"><code>{{ block.text }}</code></pre></template><span v-if="item.streaming" class="assistant-cursor" aria-label="正在生成" /></div></template><p v-else>{{ item.content }}</p><div v-if="item.sources?.length" class="chip-row"><span v-for="source in item.sources" :key="source.post_id" class="chip">参考：{{ source.title }}</span></div></article>
       </div>
       <div class="assistant-prompts" aria-label="快捷提问" data-reveal><button type="button" @click="ask('八月带父母出行三天，预算四千，不想太赶，推荐去哪里？')">带父母，三天别太赶</button><button type="button" @click="ask('我选的这些社区分享有什么冲突？应该怎么取舍？')">检查分享冲突</button><button type="button" @click="ask('按少走路、美食优先的节奏，帮我整理一份规划确认卡。')">整理规划确认卡</button></div>
       <form class="assistant-input" data-reveal @submit.prevent="ask()">
         <label class="sr-only" for="assistant-question">输入旅行问题</label>
         <textarea id="assistant-question" v-model="text" rows="3" placeholder="例如：想去杭州两天，带父母，预算三千，优先安排灵感包里的早餐和慢游路线…" />
+        <button v-if="loading" class="btn-ghost" type="button" :disabled="!activeId" @click="stopGeneration">停止生成</button>
         <button class="btn-coral" type="submit" :disabled="loading">{{ loading ? '思考中…' : '发送' }}</button>
       </form>
 

@@ -10,11 +10,14 @@ const route = useRoute();
 const items = ref([]);
 const total = ref(0);
 const page = ref(1);
+const keyword = ref('');
 const loading = ref(false);
 const error = ref('');
 const message = ref('');
 const composing = ref(false);
-const form = reactive({ title: '', content: '', visibility: 'private' });
+const editingId = ref(null);
+const form = reactive({ title: '', content: '' });
+const editForm = reactive({ title: '', content: '' });
 
 const resourceKey = computed(() => route.meta.resourceKey);
 const pageTitle = computed(() => route.meta.title);
@@ -96,9 +99,8 @@ function reuseLink(item) {
 async function load(pageNum = 1) {
   loading.value = true;
   error.value = '';
-  message.value = '';
   try {
-    const data = await resourceApi.userList(resourceKey.value, { pageNum, pageSize: 30 });
+    const data = await resourceApi.userList(resourceKey.value, { keyword: keyword.value || undefined, pageNum, pageSize: 30 });
     items.value = pageNum === 1 ? (data.records || []) : [...items.value, ...(data.records || [])];
     total.value = data.total || items.value.length;
     page.value = pageNum;
@@ -111,19 +113,32 @@ async function load(pageNum = 1) {
 
 async function create() {
   try {
-    const submittedVisibility = form.visibility;
     await resourceApi.userCreate(resourceKey.value, {
       title: form.title,
       content: form.content,
-      visibility: form.visibility,
-      status: 1,
     });
-    Object.assign(form, { title: '', content: '', visibility: 'private' });
+    Object.assign(form, { title: '', content: '' });
     composing.value = false;
-    message.value = submittedVisibility === 'public' ? '笔记已保存并标记为公开，但不会自动发布到旅行社区。' : '笔记已保存';
     await load();
+    message.value = '笔记已保存';
   } catch (err) {
     error.value = err?.message || '保存失败';
+  }
+}
+
+function startEdit(item) {
+  editingId.value = item.id;
+  Object.assign(editForm, { title: item.title || '', content: item.content || '' });
+}
+
+async function saveEdit() {
+  try {
+    await resourceApi.updateNote(editingId.value, { ...editForm });
+    editingId.value = null;
+    await load();
+    message.value = '笔记修改已保存';
+  } catch (err) {
+    error.value = err?.message || '修改失败';
   }
 }
 
@@ -131,8 +146,8 @@ async function remove(id) {
   if (!window.confirm(resourceKey.value === 'favorites' ? '从收藏里拿掉？' : '删掉这篇笔记？')) return;
   try {
     await resourceApi.userRemove(resourceKey.value, id);
-    message.value = resourceKey.value === 'favorites' ? '已从收藏移除' : '笔记已删除';
     await load();
+    message.value = resourceKey.value === 'favorites' ? '已从收藏移除' : '笔记已删除';
   } catch (err) {
     error.value = err?.message || '操作失败';
   }
@@ -140,6 +155,8 @@ async function remove(id) {
 
 watch(resourceKey, () => {
   composing.value = false;
+  editingId.value = null;
+  keyword.value = '';
   load();
 });
 onMounted(load);
@@ -161,6 +178,12 @@ onMounted(load);
       {{ composing ? '收起' : '写一篇' }}
     </button>
   </div>
+
+  <form class="glass-panel library-search" role="search" @submit.prevent="load(1)">
+    <label class="field-label" for="library-keyword">搜索{{ pageTitle }}</label>
+    <input id="library-keyword" v-model="keyword" placeholder="输入标题、正文或备注" />
+    <button type="submit" class="btn-ghost" :disabled="loading">搜索</button>
+  </form>
 
   <p v-if="message" class="success-line">{{ message }}</p>
   <p v-if="error" class="error-line">{{ error }}</p>
@@ -185,13 +208,6 @@ onMounted(load);
         required
       />
     </div>
-    <div>
-      <label class="field-label" for="note-vis">谁能看见</label>
-      <select id="note-vis" v-model="form.visibility">
-        <option value="private">仅自己可见</option>
-        <option value="public">公开标记（不会自动发布到社区）</option>
-      </select>
-    </div>
     <div class="actions">
       <button type="submit" class="btn-coral">保存笔记</button>
       <button type="button" class="btn-ghost" @click="composing = false">取消</button>
@@ -199,8 +215,8 @@ onMounted(load);
   </form>
 
   <div v-if="!loading && !items.length" class="empty-state empty-state--card">
-    <strong>{{ pageCopy.emptyTitle }}</strong>
-    <p>{{ pageCopy.emptyHint }}</p>
+    <strong>{{ keyword ? '没有匹配的内容' : pageCopy.emptyTitle }}</strong>
+    <p>{{ keyword ? '换个更短的关键词再试。' : pageCopy.emptyHint }}</p>
     <div v-if="pageCopy.emptyCta" class="actions" style="justify-content: center; margin-top: 16px;">
       <RouterLink class="btn-link btn-coral" :to="pageCopy.emptyCta.to">
         {{ pageCopy.emptyCta.label }}
@@ -215,18 +231,25 @@ onMounted(load);
     <article v-for="item in items" :key="item.id" class="library-card">
       <div class="library-card-top">
         <span class="library-kind">{{ itemKind(item) }}</span>
-        <button
-          v-if="resourceKey !== 'ai-records'"
-          type="button"
-          class="library-remove"
-          :aria-label="resourceKey === 'favorites' ? '取消收藏' : '删除笔记'"
-          @click="remove(item.id)"
-        >
-          {{ resourceKey === 'favorites' ? '取消收藏' : '删除' }}
-        </button>
+        <div v-if="resourceKey !== 'ai-records'" class="library-card-actions">
+          <button v-if="resourceKey === 'travel-notes'" type="button" class="library-edit" @click="startEdit(item)">编辑</button>
+          <button
+            type="button"
+            class="library-remove"
+            :aria-label="resourceKey === 'favorites' ? '取消收藏' : '删除笔记'"
+            @click="remove(item.id)"
+          >
+            {{ resourceKey === 'favorites' ? '取消收藏' : '删除' }}
+          </button>
+        </div>
       </div>
+      <form v-if="editingId === item.id" class="field-stack library-edit-form" @submit.prevent="saveEdit">
+        <input v-model="editForm.title" maxlength="128" required aria-label="笔记标题" />
+        <textarea v-model="editForm.content" maxlength="8000" rows="5" required aria-label="笔记正文" />
+        <div class="actions"><button type="submit" class="btn-coral">保存修改</button><button type="button" class="btn-ghost" @click="editingId = null">取消</button></div>
+      </form>
       <RouterLink
-        v-if="resourceKey === 'favorites' && item.target_type === 'city'"
+        v-else-if="resourceKey === 'favorites' && item.target_type === 'city'"
         class="library-city-favorite"
         :to="favoriteCityLink(item)"
       >
@@ -249,3 +272,13 @@ onMounted(load);
   </div>
   <div v-if="hasMore" class="load-more"><button type="button" class="btn-ghost" :disabled="loading" @click="load(page + 1)">{{ loading ? '正在加载…' : `加载更多（还有 ${total - items.length} 项）` }}</button></div>
 </template>
+
+<style scoped>
+.library-card-actions { display: flex; align-items: center; gap: 2px; }
+.library-edit { min-height: 30px; padding: 0 10px; border: 0; background: transparent; color: var(--tm-accent); font-size: 12px; font-weight: 700; }
+.library-edit:hover, .library-edit:focus-visible { background: var(--tm-accent-soft); outline: none; }
+.library-edit-form { margin-top: 12px; }
+.library-search { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 12px; margin-bottom: 18px; padding: 14px 16px; }
+.library-search .field-label { grid-column: 1 / -1; }
+@media (max-width: 640px) { .library-search { grid-template-columns: 1fr; } }
+</style>

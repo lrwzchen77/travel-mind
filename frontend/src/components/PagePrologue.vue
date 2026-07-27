@@ -30,7 +30,7 @@ const props = defineProps({
     <p v-if="eyebrow" class="page-prologue-eyebrow">{{ eyebrow }}</p>
 
     <h1 class="page-prologue-title">
-      <slot name="title"><span v-html="title" /></slot>
+      <slot name="title"><span>{{ title }}</span></slot>
     </h1>
 
     <p v-if="lead || $slots.lead" class="page-prologue-lead">

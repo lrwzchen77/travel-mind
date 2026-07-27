@@ -5,7 +5,12 @@ spring:
   config:
     import: optional:file:.env[.properties]
   profiles:
-    active: dev
+    default: dev
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 13
+    locations: classpath:db/migration
   ai:
     # DeepSeek 走 OpenAI 兼容协议（不启 starter 自动装配 ChatModel，由 AiTextService 运行时创建）
     model:
@@ -26,6 +31,13 @@ logging:
     path: ./logs
 
 travelmind:
+  web:
+    allowed-origins: ${WEB_ALLOWED_ORIGINS:http://localhost:5173}
+  trip:
+    tasks:
+      workers: ${TRIP_TASK_WORKERS:4}
+      queue-capacity: ${TRIP_TASK_QUEUE_CAPACITY:100}
+      state-ttl-minutes: ${TRIP_TASK_STATE_TTL_MINUTES:30}
   python-ai:
     base-url: ${PYTHON_AI_BASE_URL:http://localhost:19080}
     timeout-ms: ${PYTHON_AI_TIMEOUT_MS:10000}

@@ -11,7 +11,9 @@ from pydantic import BaseModel, Field
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 UPLOAD_DIR = (PROJECT_ROOT / "uploads").resolve()
-UPLOAD_PATH = re.compile(r"^/uploads/(?P<name>[0-9a-fA-F-]{36}\.(?:jpg|png|webp))$")
+UPLOAD_PATH = re.compile(
+    r"^/private-uploads/(?P<user>[0-9]+)/(?P<name>[0-9a-fA-F-]{36}\.(?:jpg|png|webp))$"
+)
 
 
 class MemoryItemInput(BaseModel):
@@ -104,8 +106,10 @@ def _controlled_photo_path(source_url: str | None) -> Path:
         raise ValueError("photo source must be a controlled upload path")
     name = match.group("name")
     UUID(name.rsplit(".", 1)[0])
-    path = (UPLOAD_DIR / name).resolve()
-    if path.parent != UPLOAD_DIR or not path.is_file():
+    user = match.group("user")
+    directory = (UPLOAD_DIR / "private" / user).resolve()
+    path = (directory / name).resolve()
+    if path.parent != directory or not path.is_file():
         raise ValueError("controlled photo does not exist")
     return path
 

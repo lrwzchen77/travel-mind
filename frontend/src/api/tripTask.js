@@ -10,18 +10,6 @@ export function normalizeTripTaskStatus(status) {
   return String(status || '').trim().toLowerCase();
 }
 
-export function resolveTripWebSocketUrl(wsUrl, apiBaseUrl, locationOrigin, token = '') {
-  if (!wsUrl) return '';
-  const origin = locationOrigin || globalThis.location?.origin || 'http://localhost';
-  const apiUrl = new URL(apiBaseUrl || '/api', origin);
-  const socketUrl = /^wss?:\/\//i.test(wsUrl)
-    ? new URL(wsUrl)
-    : new URL(wsUrl, `${apiUrl.protocol}//${apiUrl.host}`);
-  socketUrl.protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
-  if (token) socketUrl.searchParams.set('Authorization', token);
-  return socketUrl.toString();
-}
-
 function abortError() {
   const error = new Error('任务等待已取消');
   error.name = 'AbortError';
@@ -29,18 +17,12 @@ function abortError() {
 }
 
 /**
- * WebSocket delivers progress immediately; polling remains active at a low
- * frequency so proxies or authentication failures cannot lose completion.
+ * Polling is authoritative and keeps bearer tokens out of WebSocket URLs.
  */
 export function waitForTripTask({
   taskId,
-  wsUrl,
   loadStatus,
   onUpdate = () => {},
-  apiBaseUrl = '/api',
-  locationOrigin,
-  token = '',
-  WebSocketImpl = globalThis.WebSocket,
   pollIntervalMs = 2000,
   maxWaitMs = 180000,
   signal,
@@ -50,19 +32,11 @@ export function waitForTripTask({
     let lastState = null;
     let pollTimer = 0;
     let timeoutTimer = 0;
-    let socket = null;
 
     const cleanup = () => {
       clearTimeout(pollTimer);
       clearTimeout(timeoutTimer);
       signal?.removeEventListener('abort', onAbort);
-      if (socket) {
-        socket.onopen = null;
-        socket.onmessage = null;
-        socket.onerror = null;
-        socket.onclose = null;
-        if (socket.readyState < 2) socket.close();
-      }
     };
 
     const settle = (callback, value) => {
@@ -81,7 +55,7 @@ export function waitForTripTask({
         settle(resolve, state);
         return true;
       }
-      if (status === 'failed') {
+      if (status === 'failed' || status === 'cancelled') {
         const error = new Error(state.error || '规划失败');
         error.taskState = state;
         settle(reject, error);
@@ -100,7 +74,7 @@ export function waitForTripTask({
         const state = await loadStatus(taskId);
         if (accept(state)) return;
       } catch {
-        // A transient polling failure is tolerated while WebSocket is active.
+        // Transient network failures are retried until the overall deadline.
       }
       schedulePoll();
     };
@@ -111,21 +85,6 @@ export function waitForTripTask({
       return;
     }
     signal?.addEventListener('abort', onAbort, { once: true });
-
-    if (WebSocketImpl && wsUrl) {
-      try {
-        socket = new WebSocketImpl(resolveTripWebSocketUrl(wsUrl, apiBaseUrl, locationOrigin, token));
-        socket.onmessage = (event) => {
-          try {
-            accept(JSON.parse(event.data));
-          } catch {
-            // Ignore malformed push data; polling remains authoritative.
-          }
-        };
-      } catch {
-        socket = null;
-      }
-    }
 
     timeoutTimer = setTimeout(async () => {
       try {

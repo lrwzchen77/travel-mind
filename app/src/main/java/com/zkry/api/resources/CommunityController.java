@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PutMapping;
 
 @RestController
 public class CommunityController {
@@ -54,6 +55,23 @@ public class CommunityController {
     public R<Map<String, Object>> create(@RequestBody Map<String, Object> payload) {
         return R.ok(communityService.createPost(LoginHelper.getUserId(), payload));
     }
+
+    @PutMapping("/api/user/inspirations/posts/{postId}")
+    public R<Map<String, Object>> update(@PathVariable long postId, @RequestBody Map<String, Object> payload) {
+        return R.ok(communityService.updatePost(LoginHelper.getUserId(), postId, payload));
+    }
+
+    @PostMapping("/api/user/inspirations/posts/{postId}/submit")
+    public R<Map<String, Object>> submit(@PathVariable long postId) {
+        return R.ok(communityService.submitPost(LoginHelper.getUserId(), postId));
+    }
+
+    @PostMapping("/api/admin/inspirations/{postId}/review")
+    public R<Map<String, Object>> review(@PathVariable long postId, @RequestBody ReviewRequest request) {
+        return R.ok(communityService.reviewPost(LoginHelper.getUserId(), postId, request.status(), request.reason()));
+    }
+
+    public record ReviewRequest(int status, String reason) { }
 
     @PostMapping("/api/user/memories/{memoryId}/publish")
     public R<Map<String, Object>> publishMemory(@PathVariable long memoryId, @RequestBody Map<String, Object> payload) {

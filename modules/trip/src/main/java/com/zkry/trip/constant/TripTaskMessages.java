@@ -3,7 +3,7 @@ package com.zkry.trip.constant;
 /**
  * 异步任务进度文案。
  *
- * <p>前端 WebSocket 进度条直接展示这些 message。集中管理以后，任务状态机
+ * <p>前端轮询进度条直接展示这些 message。集中管理以后，任务状态机
  * {@code TripTaskService} 只表达“进入哪个阶段”，不再夹杂大量展示文案。
  */
 public final class TripTaskMessages {

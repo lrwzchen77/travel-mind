@@ -19,6 +19,9 @@ export function createCommunityApi(client = http) {
     deleteComment(id) { return client.delete(`/user/inspirations/comments/${id}`).then(unwrap); },
     myPosts(params = {}) { return client.get('/user/inspirations/posts', { params }).then(unwrap); },
     createPost(payload) { return client.post('/user/inspirations/posts', payload).then(unwrap); },
+    updatePost(id, payload) { return client.put(`/user/inspirations/posts/${id}`, payload).then(unwrap); },
+    submitPost(id) { return client.post(`/user/inspirations/posts/${id}/submit`).then(unwrap); },
+    reviewPost(id, status, reason = '') { return client.post(`/admin/inspirations/${id}/review`, { status, reason }).then(unwrap); },
     bag() { return client.get('/user/inspirations/bag').then(unwrap); },
     addToBag(post_id, intent = 'reference') {
       return client.post('/user/inspirations/bag', { post_id, intent }).then(unwrap).then((data) => {

@@ -78,7 +78,7 @@ class TravelAiApplicationServiceTest {
         )));
         AiAnalysisRecordService recordService = new AiAnalysisRecordService(jdbcTemplate);
 
-        Map<String, Object> latest = recordService.latest("trip_evaluate", "trip_plan", 178L);
+        Map<String, Object> latest = recordService.latest("trip_evaluate", "trip_plan", 178L, 1001L);
 
         assertThat(latest.get("status")).isEqualTo("success");
         assertThat(String.valueOf(latest.get("result_json"))).contains("comfort_score");

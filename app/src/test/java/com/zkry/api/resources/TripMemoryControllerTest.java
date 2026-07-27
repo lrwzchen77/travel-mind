@@ -19,7 +19,7 @@ class TripMemoryControllerTest {
         TripMemoryAnalysisApplicationService analysisService = org.mockito.Mockito.mock(TripMemoryAnalysisApplicationService.class);
         TripMemoryKnowledgeApplicationService knowledgeService = org.mockito.Mockito.mock(TripMemoryKnowledgeApplicationService.class);
         TripMemoryController controller = new TripMemoryController(service, analysisService, knowledgeService);
-        Map<String, Object> photo = Map.of("url", "/uploads/123e4567-e89b-12d3-a456-426614174000.jpg");
+        Map<String, Object> photo = Map.of("url", "/private-uploads/1001/123e4567-e89b-12d3-a456-426614174000.jpg");
 
         try (MockedStatic<LoginHelper> login = mockStatic(LoginHelper.class)) {
             login.when(LoginHelper::getUserId).thenReturn(1001L);

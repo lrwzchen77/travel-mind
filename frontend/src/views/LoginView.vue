@@ -8,7 +8,8 @@ const route = useRoute();
 const router = useRouter();
 const portal = computed(() => route.meta.portal || 'user');
 const isAdmin = computed(() => portal.value === 'admin');
-const form = reactive({ username: '', password: '' });
+const registering = ref(false);
+const form = reactive({ username: '', nickname: '', password: '', confirmPassword: '' });
 const loading = ref(false);
 const error = ref('');
 const cityIndex = ref(0);
@@ -21,10 +22,18 @@ const cities = ['杭州', '成都', '厦门', '西安', '大理', '青岛'];
 let cityTimer;
 
 async function submit() {
+  if (registering.value && form.password !== form.confirmPassword) {
+    error.value = '两次输入的密码不一致';
+    return;
+  }
   loading.value = true;
   error.value = '';
   try {
-    await authApi.login(portal.value, form);
+    if (registering.value) {
+      await authApi.register({ username: form.username, nickname: form.nickname, password: form.password });
+    } else {
+      await authApi.login(portal.value, { username: form.username, password: form.password });
+    }
     const fallback = isAdmin.value ? '/admin' : '/';
     await router.replace(isAdmin.value ? fallback : String(route.query.redirect || fallback));
   } catch (err) {
@@ -32,6 +41,13 @@ async function submit() {
   } finally {
     loading.value = false;
   }
+}
+
+function toggleRegistration() {
+  registering.value = !registering.value;
+  form.password = '';
+  form.confirmPassword = '';
+  error.value = '';
 }
 
 onMounted(() => {
@@ -132,8 +148,8 @@ onUnmounted(() => {
 
     <section class="login-form-side">
       <div class="login-form-card">
-        <p class="eyebrow">欢迎回来</p>
-        <h1>继续你的下一程</h1>
+        <p class="eyebrow">{{ registering ? '第一次出发' : '欢迎回来' }}</p>
+        <h1>{{ registering ? '创建你的旅行账号' : '继续你的下一程' }}</h1>
 
         <form class="field-stack" @submit.prevent="submit">
           <label>
@@ -145,26 +161,42 @@ onUnmounted(() => {
               required
             />
           </label>
+          <label v-if="registering">
+            <span class="field-label">昵称</span>
+            <input v-model.trim="form.nickname" autocomplete="name" placeholder="怎么称呼你" maxlength="64" required />
+          </label>
           <label>
             <span class="field-label">密码</span>
             <input
               v-model="form.password"
               type="password"
-              autocomplete="current-password"
-              placeholder="输入密码"
+              :autocomplete="registering ? 'new-password' : 'current-password'"
+              :placeholder="registering ? '至少 10 个字符' : '输入密码'"
+              :minlength="registering ? 10 : undefined"
+              required
+            />
+          </label>
+          <label v-if="registering">
+            <span class="field-label">确认密码</span>
+            <input
+              v-model="form.confirmPassword"
+              type="password"
+              autocomplete="new-password"
+              placeholder="再次输入密码"
+              minlength="10"
               required
             />
           </label>
           <p v-if="error" class="error-line">{{ error }}</p>
           <button type="submit" class="btn-coral login-submit" :disabled="loading">
-            {{ loading ? '正在登录…' : '登录，出发' }}
+            {{ loading ? (registering ? '正在创建…' : '正在登录…') : (registering ? '注册，出发' : '登录，出发') }}
             <ArrowRight :size="16" :stroke-width="2.4" />
           </button>
         </form>
 
-        <details class="login-help">
-          <summary>第一次来？查看登录说明</summary>
-          <p>当前版本还未开放注册和找回密码，请使用已有账号或联系服务提供方。<template v-if="demoCredentialText">{{ demoCredentialText }}</template></p>
+        <details v-if="demoCredentialText" class="login-help">
+          <summary>本地演示账号</summary>
+          <p>{{ demoCredentialText }}</p>
         </details>
 
         <details class="login-help">
@@ -173,6 +205,9 @@ onUnmounted(() => {
         </details>
 
         <div class="login-switch">
+          <button type="button" class="btn-link btn-ghost" @click="toggleRegistration">
+            {{ registering ? '已有账号？返回登录' : '第一次来？创建账号' }}
+          </button>
           <RouterLink to="/">先逛逛目的地</RouterLink>
         </div>
       </div>

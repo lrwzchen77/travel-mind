@@ -5,6 +5,7 @@ import { resourceApi } from '../api/resources.js';
 import { adminAiApi as aiApi } from '../api/ai.js';
 import {
   ArrowRight,
+  CircleCheck,
   Pencil,
   Power,
   Route as RouteIcon,
@@ -12,7 +13,9 @@ import {
   SearchX,
   Sparkles,
   Trash2,
+  XCircle,
 } from 'lucide-vue-next';
+import { communityApi } from '../api/community.js';
 import { useReveal } from '../composables/useReveal.js';
 import PagePrologue from '../components/PagePrologue.vue';
 
@@ -24,6 +27,8 @@ const loading = ref(false);
 const error = ref('');
 const records = ref([]);
 const total = ref(0);
+const page = ref(1);
+const pageSize = 20;
 const editingId = ref(null);
 const formText = ref('{\n  "name": ""\n}');
 const analysisResult = ref(null);
@@ -48,6 +53,8 @@ const title = computed(() => route.meta.title);
 const fields = computed(() => route.meta.fields || []);
 const fieldLabels = computed(() => route.meta.fieldLabels || {});
 const canToggleStatus = computed(() => route.meta.canToggleStatus !== false);
+const canDelete = computed(() => route.meta.canDelete !== false);
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize)));
 const isTravelNotes = computed(() => resourceKey.value === 'travel-notes');
 const isAdmin = computed(() => route.meta.admin === true);
 const isPoiResource = computed(() => ['attractions', 'hotels', 'restaurants', 'map-pois'].includes(resourceKey.value));
@@ -61,8 +68,32 @@ function labelOf(field) {
 
 function statusText(value) {
   if (value === 1 || value === '1') return '开放';
-  if (value === 0 || value === '0') return '下线';
+  if (value === 0 || value === '0') return isTravelNotes.value ? '待审核' : '下线';
+  if (value === 2 || value === '2') return '已驳回';
   return value;
+}
+
+async function reviewNote(record, status) {
+  const reason = status === 2 ? window.prompt('请填写驳回原因（用户可见）') : '';
+  if (status === 2 && !reason?.trim()) return;
+  try {
+    await communityApi.reviewPost(record.id, status, reason);
+    await load();
+  } catch (err) {
+    error.value = err?.message || '审核失败';
+  }
+}
+
+async function resetUserPassword(record) {
+  const password = window.prompt(`为账号 ${record.username} 设置新密码（至少 10 位）`);
+  if (!password) return;
+  try { await resourceApi.resetPassword(record.id, password); } catch (err) { error.value = err?.message || '密码重置失败'; }
+}
+
+async function changeUserRole(record) {
+  const role = window.prompt('输入角色：user 或 admin', 'user');
+  if (!['user', 'admin'].includes(role)) return;
+  try { await resourceApi.updateRole(record.id, role); } catch (err) { error.value = err?.message || '角色修改失败'; }
 }
 
 function cellValue(record, field) {
@@ -71,13 +102,14 @@ function cellValue(record, field) {
   return value ?? '—';
 }
 
-async function load() {
+async function load(pageNum = 1) {
   loading.value = true;
   error.value = '';
   try {
-    const data = await resourceApi.list(resourceKey.value, cleanFilters());
+    const data = await resourceApi.list(resourceKey.value, { ...cleanFilters(), pageNum, pageSize });
     records.value = data.records || [];
     total.value = data.total || 0;
+    page.value = pageNum;
   } catch (err) {
     error.value = err?.message || '加载失败，稍后再试';
   } finally {
@@ -148,10 +180,14 @@ function resetForm() {
   editingId.value = null;
   if (isPoiResource.value) {
     const payload = {
-      city: '', name: '', longitude: 0, latitude: 0, category: '', rating: null, cost: null, tags: '', imageUrl: '',
+      city: '', name: '', longitude: 0, latitude: 0, category: '', rating: null, cost: null, tags: '', image_url: '',
     };
     if (resourceKey.value === 'map-pois') payload.kind = 'attraction';
     formText.value = JSON.stringify(payload, null, 2);
+    return;
+  }
+  if (resourceKey.value === 'users') {
+    formText.value = JSON.stringify({ username: '', nickname: '', phone: '', email: '', password: '', role: 'user' }, null, 2);
     return;
   }
   formText.value = '{\n  "name": ""\n}';
@@ -172,7 +208,7 @@ watch(() => route.fullPath, () => {
   resetForm();
   analysisResult.value = null;
   showEditor.value = false;
-  load();
+  load(1);
 });
 
 onMounted(load);
@@ -211,12 +247,12 @@ onMounted(load);
     </div>
   </div>
   <section class="toolbar" aria-label="搜索筛选" data-reveal>
-    <input v-model="filters.keyword" placeholder="搜名称或关键词" @keyup.enter="load" />
-    <input v-model="filters.cityId" placeholder="城市编号" @keyup.enter="load" />
-    <input v-model="filters.category" placeholder="分类" @keyup.enter="load" />
-    <input v-model="filters.tag" placeholder="标签" @keyup.enter="load" />
-    <input v-model="filters.status" placeholder="状态" @keyup.enter="load" />
-    <button type="button" class="btn-coral" @click="load">搜索</button>
+    <input v-model="filters.keyword" placeholder="搜名称或关键词" @keyup.enter="load(1)" />
+    <input v-model="filters.cityId" placeholder="城市编号" @keyup.enter="load(1)" />
+    <input v-model="filters.category" placeholder="分类" @keyup.enter="load(1)" />
+    <input v-model="filters.tag" placeholder="标签" @keyup.enter="load(1)" />
+    <input v-model="filters.status" placeholder="状态" @keyup.enter="load(1)" />
+    <button type="button" class="btn-coral" @click="load(1)">搜索</button>
     <button type="button" class="btn-ghost" @click="showEditor = true; resetForm()">{{ isPoiResource ? '手动导入' : '添加' }}</button>
   </section>
 
@@ -279,18 +315,27 @@ onMounted(load);
                 @click="analyzeNote(record)"
               ><Sparkles :size="16" aria-hidden="true" /></button>
               <button
-                v-if="canToggleStatus && 'status' in record"
+                v-if="canToggleStatus && !isTravelNotes && 'status' in record"
                 type="button"
                 class="table-icon-button"
                 :aria-label="Number(record.status) === 1 ? '下线' : '上线'"
                 :title="Number(record.status) === 1 ? '下线' : '上线'"
                 @click="toggleStatus(record)"
               ><Power :size="16" aria-hidden="true" /></button>
-              <button type="button" class="table-icon-button is-danger" aria-label="删除" title="删除" @click="remove(record)"><Trash2 :size="16" aria-hidden="true" /></button>
+              <button v-if="isTravelNotes && record.visibility === 'public' && Number(record.status) !== 1" type="button" class="table-icon-button is-primary" aria-label="审核通过" title="审核通过" @click="reviewNote(record, 1)"><CircleCheck :size="16" aria-hidden="true" /></button>
+              <button v-if="isTravelNotes && record.visibility === 'public' && Number(record.status) !== 2" type="button" class="table-icon-button is-danger" aria-label="驳回" title="驳回并填写原因" @click="reviewNote(record, 2)"><XCircle :size="16" aria-hidden="true" /></button>
+              <button v-if="resourceKey === 'users'" type="button" class="table-icon-button" aria-label="重置密码" title="重置密码" @click="resetUserPassword(record)">密</button>
+              <button v-if="resourceKey === 'users'" type="button" class="table-icon-button" aria-label="修改角色" title="修改角色" @click="changeUserRole(record)">权</button>
+              <button v-if="canDelete" type="button" class="table-icon-button is-danger" aria-label="删除" title="删除" @click="remove(record)"><Trash2 :size="16" aria-hidden="true" /></button>
             </td>
           </tr>
         </tbody>
       </table>
+      <div v-if="totalPages > 1" class="admin-pagination" aria-label="分页">
+        <button type="button" class="btn-ghost" :disabled="loading || page <= 1" @click="load(page - 1)">上一页</button>
+        <span>第 {{ page }} / {{ totalPages }} 页</span>
+        <button type="button" class="btn-ghost" :disabled="loading || page >= totalPages" @click="load(page + 1)">下一页</button>
+      </div>
     </div>
 
     <form v-if="showEditor" class="editor-panel field-stack" @submit.prevent="save">
@@ -321,3 +366,7 @@ onMounted(load);
   </section>
   </div>
 </template>
+
+<style scoped>
+.admin-pagination { display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 14px 16px; border-top: 1px solid var(--tm-line); color: var(--tm-muted); font-size: 12px; }
+</style>

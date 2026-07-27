@@ -1,0 +1,21 @@
+groups:
+  - name: travel-mind
+    rules:
+      - alert: TravelMindBackendDown
+        expr: up{job="travel-mind-backend"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: Travel Mind 后端不可用
+      - alert: TravelMindHighServerErrorRate
+        expr: sum(rate(http_server_requests_seconds_count{job="travel-mind-backend",status=~"5.."}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count{job="travel-mind-backend"}[5m])), 0.001) > 0.05
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: Travel Mind 5xx 比例持续高于 5%
+      - alert: TravelMindJvmHeapPressure
+        expr: sum(jvm_memory_used_bytes{job="travel-mind-backend",area="heap"}) / sum(jvm_memory_max_bytes{job="travel-mind-backend",area="heap"}) > 0.85
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: Travel Mind JVM 堆内存使用超过 85%

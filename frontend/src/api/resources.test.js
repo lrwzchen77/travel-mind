@@ -6,16 +6,21 @@ describe('resource API client', () => {
     const http = {
       get: vi.fn().mockResolvedValue({ data: { data: { records: [] } } }),
       post: vi.fn().mockResolvedValue({ data: { data: { id: 1 } } }),
+      put: vi.fn().mockResolvedValue({ data: { data: { id: 1 } } }),
     };
     const api = createResourceApi(http);
 
     await api.discover('cities', { keyword: '杭州' });
+    await api.discoverDetail('attractions', 7);
     await api.userCreate('favorites', { target_type: 'city', target_id: 2001, note: '杭州' });
+    await api.updateNote(9, { title: '西湖慢游', content: '沿湖散步' });
 
     expect(http.get).toHaveBeenCalledWith('/public/resources/cities', { params: { keyword: '杭州' } });
+    expect(http.get).toHaveBeenCalledWith('/public/resources/attractions/7');
     expect(http.post).toHaveBeenCalledWith('/user/library/favorites', {
       target_type: 'city', target_id: 2001, note: '杭州',
     });
+    expect(http.put).toHaveBeenCalledWith('/user/library/travel-notes/9', { title: '西湖慢游', content: '沿湖散步' });
   });
 
   it('calls backend CRUD endpoints with filters and payloads', async () => {
