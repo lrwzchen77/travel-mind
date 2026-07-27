@@ -7,7 +7,10 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.zkry.common.json.utils.JsonUtils;
 import com.zkry.trip.dto.ai.ContentAnalyzeRequest;
 import com.zkry.trip.dto.ai.ContentAnalyzeResult;
+import com.zkry.trip.dto.ai.DestinationsIndexRequest;
 import com.zkry.trip.dto.ai.PythonAiCallResult;
+import com.zkry.trip.dto.ai.RecommendRequest;
+import com.zkry.trip.dto.ai.RecommendResponse;
 import com.zkry.trip.dto.ai.TripEvaluateRequest;
 import com.zkry.trip.dto.ai.TripEvaluateResult;
 import com.zkry.trip.dto.ai.VisionDetectRequest;
@@ -72,6 +75,14 @@ public class PythonAiClient {
 
     public PythonAiCallResult<ContentAnalyzeResult> analyzeContent(ContentAnalyzeRequest request) {
         return post("/api/content/analyze", request, ContentAnalyzeResult.class);
+    }
+
+    public PythonAiCallResult<RecommendResponse> recommend(RecommendRequest request) {
+        return post("/api/recommend", request, RecommendResponse.class);
+    }
+
+    public PythonAiCallResult<Object> indexDestinations(DestinationsIndexRequest request) {
+        return postMemory("/api/recommend/index", request, Object.class);
     }
 
     public PythonAiCallResult<TripMemoryAnalysisContract.Result> analyzeMemory(TripMemoryAnalysisContract.Input request) {

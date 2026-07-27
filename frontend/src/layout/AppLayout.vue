@@ -14,6 +14,8 @@ import { authSession } from '../auth/session.js';
 const accountIcon = {
   '/notifications': Bell,
   '/memories': BookMarked,
+  '/journals': BookOpen,
+  '/recommendations': Compass,
   '/inspiration-bag': Sparkles,
   '/my-posts': BookOpen,
   '/favorites': Heart,

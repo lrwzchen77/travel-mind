@@ -11,6 +11,8 @@ export const primaryNav = [
 export const accountNav = [
   { path: '/notifications', label: '消息中心' },
   { path: '/memories', label: '旅行记录' },
+  { path: '/journals', label: '旅行游记' },
+  { path: '/recommendations', label: '智能推荐' },
   { path: '/inspiration-bag', label: '我的灵感包' },
   { path: '/my-posts', label: '我的分享' },
   { path: '/favorites', label: '我的收藏' },
@@ -47,6 +49,9 @@ export const chapterMap = {
   'trip-detail': ['06', '行程'],
   memories: ['07', '记录'],
   'memory-detail': ['07', '记录'],
+  journals: ['07', '游记'],
+  'journal-detail': ['07', '游记'],
+  recommendations: ['04', '推荐'],
   'my-posts': ['08', '我的'],
   'inspiration-bag': ['08', '灵感包'],
   assistant: ['09', '助手'],

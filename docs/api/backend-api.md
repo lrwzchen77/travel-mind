@@ -50,6 +50,7 @@ Public resource keys are `cities`, `attractions`, `hotels`, `restaurants`, and `
 - `POST /api/user/trip/{id}/copy`: copy an owned trip.
 - `DELETE /api/user/trip/{id}`: delete an owned trip.
 - `POST /api/user/trip/{id}/chat`: chat about an owned trip.
+- `POST /api/user/trip/{id}/journal`: create or reopen the trip's journal.
 - `POST /api/user/trip/tasks/{taskId}/cancel`: cancel an active planning task.
 - `POST /api/user/trip/tasks/{taskId}/retry`: retry a failed or cancelled planning task.
 - `GET|PUT|DELETE /api/user/assistant/conversations/{id}`: read, rename, or delete an AI conversation.
@@ -57,6 +58,13 @@ Public resource keys are `cities`, `attractions`, `hotels`, `restaurants`, and `
 - `POST /api/user/assistant/ask/stream`: SSE assistant response with model/fallback metadata.
 - `GET /api/user/notifications`: recent account notifications.
 - `POST /api/user/notifications/{id}/read` and `/read-all`: mark notifications read.
+- `GET|POST /api/user/journals`: list or create owned travel journals.
+- `GET|PUT|DELETE /api/user/journals/{id}`: read, edit, or delete an owned journal.
+- `POST /api/user/journals/{id}/publish`: publish an owned journal.
+- `POST /api/user/journals/{id}/photos` and `DELETE /api/user/journals/{id}/photos/{photoId}`: add or remove photos.
+- `POST /api/user/journals/{id}/locations` and `DELETE /api/user/journals/{id}/locations/{locationId}`: add or remove locations.
+- `GET /api/user/recommendations`: personalized city or POI recommendations.
+- `POST /api/user/recommendations/{id}/feedback`: record `click`, `ignore`, `save`, or `like` feedback.
 - `PUT /api/user/inspirations/posts/{id}`: edit a post; public posts return to pending review.
 - `POST /api/user/inspirations/posts/{id}/submit`: submit a private or rejected post for review.
 - `POST /api/user/ai/vision/detect`
@@ -79,6 +87,7 @@ User IDs are taken only from the authenticated session. Client-supplied `userId`
 - `GET /api/admin/settings`: redacted runtime configuration status.
 - `PUT /api/admin/settings`: update runtime configuration in the Java process.
 - `POST /api/admin/ai/vision/detect`, `/trip/evaluate`, and `/content/analyze`: administrator AI validation endpoints.
+- `POST /api/admin/recommendations/reindex`: rebuild the destination vector index.
 
 Supported admin resource keys include users, preferences, cities, attractions, hotels, restaurants, tags, notes, trip plans, and AI records. Personal favorites stay inside the user library boundary.
 

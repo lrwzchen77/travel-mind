@@ -6,8 +6,8 @@ Java backend calls the local FastAPI service through `PYTHON_AI_BASE_URL` (defau
 {"code":0,"message":"success","data":{}}
 ```
 
-All `/api/memory/*` calls additionally require `X-Internal-Service-Token`. They accept only Java's opaque owner scope,
-never a JWT or raw user ID. Qdrant reads are always filtered by both `owner_scope` and `memory_id`.
+All Java-to-Python calls require `X-Internal-Service-Token`. Memory calls accept only Java's opaque owner scope,
+never a JWT or raw user ID. Qdrant memory reads are always filtered by both `owner_scope` and `memory_id`.
 
 ## Python Service Endpoints
 
@@ -71,6 +71,12 @@ Request:
 ```
 
 Response data includes `sentiment`, `keywords`, `positive_highlights`, `negative_warnings`, and `suitable_traveler_types`.
+
+### `POST /api/recommend/index` and `POST /api/recommend`
+
+`/api/recommend/index` stores batches of up to 200 city and POI vectors. `/api/recommend` filters by `city`, `attraction`,
+`hotel`, or `restaurant`, then ranks results by semantic similarity, rating, and popularity. Java falls back to a typed
+MySQL query when embeddings or Qdrant are unavailable.
 
 ## Java Frontend-Facing Endpoints
 

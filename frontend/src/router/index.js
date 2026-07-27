@@ -20,6 +20,9 @@ import CommunityView from '../views/CommunityView.vue';
 import MyPostsView from '../views/MyPostsView.vue';
 import MemoryListView from '../views/MemoryListView.vue';
 import MemoryDetailView from '../views/MemoryDetailView.vue';
+import JournalListView from '../views/JournalListView.vue';
+import JournalDetailView from '../views/JournalDetailView.vue';
+import RecommendationView from '../views/RecommendationView.vue';
 import InspirationDetailView from '../views/InspirationDetailView.vue';
 import InspirationBagView from '../views/InspirationBagView.vue';
 import AssistantView from '../views/AssistantView.vue';
@@ -99,6 +102,9 @@ export const routes = [
       { path: 'trip/:id', name: 'trip-detail', component: TripDetailView, meta: { requiresAuth: true } },
       { path: 'memories', name: 'memories', component: MemoryListView, meta: { requiresAuth: true } },
       { path: 'memories/:id', name: 'memory-detail', component: MemoryDetailView, meta: { requiresAuth: true } },
+      { path: 'journals', name: 'journals', component: JournalListView, meta: { requiresAuth: true } },
+      { path: 'journals/:id', name: 'journal-detail', component: JournalDetailView, meta: { requiresAuth: true } },
+      { path: 'recommendations', name: 'recommendations', component: RecommendationView, meta: { requiresAuth: true } },
       { path: 'ai-lab', name: 'ai-lab', component: AiInspirationView, meta: { requiresAuth: true } },
       { path: 'favorites', name: 'favorites', component: UserLibraryView, meta: { resourceKey: 'favorites', title: '我的收藏', requiresAuth: true } },
       { path: 'travel-notes', name: 'travel-notes', component: UserLibraryView, meta: { resourceKey: 'travel-notes', title: '旅行笔记', requiresAuth: true } },
@@ -137,6 +143,7 @@ const pageTitles = {
   attractions: '去哪玩', hotels: '住哪里', restaurants: '吃什么', cities: '发现城市',
   'discovery-detail': '旅行详情',
   'trip-history': '我的行程', 'trip-detail': '行程详情', memories: '旅行记录', 'memory-detail': '旅行回忆',
+  journals: '旅行游记', 'journal-detail': '游记详情', recommendations: '智能推荐',
   'ai-lab': 'AI 内容解读', favorites: '我的收藏', 'travel-notes': '旅行笔记', 'ai-records': '灵感足迹', profile: '旅行偏好', notifications: '消息中心',
   'user-login': '旅行账号登录', 'admin-login': '运营登录',
 };

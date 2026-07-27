@@ -1,7 +1,9 @@
 <script setup>
 import { onMounted, onUnmounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import { ArrowRight, ArrowUpRight, MapPin, Clock, Compass, Map as MapIcon, Sparkles } from 'lucide-vue-next';
+import { ArrowRight, ArrowUpRight, MapPin, Clock, Compass, Map as MapIcon, Sparkles, Star } from 'lucide-vue-next';
+import { recommendationApi } from '../api/recommendation.js';
+import { authSession } from '../auth/session.js';
 import {
   featuredDestinations,
   rotatingCities,
@@ -19,9 +21,19 @@ const cityIndex = ref(0);
 const hoverCity = ref(null);
 const mapCity = ref('杭州');
 const scrollY = ref(0);
+const recItems = ref([]);
 let timer;
 
 useReveal(root);
+
+async function loadRecommendations() {
+  try {
+    const data = await recommendationApi.list('city', undefined, 4);
+    recItems.value = data || [];
+  } catch {
+    recItems.value = [];
+  }
+}
 
 function onMapCity(city) {
   mapCity.value = city;
@@ -52,6 +64,7 @@ onMounted(() => {
     cityIndex.value = (cityIndex.value + 1) % rotatingCities.length;
   }, 4200);
   window.addEventListener('scroll', onScroll, { passive: true });
+  if (authSession.isLoggedIn()) loadRecommendations();
 });
 
 onUnmounted(() => {
@@ -164,10 +177,42 @@ onUnmounted(() => {
       </RouterLink>
     </div>
 
+    <!-- Recommendations for you -->
+    <div v-if="recItems.length" class="section-head" data-reveal>
+      <div>
+        <p class="eyebrow"><span class="type-index">S.02</span> 为你推荐</p>
+        <h2>猜你喜欢</h2>
+      </div>
+      <RouterLink class="text-link" to="/recommendations">
+        查看更多 <span aria-hidden="true"><ArrowRight :size="15" :stroke-width="2.2" /></span>
+      </RouterLink>
+    </div>
+
+    <div v-if="recItems.length" class="rec-dashboard-row" data-reveal>
+      <RouterLink
+        v-for="item in recItems"
+        :key="`${item.itemType}-${item.itemId}`"
+        class="rec-dashboard-card"
+        :to="{ path: '/map', query: { city: item.name } }"
+      >
+        <div class="rec-dashboard-cover">
+          <img v-if="cityImageByName[item.name] || cityImageByName[item.city]" :src="cityImageByName[item.name] || cityImageByName[item.city]" :alt="item.name" loading="lazy" />
+          <span v-else class="rec-dashboard-fallback"><MapPin :size="18" /></span>
+        </div>
+        <div class="rec-dashboard-body">
+          <p class="rec-dashboard-name">{{ item.name }}</p>
+          <p class="rec-dashboard-meta">
+            <Star v-for="s in 5" :key="s" :size="10" :class="{ filled: s <= Math.round(item.rating || 0) }" />
+            <small>{{ item.rating ? item.rating.toFixed(1) : '暂无评分' }}</small>
+          </p>
+        </div>
+      </RouterLink>
+    </div>
+
     <!-- Map -->
     <div class="section-head" data-reveal>
       <div>
-        <p class="eyebrow"><span class="type-index">S.02</span> 再看路线距离</p>
+        <p class="eyebrow"><span class="type-index">S.03</span> 再看路线距离</p>
         <h2>立体地图 · 下一站</h2>
       </div>
       <RouterLink class="text-link" to="/map">
@@ -358,4 +403,72 @@ onUnmounted(() => {
   color: var(--tm-ink);
 }
 .home-manifesto span { color: var(--tm-accent); }
+
+.rec-dashboard-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+  margin-bottom: 32px;
+}
+.rec-dashboard-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid var(--tm-line);
+  border-radius: var(--tm-radius-panel);
+  background: var(--tm-paper);
+  box-shadow: var(--tm-shadow-card);
+  text-decoration: none;
+  transition: transform 0.35s var(--ease-out-expo), box-shadow 0.35s ease, border-color 0.35s ease;
+}
+.rec-dashboard-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--tm-accent);
+  box-shadow: var(--tm-shadow-lift);
+}
+.rec-dashboard-cover {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--tm-radius-control);
+  overflow: hidden;
+  flex-shrink: 0;
+  background: linear-gradient(145deg, var(--tm-accent-deep), var(--tm-canvas-2));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tm-accent);
+}
+.rec-dashboard-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.rec-dashboard-body {
+  min-width: 0;
+}
+.rec-dashboard-name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tm-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rec-dashboard-meta {
+  margin: 0.2rem 0 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+  color: var(--tm-line-strong);
+}
+.rec-dashboard-meta .filled {
+  color: var(--tm-sun);
+}
+.rec-dashboard-meta small {
+  margin-left: 0.2rem;
+  font-size: 11px;
+  color: var(--tm-muted);
+}
 </style>

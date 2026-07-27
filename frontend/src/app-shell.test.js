@@ -21,6 +21,8 @@ describe('application shell contracts', () => {
       '/ai-lab',
       '/notifications',
       '/memories',
+      '/journals',
+      '/recommendations',
       '/inspiration-bag',
       '/my-posts',
       '/favorites',
@@ -32,7 +34,7 @@ describe('application shell contracts', () => {
       '首页', '旅行灵感', '先问 AI', '目的地', '我的行程',
     ]);
     expect(auxiliaryNav.map((item) => item.label)).toEqual(['生成行程', '地图情报', 'AI 内容解读']);
-    expect(accountNav.map((item) => item.label)).toEqual(['消息中心', '旅行记录', '我的灵感包', '我的分享', '我的收藏', '我的笔记', 'AI 内容解读', '灵感足迹', '旅行偏好']);
+    expect(accountNav.map((item) => item.label)).toEqual(['消息中心', '旅行记录', '旅行游记', '智能推荐', '我的灵感包', '我的分享', '我的收藏', '我的笔记', 'AI 内容解读', '灵感足迹', '旅行偏好']);
   });
 
   it('registers router paths for all navigation entries', () => {

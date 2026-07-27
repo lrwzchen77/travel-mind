@@ -11,6 +11,7 @@ import com.zkry.trip.service.TripTaskService;
 import com.zkry.common.core.domain.PageResult;
 import com.zkry.common.satoken.core.LoginHelper;
 import com.zkry.resources.service.TripHistoryPersistenceService;
+import com.zkry.resources.service.TravelJournalService;
 import com.zkry.resources.service.CommunityService;
 import com.zkry.trip.dto.InspirationSource;
 import java.util.Map;
@@ -42,18 +43,22 @@ public class TripController {
 
     private final CommunityService communityService;
 
+    private final TravelJournalService travelJournalService;
+
     public TripController(
         TripTaskService tripTaskService,
         TripHistoryPersistenceService tripHistoryPersistenceService,
         TripPlanPersistenceService tripPlanPersistenceService,
         TripChatService tripChatService,
-        CommunityService communityService
+        CommunityService communityService,
+        TravelJournalService travelJournalService
     ) {
         this.tripTaskService = tripTaskService;
         this.tripHistoryPersistenceService = tripHistoryPersistenceService;
         this.tripPlanPersistenceService = tripPlanPersistenceService;
         this.tripChatService = tripChatService;
         this.communityService = communityService;
+        this.travelJournalService = travelJournalService;
     }
 
     @PostMapping("/plan")
@@ -110,6 +115,16 @@ public class TripController {
         tripPlanPersistenceService.delete(id, LoginHelper.getUserId());
         log.info("[TripAPI] 删除行程 id={}", id);
         return Map.of("deleted", true);
+    }
+
+    @PostMapping("/{id}/journal")
+    public Map<String, Object> createJournalFromTrip(@PathVariable long id) {
+        long userId = LoginHelper.getUserId();
+        TripPlanResponse plan = tripPlanPersistenceService.detail(id, userId);
+        var journal = travelJournalService.createFromTrip(
+            userId, id, plan.data().city() + " 旅行游记", plan.data().city(), plan.data().days() == null ? 1 : plan.data().days().size());
+        log.info("[TripAPI] 从行程生成游记 id={} journalId={}", id, journal.getId());
+        return Map.of("journal_id", journal.getId());
     }
 
     @PostMapping("/{id}/chat")
