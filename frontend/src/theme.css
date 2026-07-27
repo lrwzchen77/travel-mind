@@ -190,3 +190,57 @@ select:focus {
   border: 3px solid var(--tm-canvas);
 }
 ::-webkit-scrollbar-thumb:hover { background: #2e251a; }
+
+/* ============================================================
+   Atmosphere · 跨布局连续叙事层
+   坐标网格 + 章节码，让整站读起来像同一块画布上的不同章节。
+   ============================================================ */
+.app-atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.app-atmosphere-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--tm-ink) 2.5%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--tm-ink) 2.5%, transparent) 1px, transparent 1px);
+  background-size: 80px 80px;
+  mask-image: radial-gradient(120% 100% at 50% 40%, #000 30%, transparent 85%);
+}
+.app-atmosphere-code {
+  position: absolute;
+  left: 14px;
+  bottom: 16px;
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--tm-muted-soft);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+@media (min-width: 1180px) { .app-atmosphere-code { display: flex; } }
+.app-atmosphere-code-label { opacity: 0.6; }
+.app-atmosphere-code-value {
+  color: var(--tm-accent);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+/* Admin layout keeps atmosphere behind the sidebar/workspace */
+.admin-shell .app-atmosphere { z-index: 0; }
+.admin-shell .app-atmosphere-grid {
+  background-size: 64px 64px;
+  mask-image: radial-gradient(120% 100% at 70% 30%, #000 20%, transparent 80%);
+}
+.admin-shell .app-atmosphere-code {
+  left: auto;
+  right: 14px;
+  bottom: 16px;
+}

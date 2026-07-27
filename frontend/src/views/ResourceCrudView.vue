@@ -3,8 +3,18 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, RouterLink } from 'vue-router';
 import { resourceApi } from '../api/resources.js';
 import { adminAiApi as aiApi } from '../api/ai.js';
-import { Pencil, Power, Route as RouteIcon, Rows3, Sparkles, Trash2 } from 'lucide-vue-next';
+import {
+  ArrowRight,
+  Pencil,
+  Power,
+  Route as RouteIcon,
+  Rows3,
+  SearchX,
+  Sparkles,
+  Trash2,
+} from 'lucide-vue-next';
 import { useReveal } from '../composables/useReveal.js';
+import PagePrologue from '../components/PagePrologue.vue';
 
 const root = ref(null);
 useReveal(root);
@@ -170,8 +180,17 @@ onMounted(load);
 
 <template>
   <div ref="root" class="resource-page" :class="{ 'resource-page--admin': isAdmin }">
-  <section class="page-intro">
-    <p class="eyebrow">{{ isAdmin ? '运营管理' : (isDiscover ? '发现' : '我的') }}</p>
+  <section v-if="isAdmin" class="admin-hero admin-hero--slim" data-reveal>
+    <PagePrologue
+      index="A2 · 资源"
+      eyebrow="Resource Management"
+    >
+      <template #title><em>{{ title }}</em></template>
+      <template #lead>维护平台内容资产：检索、审核、上下线、编辑与补充数据，确保前台展示信息完整可用。</template>
+    </PagePrologue>
+  </section>
+  <section v-else class="page-intro">
+    <p class="eyebrow">{{ isDiscover ? '发现' : '我的' }}</p>
     <h1>{{ title }}</h1>
   </section>
 
@@ -185,6 +204,12 @@ onMounted(load);
     <RouterLink class="btn-link btn-ghost" to="/restaurants">吃什么</RouterLink>
   </div>
 
+  <div v-if="isAdmin" class="admin-section-head" data-reveal>
+    <div>
+      <p class="eyebrow">数据筛选</p>
+      <h2>检索与操作</h2>
+    </div>
+  </div>
   <section class="toolbar" aria-label="搜索筛选" data-reveal>
     <input v-model="filters.keyword" placeholder="搜名称或关键词" @keyup.enter="load" />
     <input v-model="filters.cityId" placeholder="城市编号" @keyup.enter="load" />
@@ -196,6 +221,13 @@ onMounted(load);
   </section>
 
   <p v-if="error" class="error-line">{{ error }}</p>
+
+  <div v-if="isAdmin" class="admin-section-head" data-reveal>
+    <div>
+      <p class="eyebrow">记录列表</p>
+      <h2>{{ title }}</h2>
+    </div>
+  </div>
 
   <section class="explore-layout" data-reveal>
     <div class="soft-table-wrap">
@@ -213,6 +245,7 @@ onMounted(load);
           <tr v-if="!loading && records.length === 0">
             <td :colspan="fields.length + 1">
               <div class="empty-state">
+                <SearchX v-if="isAdmin" :size="32" aria-hidden="true" />
                 <strong>这里空空的</strong>
                 换个关键词，或添加一条你感兴趣的内容。
               </div>
@@ -274,273 +307,17 @@ onMounted(load);
     <h2>分析结果</h2>
     <pre>{{ JSON.stringify(analysisResult.data || analysisResult, null, 2) }}</pre>
   </section>
+
+  <section v-if="isAdmin" class="chapter-bridge" data-reveal>
+    <div class="chapter-bridge-copy">
+      <p class="chapter-bridge-eyebrow">下一章</p>
+      <h2 class="chapter-bridge-title">运行配置</h2>
+      <p class="chapter-bridge-lead">校验地图、内容采集与大模型上游凭证，确保所有服务链路稳定在线。</p>
+    </div>
+    <RouterLink class="chapter-bridge-cta" to="/admin/settings">
+      <span>去运行配置</span>
+      <ArrowRight :size="18" :stroke-width="2.2" aria-hidden="true" />
+    </RouterLink>
+  </section>
   </div>
 </template>
-
-<style scoped>
-/* ── Admin mode: cinematic operations table ── */
-.resource-page--admin .page-intro h1 {
-  font-family: var(--font-display);
-  font-size: clamp(28px, 4vw, 40px);
-  letter-spacing: -0.035em;
-  line-height: 1.08;
-  color: var(--tm-ink);
-}
-.resource-page--admin .page-intro .eyebrow {
-  color: var(--tm-accent);
-}
-
-/* ── Toolbar: responsive grid + editorial focus ── */
-.resource-page--admin .toolbar {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
-  padding: 18px;
-  border: 1px solid var(--tm-line);
-  border-radius: var(--tm-radius-panel);
-  background: var(--tm-paper-muted);
-  position: relative;
-}
-.resource-page--admin .toolbar::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 18px;
-  width: 36px;
-  height: 2px;
-  background: var(--tm-accent);
-  transform: translateY(-1px);
-}
-.resource-page--admin .toolbar input,
-.resource-page--admin .toolbar select {
-  min-width: 0;
-  padding: 10px 14px;
-  border: 1px solid var(--tm-line);
-  border-radius: var(--tm-radius-control);
-  background: var(--tm-paper);
-  color: var(--tm-ink);
-  font-size: 13px;
-  font-family: var(--font-mono);
-  letter-spacing: 0.02em;
-  transition: border-color 0.25s ease, box-shadow 0.25s ease;
-}
-.resource-page--admin .toolbar input::placeholder { color: var(--tm-muted); }
-.resource-page--admin .toolbar input:focus,
-.resource-page--admin .toolbar select:focus {
-  border-color: var(--tm-accent);
-  box-shadow: 0 0 0 3px var(--tm-accent-soft);
-  outline: none;
-}
-.resource-page--admin .toolbar .btn-coral,
-.resource-page--admin .toolbar .btn-ghost {
-  padding: 10px 18px;
-  border-radius: var(--tm-radius-pill);
-  font-size: 12.5px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
-}
-.resource-page--admin .toolbar .btn-coral {
-  background: linear-gradient(135deg, var(--tm-accent) 0%, var(--tm-accent-deep) 100%);
-  color: #160d05;
-  box-shadow: 0 8px 22px -10px var(--tm-accent-glow);
-  border: 0;
-}
-.resource-page--admin .toolbar .btn-coral:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 14px 30px -10px var(--tm-accent-glow);
-}
-.resource-page--admin .toolbar .btn-ghost {
-  border: 1px solid var(--tm-line-strong);
-  background: transparent;
-  color: var(--tm-ink);
-}
-.resource-page--admin .toolbar .btn-ghost:hover {
-  border-color: var(--tm-accent);
-  color: var(--tm-accent);
-  background: var(--tm-accent-soft);
-}
-
-/* ── Table wrapper: editorial depth ── */
-.resource-page--admin .soft-table-wrap {
-  border: 1px solid var(--tm-line);
-  border-radius: var(--tm-radius-panel);
-  background: linear-gradient(180deg, var(--tm-paper-muted) 0%, var(--tm-paper) 100%);
-  overflow: hidden;
-}
-.resource-page--admin .table-meta {
-  padding: 12px 18px;
-  border-bottom: 1px solid var(--tm-line-soft);
-  background: var(--tm-accent-soft);
-}
-.resource-page--admin .table-meta > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  color: var(--tm-accent) !important;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-}
-.resource-page--admin .table-meta :deep(svg),
-.resource-page--admin .table-meta svg { color: var(--tm-accent); }
-
-/* ── Table rows: editorial hover ── */
-.resource-page--admin table { width: 100%; border-collapse: collapse; }
-.resource-page--admin thead th {
-  padding: 12px 16px;
-  text-align: left;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--tm-muted);
-  border-bottom: 1px solid var(--tm-line);
-  background: var(--tm-accent-soft);
-}
-.resource-page--admin tbody td {
-  padding: 13px 16px;
-  border-bottom: 1px solid var(--tm-line-soft);
-  color: var(--tm-ink-soft);
-  font-size: 13.5px;
-  transition: background 0.2s ease, color 0.2s ease;
-}
-.resource-page--admin tbody tr { transition: background 0.2s ease; }
-.resource-page--admin tbody tr:hover { background: var(--tm-accent-soft); }
-.resource-page--admin tbody tr:hover td { color: var(--tm-ink); }
-.resource-page--admin tbody tr:last-child td { border-bottom: 0; }
-
-/* ── Status badge: accent for active ── */
-.resource-page--admin .resource-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 9px;
-  border-radius: var(--tm-radius-pill);
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  border: 1px solid var(--tm-line-strong);
-  color: var(--tm-muted);
-}
-.resource-page--admin .resource-status i {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--tm-muted);
-}
-.resource-page--admin .resource-status.is-active {
-  border-color: var(--tm-accent-soft);
-  color: var(--tm-accent);
-  background: var(--tm-accent-soft);
-}
-.resource-page--admin .resource-status.is-active i {
-  background: var(--tm-accent);
-  box-shadow: 0 0 8px var(--tm-accent-glow);
-}
-
-/* ── Action buttons: editorial icon grid ── */
-.resource-page--admin .table-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  justify-content: flex-end;
-}
-.resource-page--admin .table-icon-button {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  border: 1px solid var(--tm-line-strong);
-  border-radius: var(--tm-radius-control);
-  background: var(--tm-paper);
-  color: var(--tm-ink-soft);
-  cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.resource-page--admin .table-icon-button:hover {
-  transform: translateY(-2px);
-  border-color: var(--tm-accent);
-  color: var(--tm-accent);
-  background: var(--tm-accent-soft);
-  box-shadow: 0 6px 16px -8px var(--tm-accent-glow);
-}
-.resource-page--admin .table-icon-button.is-primary {
-  border-color: var(--tm-accent-soft);
-  color: var(--tm-accent);
-}
-.resource-page--admin .table-icon-button.is-danger:hover {
-  border-color: var(--tm-danger);
-  color: var(--tm-danger);
-  background: var(--tm-danger-soft);
-  box-shadow: 0 6px 16px -8px rgba(216, 60, 60, 0.4);
-}
-
-/* ── Empty state: editorial placeholder ── */
-.resource-page--admin .empty-state {
-  display: grid;
-  gap: 8px;
-  padding: 40px 20px;
-  text-align: center;
-  color: var(--tm-muted);
-  font-size: 13px;
-}
-.resource-page--admin .empty-state strong {
-  font-family: var(--font-display);
-  font-size: 17px;
-  font-weight: 700;
-  color: var(--tm-ink);
-  letter-spacing: -0.01em;
-}
-
-/* ── Editor panel: cinematic form ── */
-.resource-page--admin .editor-panel {
-  border: 1px solid var(--tm-line);
-  border-radius: var(--tm-radius-panel);
-  background: var(--tm-paper-muted);
-  padding: 22px;
-  position: relative;
-}
-.resource-page--admin .editor-panel::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 22px;
-  width: 40px;
-  height: 2px;
-  background: var(--tm-accent);
-  transform: translateY(-1px);
-}
-.resource-page--admin .panel-title {
-  margin: 0 0 16px;
-  font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.015em;
-  color: var(--tm-ink);
-}
-.resource-page--admin .code-area {
-  width: 100%;
-  padding: 14px;
-  border: 1px solid var(--tm-line);
-  border-radius: var(--tm-radius-control);
-  background: var(--tm-canvas);
-  color: var(--tm-ink);
-  font-family: var(--font-mono);
-  font-size: 12.5px;
-  line-height: 1.7;
-  resize: vertical;
-  transition: border-color 0.25s ease, box-shadow 0.25s ease;
-}
-.resource-page--admin .code-area:focus {
-  border-color: var(--tm-accent);
-  box-shadow: 0 0 0 3px var(--tm-accent-soft);
-  outline: none;
-}
-</style>

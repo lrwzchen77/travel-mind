@@ -222,47 +222,7 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* 跨页面连续叙事层：固定在视口边缘的坐标网格与章节码，
-   不随页面切换消失，让整站读起来像同一块画布上的不同章节。 */
-.app-atmosphere {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-}
-.app-atmosphere-grid {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(243, 235, 220, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(243, 235, 220, 0.025) 1px, transparent 1px);
-  background-size: 80px 80px;
-  mask-image: radial-gradient(120% 100% at 50% 40%, #000 30%, transparent 85%);
-}
-.app-atmosphere-code {
-  position: absolute;
-  left: 14px;
-  bottom: 16px;
-  display: none;
-  flex-direction: column;
-  gap: 4px;
-  color: var(--tm-muted-soft);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-}
-@media (min-width: 1180px) { .app-atmosphere-code { display: flex; } }
-.app-atmosphere-code-label { opacity: 0.6; }
-.app-atmosphere-code-value {
-  color: var(--tm-accent);
-  font-weight: 700;
-  letter-spacing: 0.18em;
-}
-
-/* 让内容层在氛围层之上 */
+/* 让内容层在氛围层之上；氛围层本身已全局定义在 theme.css */
 .app-shell { position: relative; z-index: 1; }
 .site-header,
 .site-main,
