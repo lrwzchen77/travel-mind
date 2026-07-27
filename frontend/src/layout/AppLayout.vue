@@ -223,10 +223,8 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* 让内容层在氛围层之上；氛围层本身已全局定义在 theme.css */
+/* 主内容位于氛围层之上；页头和浮层沿用全局层级，避免被正文覆盖。 */
 .app-shell { position: relative; z-index: 1; }
-.site-header,
 .site-main,
-.site-footer,
-.inspiration-bag-float { position: relative; z-index: 2; }
+.site-footer { position: relative; z-index: 2; }
 </style>

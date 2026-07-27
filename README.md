@@ -17,7 +17,24 @@ Travel Mind is a full-stack intelligent travel planning system with a consumer t
 - `app/src/main/resources/db`: Flyway schema migrations and development-only seed data.
 - `docs`: design, API, agile, test, and deploy documents.
 
-## Backend
+## Default Startup
+
+Install Java 17, Maven, Node.js, Python, and Docker through Scoop, then keep the Docker engine running. The project default is the root one-click script:
+
+```powershell
+.\start.ps1
+```
+
+It creates the local `.env` when missing, starts MySQL, Redis, Qdrant, Java, FastAPI, and Vite, waits for health checks, and opens the consumer application. Runtime logs are written to `logs/dev`.
+
+```powershell
+.\start.ps1 -NoBrowser  # start without opening a browser
+.\start.ps1 -Stop       # stop project services
+```
+
+The commands below are retained only for isolated debugging and tests.
+
+## Backend (Manual)
 
 ```bash
 mvn test
@@ -29,7 +46,7 @@ Health check: `GET http://localhost:8080/health`.
 
 The backend automatically imports the ignored root `.env` file. Process environment variables still take precedence.
 
-## Frontend
+## Frontend (Manual)
 
 ```bash
 cd frontend
@@ -49,7 +66,7 @@ The dev profile creates BCrypt-backed demo accounts on first startup. Override t
 
 Login returns a signed JWT in the existing `tokenValue` field. The browser keeps it in session storage and sends it in the `Authorization` header. Set `JWT_SECRET` to a random 32+ byte value outside local development; the production profile has no fallback. `JWT_TTL_SECONDS` defaults to 30 days. Logout discards the JWT on the client: there is intentionally no refresh-token or server-side blacklist flow.
 
-## Python AI
+## Python AI (Manual)
 
 ```bash
 cd python-ai

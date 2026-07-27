@@ -320,6 +320,9 @@ h1, h2, h3 {
   top: calc(100% + 14px);
   right: 0;
   min-width: 252px;
+  max-height: calc(100vh - var(--header-h) - 28px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 8px;
   border: 1px solid var(--tm-line-strong);
   border-radius: var(--tm-radius-panel);
@@ -1580,7 +1583,7 @@ button.btn-sm { min-height: 36px; padding: 0 16px; font-size: 13px; }
   }
   .account-menu { margin-top: 12px; }
   .account-trigger { width: 100%; justify-content: flex-start; padding: 10px 14px 10px 8px; }
-  .account-popover { position: static; box-shadow: none; animation: none; }
+  .account-popover { position: static; max-height: none; overflow: visible; box-shadow: none; animation: none; }
   .section-head { flex-direction: column; align-items: flex-start; margin: 52px 0 24px; }
   .home-hero, .home-hero--luxe { min-height: 70vh !important; }
   .home-hero h1, .home-hero--luxe h1 { font-size: clamp(40px, 12vw, 64px); }
@@ -1768,4 +1771,3 @@ button.btn-sm { min-height: 36px; padding: 0 16px; font-size: 13px; }
   transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .text-link:hover::after { transform: scaleX(1); }
-
