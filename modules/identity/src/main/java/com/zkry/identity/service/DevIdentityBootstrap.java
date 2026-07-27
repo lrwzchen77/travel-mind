@@ -24,17 +24,6 @@ public class DevIdentityBootstrap implements ApplicationListener<ApplicationRead
 
     @Override
     public void onApplicationEvent(ApplicationReadyEvent event) {
-        jdbcTemplate.getJdbcTemplate().execute("""
-            CREATE TABLE IF NOT EXISTS tm_identity_account (
-              user_id BIGINT PRIMARY KEY,
-              password_hash VARCHAR(100) NOT NULL,
-              role_code VARCHAR(32) NOT NULL DEFAULT 'user',
-              status TINYINT NOT NULL DEFAULT 1,
-              create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-              update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-              INDEX idx_identity_role (role_code, status)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-            """);
         createUser(1001L, "demo_user", "旅行体验用户", environment.getProperty("TRAVELMIND_DEMO_PASSWORD", "travel123"), "user");
         createUser(9001L, "admin", "运营管理员", environment.getProperty("TRAVELMIND_ADMIN_PASSWORD", "admin123"), "admin");
     }

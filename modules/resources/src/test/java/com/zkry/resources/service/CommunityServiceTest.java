@@ -187,8 +187,9 @@ class CommunityServiceTest {
     void memoryPublicationReencodesTheOwnedCoverInsteadOfPublishingOriginalMetadata(@TempDir Path temp) throws Exception {
         String previous = System.getProperty("user.dir");
         Path uploads = Files.createDirectories(temp.resolve("uploads"));
+        Path privateUploads = Files.createDirectories(uploads.resolve("private/1001"));
         String sourceName = "123e4567-e89b-12d3-a456-426614174000.jpg";
-        ImageIO.write(new BufferedImage(4, 3, BufferedImage.TYPE_INT_RGB), "jpg", uploads.resolve(sourceName).toFile());
+        ImageIO.write(new BufferedImage(4, 3, BufferedImage.TYPE_INT_RGB), "jpg", privateUploads.resolve(sourceName).toFile());
         System.setProperty("user.dir", temp.toString());
         try {
             NamedParameterJdbcTemplate jdbc = org.mockito.Mockito.mock(NamedParameterJdbcTemplate.class);
@@ -196,7 +197,7 @@ class CommunityServiceTest {
                 String sql = call.getArgument(0);
                 if (sql.contains("FROM tm_trip_memory\n")) return List.of(Map.of("title", "杭州旅行", "destination_city", "杭州"));
                 if (sql.contains("item_type IN ('place', 'photo')")) return List.of();
-                if (sql.contains("SELECT i.source_url")) return List.of(Map.of("source_url", "/uploads/" + sourceName));
+                if (sql.contains("SELECT i.source_url")) return List.of(Map.of("source_url", "/private-uploads/1001/" + sourceName));
                 if (sql.contains("SELECT id FROM tm_city")) return List.of(Map.of("id", 101L));
                 return List.of();
             });
@@ -209,8 +210,8 @@ class CommunityServiceTest {
 
             for (Map<String, Object> result : List.of(numeric, string)) {
                 String cover = String.valueOf(result.get("cover_image"));
-                assertThat(cover).startsWith("/uploads/").endsWith(".png").doesNotContain(sourceName);
-                Path publicFile = uploads.resolve(Path.of(cover).getFileName());
+                assertThat(cover).startsWith("/public-uploads/").endsWith(".png").doesNotContain(sourceName);
+                Path publicFile = uploads.resolve("public").resolve(Path.of(cover).getFileName());
                 assertThat(publicFile).exists();
                 assertThat(ImageIO.read(publicFile.toFile())).isNotNull();
                 Files.delete(publicFile);

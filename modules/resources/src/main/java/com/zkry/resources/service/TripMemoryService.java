@@ -4,7 +4,6 @@ import com.zkry.common.core.domain.PageResult;
 import com.zkry.common.core.exception.BizException;
 import com.zkry.common.json.utils.JsonUtils;
 import java.math.BigDecimal;
-import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
@@ -21,12 +20,15 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /** 私有旅行记忆册；所有入口都以 JWT userId 重新校验数据归属。 */
 @Service
 public class TripMemoryService {
 
-    private static final Pattern UPLOAD_PATH = Pattern.compile("^/uploads/[0-9a-fA-F-]{36}\\.(?:jpg|png|webp)$");
+    private static final Pattern UPLOAD_PATH = Pattern.compile(
+        "^/private-uploads/(?<user>[0-9]+)/(?<name>[0-9a-fA-F-]{36}\\.(?:jpg|png|webp))$");
     private static final Set<String> GENERATION_TYPES = Set.of("timeline", "daily_summary", "travelogue", "trip_summary");
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
@@ -90,7 +92,7 @@ public class TripMemoryService {
     @Transactional
     public Map<String, Object> addPhoto(long userId, long memoryId, Map<String, Object> payload) {
         ownedMemory(userId, memoryId);
-        String sourceUrl = controlledUpload(text(payload, "url", 512));
+        String sourceUrl = controlledUpload(userId, text(payload, "url", 512));
         LocalDateTime takenAt = dateTime(text(payload, "taken_at", 32));
         BigDecimal latitude = coordinate(payload == null ? null : payload.get("latitude"), -90, 90, "纬度");
         BigDecimal longitude = coordinate(payload == null ? null : payload.get("longitude"), -180, 180, "经度");
@@ -118,20 +120,31 @@ public class TripMemoryService {
     @Transactional
     public void deleteItem(long userId, long memoryId, long itemId) {
         ownedMemory(userId, memoryId);
+        List<String> files = jdbcTemplate.queryForList("""
+            SELECT source_url FROM tm_trip_memory_item
+            WHERE id = :itemId AND memory_id = :memoryId AND item_type = 'photo'
+            """, Map.of("itemId", itemId, "memoryId", memoryId), String.class);
         int changed = jdbcTemplate.update(
             "DELETE FROM tm_trip_memory_item WHERE id = :itemId AND memory_id = :memoryId",
             Map.of("itemId", itemId, "memoryId", memoryId));
         if (changed == 0) throw new BizException("记忆项目不存在或无权删除。");
         jdbcTemplate.update("UPDATE tm_trip_memory SET generation_status = 'pending', index_status = 'pending', indexed_at = NULL WHERE id = :memoryId",
             Map.of("memoryId", memoryId));
+        deleteAfterCommit(userId, files);
     }
 
     @Transactional
     public void delete(long userId, long memoryId) {
+        List<String> files = jdbcTemplate.queryForList("""
+            SELECT i.source_url FROM tm_trip_memory_item i
+            JOIN tm_trip_memory m ON m.id = i.memory_id AND m.user_id = :userId
+            WHERE i.memory_id = :memoryId AND i.item_type = 'photo' AND i.source_url IS NOT NULL
+            """, Map.of("memoryId", memoryId, "userId", userId), String.class);
         int changed = jdbcTemplate.update(
             "DELETE FROM tm_trip_memory WHERE id = :memoryId AND user_id = :userId",
             Map.of("memoryId", memoryId, "userId", userId));
         if (changed == 0) throw new BizException("旅行记忆不存在或无权删除。");
+        deleteAfterCommit(userId, files);
     }
 
     public TripMemoryKnowledgeContract.Identity knowledgeIdentity(long userId, long memoryId) {
@@ -376,23 +389,47 @@ public class TripMemoryService {
         return rows.get(0);
     }
 
-    private String controlledUpload(String value) {
+    private String controlledUpload(long userId, String value) {
         if (value.isBlank()) throw new BizException("请先上传照片。");
-        try {
-            URI uri = URI.create(value);
-            if (uri.getQuery() != null || uri.getFragment() != null || uri.getUserInfo() != null
-                || (uri.getScheme() != null && !Set.of("http", "https").contains(uri.getScheme().toLowerCase()))) {
-                throw new BizException("照片地址不是受控上传路径。");
-            }
-            String path = uri.getPath();
-            if (path == null || !UPLOAD_PATH.matcher(path).matches()) throw new BizException("照片地址不是受控上传路径。");
-            Path directory = Path.of(System.getProperty("user.dir"), "uploads").toAbsolutePath().normalize();
-            Path file = directory.resolve(Path.of(path).getFileName()).normalize();
-            if (!file.startsWith(directory) || !Files.isRegularFile(file)) throw new BizException("上传的照片不存在。");
-            return path;
-        } catch (IllegalArgumentException ex) {
-            throw new BizException("照片地址不是受控上传路径。");
+        var matcher = UPLOAD_PATH.matcher(value);
+        if (!matcher.matches() || !String.valueOf(userId).equals(matcher.group("user"))) {
+            throw new BizException("照片地址不是当前用户的受控上传路径。");
         }
+        Path file = privateDirectory(userId).resolve(matcher.group("name")).normalize();
+        if (!file.startsWith(privateDirectory(userId)) || !Files.isRegularFile(file)) {
+            throw new BizException("上传的照片不存在。");
+        }
+        return value;
+    }
+
+    private Path privateDirectory(long userId) {
+        return Path.of(System.getProperty("user.dir"), "uploads", "private", String.valueOf(userId))
+            .toAbsolutePath().normalize();
+    }
+
+    private void deleteAfterCommit(long userId, List<String> sourceUrls) {
+        if (sourceUrls == null || sourceUrls.isEmpty()) return;
+        Runnable delete = () -> sourceUrls.forEach(sourceUrl -> {
+            var matcher = UPLOAD_PATH.matcher(sourceUrl == null ? "" : sourceUrl);
+            if (!matcher.matches() || !String.valueOf(userId).equals(matcher.group("user"))) return;
+            Path file = privateDirectory(userId).resolve(matcher.group("name")).normalize();
+            if (!file.startsWith(privateDirectory(userId))) return;
+            try {
+                Files.deleteIfExists(file);
+            } catch (java.io.IOException ignored) {
+                // Database ownership is already removed; periodic storage cleanup may retry orphan removal.
+            }
+        });
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            delete.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                delete.run();
+            }
+        });
     }
 
     private LocalDateTime dateTime(String value) {

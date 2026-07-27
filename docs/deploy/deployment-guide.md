@@ -4,7 +4,7 @@
 
 - JDK 17.
 - Maven 3.9+.
-- Node.js 20+.
+- Node.js 22.
 - Python 3.10 by default; Python 3.12 is allowed when dependencies are stable.
 - MySQL 8.0 or 5.7-compatible schema.
 - Redis 7.
@@ -13,7 +13,7 @@
 
 ## Database
 
-Start MySQL 8.0 and Redis 7. On a fresh volume, Compose runs the SQL scripts automatically:
+Start MySQL 8.0, Redis 7 and Qdrant. Flyway creates or upgrades the schema when the backend starts:
 
 ```bash
 docker compose up -d --wait
@@ -50,19 +50,29 @@ The bundled self-trained model is configured as `python-ai/models/travel-risk-yo
 
 Private travel-memory indexing also requires `MEMORY_SERVICE_TOKEN`, `MEMORY_SCOPE_SECRET`, `QDRANT_URL`, and
 `BAAI/bge-small-zh-v1.5`. The embedding model is downloaded on first use (roughly 100 MB). Production must set
-`ENVIRONMENT=prod`, a unique internal token, and a 32+ byte scope secret; there is no production fallback.
+`SPRING_PROFILES_ACTIVE=prod`, a unique internal token, and a 32+ byte scope secret; there is no production fallback.
 
 ## Frontend
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm test
 npm run build
 npm run dev -- --host 127.0.0.1
 ```
 
 Open `http://localhost:5173`.
+
+## Production Compose
+
+Copy `.env.example` to `.env`, replace all production secrets, set the public HTTPS origin and provide a unique `TRAVELMIND_BOOTSTRAP_ADMIN_*` identity, then run:
+
+```bash
+docker compose -f compose.prod.yml up -d --build
+```
+
+Only Nginx is published. It serves the SPA and proxies `/api` and `/public-uploads` to the internal Java service. Private uploads remain authenticated and are shared only between Java and Python containers.
 
 ## Release Verification
 

@@ -1,9 +1,9 @@
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: ${DB_URL:jdbc:mysql://localhost:3306/travelmind?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
-    username: ${DB_USERNAME:}
-    password: ${DB_PASSWORD:}
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -13,12 +13,19 @@ spring:
       ssl:
         enabled: ${REDIS_SSL_ENABLED:false}
 
+server:
+  forward-headers-strategy: framework
+  shutdown: graceful
+
 sa-token:
   # 无默认值：生产环境缺失 JWT_SECRET 时应用启动失败。
   jwt-secret-key: ${JWT_SECRET}
 
 travelmind:
+  web:
+    allowed-origins: ${WEB_ALLOWED_ORIGINS}
   python-ai:
     # 生产环境无默认值，Java 与 Python 必须配置同一个内部 token；scope secret 只留在 Java。
     memory-service-token: ${MEMORY_SERVICE_TOKEN}
     memory-scope-secret: ${MEMORY_SCOPE_SECRET}
+    base-url: ${PYTHON_AI_BASE_URL}

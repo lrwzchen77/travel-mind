@@ -2,7 +2,8 @@
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { ArrowRight } from 'lucide-vue-next';
-import { memoryApi, memoryImageUrl } from '../api/memory.js';
+import { memoryApi } from '../api/memory.js';
+import PrivateImage from '../components/PrivateImage.vue';
 import PagePrologue from '../components/PagePrologue.vue';
 import { useReveal } from '../composables/useReveal.js';
 
@@ -65,7 +66,7 @@ onMounted(load);
     <div v-else class="memory-grid" data-reveal style="--reveal-delay: 0.08s" aria-live="polite">
     <RouterLink v-for="entry in memories" :key="entry.id" :to="`/memories/${entry.id}`" class="memory-card">
       <div class="memory-card-cover">
-        <img v-if="entry.cover_image" :src="memoryImageUrl(entry.cover_image)" :alt="entry.title || `${entry.destination_city || '旅行'}照片`" loading="lazy" />
+        <PrivateImage v-if="entry.cover_image" :src="entry.cover_image" :alt="entry.title || `${entry.destination_city || '旅行'}照片`" loading="lazy" />
         <span v-else aria-hidden="true">{{ entry.destination_city || '旅行' }}</span>
         <em>私密</em>
       </div>

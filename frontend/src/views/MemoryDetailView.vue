@@ -2,7 +2,8 @@
 import { computed, nextTick, onMounted, reactive, ref } from 'vue';
 import { ArrowLeft, ArrowRight } from 'lucide-vue-next';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
-import { memoryApi, memoryImageUrl } from '../api/memory.js';
+import { memoryApi } from '../api/memory.js';
+import PrivateImage from '../components/PrivateImage.vue';
 import { useReveal } from '../composables/useReveal.js';
 
 const root = ref(null);
@@ -264,7 +265,7 @@ onMounted(async () => {
   <template v-if="memory">
     <section class="memory-hero">
       <div class="memory-hero-media">
-        <img v-if="heroPhoto" :src="memoryImageUrl(heroPhoto.source_url)" :alt="heroPhoto.ai_caption || `${memory.destination_city || '旅行'}照片`" />
+        <PrivateImage v-if="heroPhoto" :src="heroPhoto.source_url" :alt="heroPhoto.ai_caption || `${memory.destination_city || '旅行'}照片`" />
         <div v-else class="memory-hero-placeholder"><span>{{ memory.destination_city || '旅行' }}</span><small>添加照片后，它会成为这篇记录的封面</small></div>
       </div>
       <div class="memory-hero-copy">
@@ -302,7 +303,7 @@ onMounted(async () => {
         <div class="memory-day-items">
           <article v-for="item in items" :id="`memory-item-${idKey(item.id)}`" :key="item.id" class="memory-item" :class="{ 'is-focused': focusedItem === idKey(item.id) }" tabindex="-1">
             <div class="memory-item-meta"><span>{{ itemLabel(item) }}</span><time>{{ readableDate(datePart(item.taken_at)) || (day ? `第 ${day} 天` : '时间待确认') }}</time></div>
-            <img v-if="item.item_type === 'photo'" :src="memoryImageUrl(item.source_url)" :alt="item.ai_caption || '旅行照片'" loading="lazy" />
+            <PrivateImage v-if="item.item_type === 'photo'" :src="item.source_url" :alt="item.ai_caption || '旅行照片'" loading="lazy" />
             <div class="memory-item-copy"><h3>{{ item.place_name || itemLabel(item) }}</h3><p>{{ itemText(item) }}</p><div v-if="tags(item).length" class="chip-row"><span v-for="tag in tags(item)" :key="tag" class="chip">{{ tag }}</span></div><small v-if="item.item_type === 'expense'">这项消费只有你能看到</small></div>
             <button v-if="item.item_type === 'photo'" type="button" class="memory-photo-remove" :disabled="busy === `photo-${item.id}`" @click="removePhoto(item)">{{ busy === `photo-${item.id}` ? '删除中…' : '删除照片' }}</button>
           </article>
@@ -329,11 +330,11 @@ onMounted(async () => {
         <label><span class="field-label">公开标题</span><input v-model.trim="share.title" maxlength="128" required /></label>
         <label><span class="field-label">一句旅行感受（选填）</span><textarea v-model.trim="share.note" maxlength="600" rows="3" placeholder="写下愿意公开的旅行感受" /></label>
         <label><span class="field-label">公开标签（选填）</span><input v-model.trim="share.tags" maxlength="200" placeholder="例如：湖景、慢游" /></label>
-        <fieldset class="memory-cover-choice"><legend>公开封面（0 或 1 张）</legend><label><input v-model="share.photo_item_id" type="radio" value="" />不发布照片</label><label v-for="photo in photos" :key="photo.id"><input v-model="share.photo_item_id" type="radio" :value="idKey(photo.id)" /><img :src="memoryImageUrl(photo.source_url)" :alt="photo.ai_caption || '旅行照片'" /></label></fieldset>
+        <fieldset class="memory-cover-choice"><legend>公开封面（0 或 1 张）</legend><label><input v-model="share.photo_item_id" type="radio" value="" />不发布照片</label><label v-for="photo in photos" :key="photo.id"><input v-model="share.photo_item_id" type="radio" :value="idKey(photo.id)" /><PrivateImage :src="photo.source_url" :alt="photo.ai_caption || '旅行照片'" /></label></fieldset>
         <label class="memory-confirm"><input v-model="share.confirmed" type="checkbox" />我已检查公开预览，并确认只提交以上内容。</label>
         <button type="button" class="btn-coral" :disabled="busy === 'publish' || !share.confirmed || !share.title" @click="publish">{{ busy === 'publish' ? '正在提交…' : '提交社区审核' }}</button>
       </div>
-      <aside class="memory-share-preview"><span>公开预览</span><img v-if="share.photo_item_id" :src="memoryImageUrl(photos.find((photo) => idKey(photo.id) === share.photo_item_id)?.source_url)" alt="所选公开封面预览" /><h3>{{ share.title || memory.title }}</h3><p v-for="line in publicPreview" :key="line">{{ line }}</p><small>#真实行程 {{ share.tags }}</small></aside>
+      <aside class="memory-share-preview"><span>公开预览</span><PrivateImage v-if="share.photo_item_id" :src="photos.find((photo) => idKey(photo.id) === share.photo_item_id)?.source_url" alt="所选公开封面预览" /><h3>{{ share.title || memory.title }}</h3><p v-for="line in publicPreview" :key="line">{{ line }}</p><small>#真实行程 {{ share.tags }}</small></aside>
     </section>
   </template>
 

@@ -27,7 +27,7 @@ const memory = {
   items: [
     { id: '996889308694955191', item_type: 'place', source_type: 'trip_item', place_name: '西湖', content: '湖边慢游', day_index: 1, taken_at: '2026-08-01T09:00:00' },
     { id: '996889308694955192', item_type: 'expense', source_type: 'trip_expense', place_name: '龙井体验', content: 'food，¥188', day_index: 1 },
-    { id: '996889308694955193', item_type: 'photo', source_url: '/uploads/photo.jpg', place_name: '断桥', ai_caption: '断桥，湖景，照片', ai_tags: '["湖景"]', day_index: 1, taken_at: '2026-08-01T10:00:00' },
+    { id: '996889308694955193', item_type: 'photo', source_url: '/private-uploads/1001/photo.jpg', place_name: '断桥', ai_caption: '断桥，湖景，照片', ai_tags: '["湖景"]', day_index: 1, taken_at: '2026-08-01T10:00:00' },
   ],
   generations: [],
 };

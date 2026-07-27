@@ -4,6 +4,10 @@ import com.zkry.common.core.exception.BizException;
 import com.zkry.identity.domain.IdentityAccount;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -64,6 +68,50 @@ public class IdentityService {
         return map(rows.get(0));
     }
 
+    @Transactional
+    public Map<String, Object> provision(Map<String, Object> payload) {
+        return provision(payload, Set.of("user", "operator"), 10);
+    }
+
+    public boolean hasAdministrator() {
+        Integer count = jdbcTemplate.queryForObject("""
+            SELECT COUNT(*) FROM tm_identity_account
+            WHERE role_code IN ('admin', 'operator') AND status = 1
+            """, Map.of(), Integer.class);
+        return count != null && count > 0;
+    }
+
+    @Transactional
+    public Map<String, Object> provisionInitialAdministrator(Map<String, Object> payload) {
+        if (hasAdministrator()) return Map.of();
+        return provision(payload, Set.of("admin"), 12);
+    }
+
+    private Map<String, Object> provision(Map<String, Object> payload, Set<String> allowedRoles, int passwordMinLength) {
+        String username = required(payload, "username", 4, 64);
+        if (!username.matches("[A-Za-z0-9_.-]+")) throw new BizException("账号只能包含字母、数字、点、横线和下划线。");
+        String nickname = required(payload, "nickname", 1, 64);
+        String password = required(payload, "password", passwordMinLength, 128);
+        String role = text(payload, "role", "user");
+        if (!allowedRoles.contains(role)) throw new BizException("账号角色无效。");
+        long userId = ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE);
+        try {
+            jdbcTemplate.update("""
+                INSERT INTO tm_user (id, username, nickname, phone, email, status)
+                VALUES (:id, :username, :nickname, :phone, :email, 1)
+                """, Map.of(
+                "id", userId, "username", username, "nickname", nickname,
+                "phone", text(payload, "phone", ""), "email", text(payload, "email", "")));
+            jdbcTemplate.update("""
+                INSERT INTO tm_identity_account (user_id, password_hash, role_code, status)
+                VALUES (:userId, :passwordHash, :role, 1)
+                """, Map.of("userId", userId, "passwordHash", passwordEncoder.encode(password), "role", role));
+        } catch (DataIntegrityViolationException ex) {
+            throw new BizException("账号已存在或资料格式无效。");
+        }
+        return Map.of("id", userId, "username", username, "nickname", nickname, "role", role, "status", 1);
+    }
+
     private IdentityAccount map(Map<String, Object> row) {
         return new IdentityAccount(
             number(row.get("id")),
@@ -77,6 +125,19 @@ public class IdentityService {
 
     private Long number(Object value) {
         return value instanceof Number number ? number.longValue() : Long.parseLong(String.valueOf(value));
+    }
+
+    private String required(Map<String, Object> payload, String key, int min, int max) {
+        String value = text(payload, key, "").trim();
+        if (value.length() < min || value.length() > max) throw new BizException(key + " 长度无效。");
+        return value;
+    }
+
+    private String text(Map<String, Object> payload, String key, String fallback) {
+        Object value = payload == null ? null : payload.get(key);
+        String result = value == null ? fallback : String.valueOf(value).trim();
+        if (result.length() > 255) throw new BizException(key + " 内容过长。");
+        return result;
     }
 
     private static final class SetRoles {

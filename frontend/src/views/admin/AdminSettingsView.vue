@@ -28,10 +28,12 @@ const form = reactive({
 const configured = ref({});
 const message = ref('');
 const error = ref('');
+const mutable = ref(true);
 
 async function load() {
   try {
     const response = await http.get('/admin/settings');
+    mutable.value = response.data?.mutable !== false;
     configured.value = response.data?.data || response.data || {};
     Object.keys(form).forEach((key) => {
       if (configured.value[key] !== 'configured') form[key] = configured.value[key] || form[key];
@@ -42,12 +44,13 @@ async function load() {
 }
 
 async function save() {
+  if (!mutable.value) return;
   error.value = '';
   message.value = '';
   const updates = Object.fromEntries(Object.entries(form).filter(([, value]) => value !== ''));
   try {
     await http.put('/admin/settings', updates);
-    message.value = '配置已更新，本次 Java 进程立即生效。';
+    message.value = '配置已更新，仅对当前开发进程生效。';
     await load();
   } catch (err) {
     error.value = err?.message || '配置保存失败';
@@ -64,7 +67,7 @@ onMounted(load);
         index="A1 · 配置"
         eyebrow="System Settings"
         title="外部服务与<em>模型连接</em>"
-        lead="管理地图、内容采集与大模型上游凭证；保存后立即在 Java 服务端生效。"
+        :lead="mutable ? '开发环境可临时调整上游配置；重启后恢复环境变量。' : '生产环境由密钥和环境变量统一管理，此页面只显示配置状态。'"
       />
     </section>
 
@@ -153,9 +156,9 @@ onMounted(load);
       </section>
 
       <div class="admin-settings-actions" data-reveal>
-        <button type="submit" class="admin-primary-btn">
+        <button type="submit" class="admin-primary-btn" :disabled="!mutable">
           <Save :size="16" aria-hidden="true" />
-          保存配置
+          {{ mutable ? '保存临时配置' : '生产环境只读' }}
         </button>
       </div>
     </form>

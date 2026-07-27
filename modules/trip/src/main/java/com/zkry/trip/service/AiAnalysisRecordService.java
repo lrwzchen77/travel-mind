@@ -54,18 +54,19 @@ public class AiAnalysisRecordService {
         return id;
     }
 
-    public Map<String, Object> latest(String analysisType, String targetType, Long targetId) {
+    public Map<String, Object> latest(String analysisType, String targetType, Long targetId, long userId) {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
                 SELECT *
                 FROM tm_ai_analysis_record
                 WHERE analysis_type = :analysisType
                   AND target_type = :targetType
                   AND target_id = :targetId
+                  AND user_id = :userId
                   AND deleted = 0
                 ORDER BY create_time DESC, id DESC
                 LIMIT 1
                 """,
-            Map.of("analysisType", analysisType, "targetType", targetType, "targetId", targetId));
+            Map.of("analysisType", analysisType, "targetType", targetType, "targetId", targetId, "userId", userId));
         return rows.isEmpty() ? Map.of() : rows.get(0);
     }
 

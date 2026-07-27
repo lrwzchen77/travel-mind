@@ -3,6 +3,7 @@ package com.zkry.trip.service;
 import com.zkry.common.core.config.TravelMindRuntimeSettingsService;
 import com.zkry.common.core.config.TravelMindSettingKeys;
 import com.zkry.common.core.exception.BizException;
+import com.zkry.common.redis.util.RedisUtils;
 import com.zkry.content.dto.ContentPlanningContext;
 import com.zkry.map.dto.MapPlanningContext;
 import com.zkry.trip.constant.TripTaskMessages;
@@ -13,6 +14,7 @@ import com.zkry.trip.dto.RouteIntent;
 import com.zkry.trip.dto.RouteNode;
 import com.zkry.trip.dto.TripTaskEvent;
 import java.time.LocalDate;
+import java.time.Duration;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -20,11 +22,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -41,9 +45,12 @@ import org.springframework.stereotype.Service;
 public class TripTaskService {
 
     private static final Logger log = LoggerFactory.getLogger(TripTaskService.class);
+    private static final String TASK_KEY_PREFIX = "travelmind:trip-task:";
 
     private final Map<String, TripTaskState> tasks = new ConcurrentHashMap<>();
-    private final ExecutorService executorService = Executors.newCachedThreadPool();
+    private final ThreadPoolExecutor executorService;
+    private final RedisUtils redis;
+    private final Duration stateTtl;
     private final TripAiPlannerService tripAiPlannerService;
     private final TripResearchService tripResearchService;
     private final TravelMindRuntimeSettingsService runtimeSettingsService;
@@ -61,7 +68,11 @@ public class TripTaskService {
         TripPlanPersistenceService tripPlanPersistenceService,
         TripPlanReviewer tripPlanReviewer,
         TravelAiApplicationService travelAiApplicationService,
-        @Value("${travelmind.content.xhs.enabled:false}") boolean xhsEnabled
+        RedisUtils redis,
+        @Value("${travelmind.content.xhs.enabled:false}") boolean xhsEnabled,
+        @Value("${travelmind.trip.tasks.workers:4}") int workers,
+        @Value("${travelmind.trip.tasks.queue-capacity:100}") int queueCapacity,
+        @Value("${travelmind.trip.tasks.state-ttl-minutes:30}") long stateTtlMinutes
     ) {
         this.tripAiPlannerService = tripAiPlannerService;
         this.tripResearchService = tripResearchService;
@@ -70,7 +81,21 @@ public class TripTaskService {
         this.tripPlanPersistenceService = tripPlanPersistenceService;
         this.tripPlanReviewer = tripPlanReviewer;
         this.travelAiApplicationService = travelAiApplicationService;
+        this.redis = redis;
         this.xhsEnabled = xhsEnabled;
+        this.stateTtl = Duration.ofMinutes(Math.max(stateTtlMinutes, 1));
+        int safeWorkers = Math.max(workers, 1);
+        AtomicInteger threadNumber = new AtomicInteger();
+        this.executorService = new ThreadPoolExecutor(
+            safeWorkers, safeWorkers, 0L, TimeUnit.MILLISECONDS,
+            new ArrayBlockingQueue<>(Math.max(queueCapacity, 1)),
+            task -> {
+                Thread thread = new Thread(task, "trip-task-" + threadNumber.incrementAndGet());
+                thread.setDaemon(true);
+                return thread;
+            },
+            new ThreadPoolExecutor.AbortPolicy()
+        );
     }
 
     /**
@@ -81,7 +106,8 @@ public class TripTaskService {
      */
     public SubmitTripPlanResponse submit(TripRequest request, long userId) {
         validateTripRequest(request);
-        String taskId = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        evictExpiredTasks();
+        String taskId = UUID.randomUUID().toString().replace("-", "");
         TripTaskState state = new TripTaskState(taskId, userId, request);
         tasks.put(taskId, state);
         log.info("[TripTask] 创建旅行规划任务 taskId={} cities={} totalDays={} date={}~{} preferences={} aiAvailable={}",
@@ -93,12 +119,18 @@ public class TripTaskService {
             request.safePreferences(),
             tripAiPlannerService.isAvailable());
         update(taskId, TripTaskStatus.PROCESSING, TripTaskStage.SUBMITTED, 5, TripTaskMessages.SUBMITTED, null, null);
-        CompletableFuture.runAsync(() -> runPlanning(taskId, userId, request), executorService);
+        try {
+            executorService.execute(() -> runPlanning(taskId, userId, request));
+        } catch (RejectedExecutionException ex) {
+            tasks.remove(taskId);
+            deletePersisted(taskId);
+            throw new BizException("规划任务繁忙，请稍后重试。");
+        }
         return new SubmitTripPlanResponse(
             taskId,
             taskId,
             TripTaskStatus.PROCESSING,
-            "/api/user/trip/ws/" + taskId,
+            null,
             TripTaskMessages.SUBMITTED
         );
     }
@@ -129,18 +161,9 @@ public class TripTaskService {
         return payload;
     }
 
-    public TripTaskSubscription subscribe(String taskId, long userId, TripTaskSubscriber subscriber) {
-        TripTaskState state = task(taskId, userId);
-        state.subscribers.add(subscriber);
-        log.info("[TripTask] 新增任务订阅 taskId={} subscriberCount={}", taskId, state.subscribers.size());
-        return new TripTaskSubscription(taskId, () -> {
-            state.subscribers.remove(subscriber);
-            log.info("[TripTask] 取消任务订阅 taskId={} subscriberCount={}", taskId, state.subscribers.size());
-        });
-    }
-
     private TripTaskState task(String taskId) {
         TripTaskState state = tasks.get(taskId);
+        if (state == null) state = restore(taskId);
         if (state == null) {
             throw new TripTaskNotFoundException(taskId);
         }
@@ -373,10 +396,8 @@ public class TripTaskService {
         if (error != null) {
             state.error = error;
         }
-        TripTaskEvent event = state.toEvent(true);
-        for (TripTaskSubscriber subscriber : state.subscribers) {
-            subscriber.onEvent(event);
-        }
+        state.updatedAt = System.currentTimeMillis();
+        persist(state);
     }
 
     private void pause() {
@@ -392,19 +413,72 @@ public class TripTaskService {
         return value == null || value.isBlank() ? "-" : value;
     }
 
+    @PreDestroy
+    void shutdown() {
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(10, TimeUnit.SECONDS)) executorService.shutdownNow();
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            executorService.shutdownNow();
+        }
+    }
+
+    private void persist(TripTaskState state) {
+        try {
+            redis.setObject(TASK_KEY_PREFIX + state.taskId, state.persisted(), stateTtl);
+        } catch (RuntimeException ex) {
+            log.debug("[TripTask] Redis 状态写入失败 taskId={} reason={}", state.taskId, ex.getMessage());
+        }
+    }
+
+    private TripTaskState restore(String taskId) {
+        try {
+            PersistedTaskState persisted = redis.getObject(TASK_KEY_PREFIX + taskId, PersistedTaskState.class);
+            if (persisted == null) return null;
+            TripTaskState state = TripTaskState.restore(persisted);
+            if (TripTaskStatus.PROCESSING.equals(state.status)) {
+                state.status = TripTaskStatus.FAILED;
+                state.stage = TripTaskStage.FAILED;
+                state.progress = 100;
+                state.message = "规划服务重启，任务已安全终止，请重新提交。";
+                state.error = state.message;
+                state.updatedAt = System.currentTimeMillis();
+                persist(state);
+            }
+            tasks.put(taskId, state);
+            return state;
+        } catch (RuntimeException ex) {
+            log.debug("[TripTask] Redis 状态读取失败 taskId={} reason={}", taskId, ex.getMessage());
+            return null;
+        }
+    }
+
+    private void deletePersisted(String taskId) {
+        try {
+            redis.delete(TASK_KEY_PREFIX + taskId);
+        } catch (RuntimeException ignored) {
+        }
+    }
+
+    private void evictExpiredTasks() {
+        long cutoff = System.currentTimeMillis() - stateTtl.toMillis();
+        tasks.entrySet().removeIf(entry -> !TripTaskStatus.PROCESSING.equals(entry.getValue().status)
+            && entry.getValue().updatedAt < cutoff);
+    }
+
     private static final class TripTaskState {
 
         private final String taskId;
         private final long userId;
         private final TripRequest request;
-        private final CopyOnWriteArrayList<TripTaskSubscriber> subscribers = new CopyOnWriteArrayList<>();
-
         private volatile String status = TripTaskStatus.PROCESSING;
         private volatile String stage = TripTaskStage.SUBMITTED;
         private volatile int progress = 0;
         private volatile String message = "";
         private volatile String error = "";
         private volatile TripPlanResponse result;
+        private volatile long updatedAt = System.currentTimeMillis();
 
         private TripTaskState(String taskId, long userId, TripRequest request) {
             this.taskId = taskId;
@@ -426,6 +500,22 @@ public class TripTaskService {
             );
         }
 
+        private PersistedTaskState persisted() {
+            return new PersistedTaskState(taskId, userId, request, status, stage, progress, message, error, result, updatedAt);
+        }
+
+        private static TripTaskState restore(PersistedTaskState value) {
+            TripTaskState state = new TripTaskState(value.taskId(), value.userId(), value.request());
+            state.status = value.status();
+            state.stage = value.stage();
+            state.progress = value.progress();
+            state.message = value.message();
+            state.error = value.error();
+            state.result = value.result();
+            state.updatedAt = value.updatedAt();
+            return state;
+        }
+
         private Map<String, Object> requestPayload() {
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("city", request.city());
@@ -442,5 +532,19 @@ public class TripTaskService {
             payload.put("route_intent", request.route_intent());
             return payload;
         }
+    }
+
+    private record PersistedTaskState(
+        String taskId,
+        long userId,
+        TripRequest request,
+        String status,
+        String stage,
+        int progress,
+        String message,
+        String error,
+        TripPlanResponse result,
+        long updatedAt
+    ) {
     }
 }

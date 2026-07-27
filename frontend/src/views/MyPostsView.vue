@@ -4,6 +4,7 @@ import { ArrowRight } from 'lucide-vue-next';
 import { RouterLink } from 'vue-router';
 import { communityApi } from '../api/community.js';
 import PagePrologue from '../components/PagePrologue.vue';
+import PrivateImage from '../components/PrivateImage.vue';
 import { cityImageByName } from '../data/cityImages.js';
 
 const posts = ref([]);
@@ -72,7 +73,7 @@ onMounted(load);
 
   <div v-else class="my-post-grid">
     <article v-for="post in posts" :key="post.id" class="my-post-card">
-      <img v-if="cover(post)" :src="cover(post)" :alt="post.title" loading="lazy" />
+      <PrivateImage v-if="cover(post)" :src="cover(post)" :alt="post.title" loading="lazy" />
       <div class="my-post-card-body">
         <div class="my-post-meta"><span>{{ topicLabel[post.topic] || '旅行分享' }}</span><em :class="status(post).class">{{ status(post).label }}</em></div>
         <RouterLink v-if="status(post).class === 'is-published'" :to="`/inspirations/${post.id}`"><h2>{{ post.title }}</h2></RouterLink>

@@ -1,7 +1,7 @@
 import { http } from './http.js';
 import { authSession } from '../auth/session.js';
 
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api').replace(/\/$/, '');
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
 
 function unwrap(response) {
   return response.data?.data ?? response.data;

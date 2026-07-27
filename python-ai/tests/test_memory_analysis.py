@@ -32,7 +32,7 @@ def _payload(photo_name: str) -> dict:
                 "takenAt": "2026-08-12T10:00:00",
                 "dayIndex": 1,
             },
-            {"itemId": 21, "itemType": "photo", "sourceUrl": f"/uploads/{photo_name}"},
+            {"itemId": 21, "itemType": "photo", "sourceUrl": f"/private-uploads/1001/{photo_name}"},
         ],
     }
 
@@ -44,7 +44,7 @@ async def test_memory_analysis_reads_exif_matches_time_and_returns_evidence(tmp_
     exif[36867] = "2026:08:12 10:30:00"
     exif[274] = 6
     exif[34853] = {1: "N", 2: (30.0, 15.0, 0.0), 3: "E", 4: (120.0, 9.0, 0.0)}
-    _photo(tmp_path, name, exif)
+    _photo(tmp_path / "private" / "1001", name, exif)
     monkeypatch.setattr(memory, "UPLOAD_DIR", tmp_path.resolve())
     monkeypatch.setattr(main, "_try_yolo_detection", lambda _: None)
 
@@ -70,7 +70,7 @@ async def test_memory_analysis_reads_exif_matches_time_and_returns_evidence(tmp_
 @pytest.mark.anyio
 async def test_memory_analysis_uses_supplied_gps_and_existing_yolo(tmp_path, monkeypatch):
     name = "123e4567-e89b-12d3-a456-426614174002.jpg"
-    _photo(tmp_path, name)
+    _photo(tmp_path / "private" / "1001", name)
     monkeypatch.setattr(memory, "UPLOAD_DIR", tmp_path.resolve())
     monkeypatch.setattr(main, "_try_yolo_detection", lambda _: {
         "model_mode": "trained_yolo",
@@ -97,13 +97,13 @@ async def test_memory_analysis_uses_supplied_gps_and_existing_yolo(tmp_path, mon
 async def test_memory_analysis_degrades_for_no_exif_and_bad_image(tmp_path, monkeypatch):
     good = "123e4567-e89b-12d3-a456-426614174003.jpg"
     bad = "123e4567-e89b-12d3-a456-426614174004.jpg"
-    _photo(tmp_path, good)
-    (tmp_path / bad).write_bytes(b"not-an-image")
+    _photo(tmp_path / "private" / "1001", good)
+    (tmp_path / "private" / "1001" / bad).write_bytes(b"not-an-image")
     monkeypatch.setattr(memory, "UPLOAD_DIR", tmp_path.resolve())
     calls = []
     monkeypatch.setattr(main, "_try_yolo_detection", lambda path: calls.append(path) or None)
     payload = _payload(good)
-    payload["items"].append({"itemId": 22, "itemType": "photo", "sourceUrl": f"/uploads/{bad}"})
+    payload["items"].append({"itemId": 22, "itemType": "photo", "sourceUrl": f"/private-uploads/1001/{bad}"})
 
     transport = httpx.ASGITransport(app=main.app)
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:

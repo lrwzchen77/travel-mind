@@ -35,10 +35,4 @@ export function createMemoryApi(client = http, uploader = uploadApi) {
   };
 }
 
-export function memoryImageUrl(path) {
-  if (!path || !String(path).startsWith('/uploads/')) return path || '';
-  const api = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
-  return `${api.replace(/\/api\/?$/, '')}${path}`;
-}
-
 export const memoryApi = createMemoryApi();

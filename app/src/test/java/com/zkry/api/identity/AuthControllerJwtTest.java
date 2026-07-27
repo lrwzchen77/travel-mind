@@ -14,6 +14,7 @@ import cn.dev33.satoken.spring.SaBeanRegister;
 import cn.dev33.satoken.spring.SaTokenContextRegister;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zkry.common.redis.util.RedisUtils;
 import com.zkry.common.satoken.config.SaTokenConfig;
 import com.zkry.common.satoken.core.SaPermissionService;
 import com.zkry.common.satoken.exception.SaTokenExceptionHandler;
@@ -54,6 +55,9 @@ class AuthControllerJwtTest {
 
     @MockitoBean
     private IdentityService identityService;
+
+    @MockitoBean
+    private RedisUtils redisUtils;
 
     @Test
     void loginIssuesSignedJwtWithIdentityRoleAndExpiry() throws Exception {

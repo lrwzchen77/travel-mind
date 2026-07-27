@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 
 import com.zkry.common.core.config.TravelMindRuntimeSettingsService;
 import com.zkry.common.core.exception.BizException;
+import com.zkry.common.redis.util.RedisUtils;
 import com.zkry.trip.dto.TripRequest;
 import com.zkry.trip.dto.RouteIntent;
 import com.zkry.trip.dto.RouteNode;
@@ -23,7 +24,8 @@ class TripTaskServiceValidationTest {
         mock(TripPlanPersistenceService.class),
         mock(TripPlanReviewer.class),
         mock(TravelAiApplicationService.class),
-        false
+        mock(RedisUtils.class),
+        false, 1, 10, 30
     );
 
     @Test

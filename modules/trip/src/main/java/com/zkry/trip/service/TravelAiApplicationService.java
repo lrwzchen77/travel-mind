@@ -87,8 +87,8 @@ public class TravelAiApplicationService {
         return evaluateTrip(userId, "trip_plan", tripPlanId, toEvaluateRequest(plan, request));
     }
 
-    public Map<String, Object> latestTripComfort(long tripPlanId) {
-        return recordService.latest("trip_evaluate", "trip_plan", tripPlanId);
+    public Map<String, Object> latestTripComfort(long tripPlanId, long userId) {
+        return recordService.latest("trip_evaluate", "trip_plan", tripPlanId, userId);
     }
 
     private TripEvaluateRequest toEvaluateRequest(TripPlan plan, TripRequest request) {

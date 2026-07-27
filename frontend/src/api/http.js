@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { authSession } from '../auth/session.js';
 
-const defaultBaseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+const defaultBaseURL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 export function createHttpClient(options = {}) {
   const client = axios.create({

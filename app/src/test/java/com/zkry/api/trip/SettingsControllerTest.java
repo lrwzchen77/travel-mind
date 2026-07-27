@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.zkry.common.core.config.TravelMindRuntimeSettingsService;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.env.MockEnvironment;
 
 class SettingsControllerTest {
 
@@ -19,7 +20,7 @@ class SettingsControllerTest {
             "https://api.deepseek.com",
             "deepseek-v4-flash"
         );
-        SettingsController controller = new SettingsController(settings);
+        SettingsController controller = new SettingsController(settings, new MockEnvironment());
 
         Map<String, Object> response = controller.get();
         Map<String, Object> data = (Map<String, Object>) response.get("data");
@@ -37,7 +38,7 @@ class SettingsControllerTest {
         TravelMindRuntimeSettingsService settings = new TravelMindRuntimeSettingsService(
             "", "", "tool", "", "https://api.deepseek.com", "deepseek-v4-flash"
         );
-        SettingsController controller = new SettingsController(settings);
+        SettingsController controller = new SettingsController(settings, new MockEnvironment());
 
         Map<String, Object> response = controller.save(Map.of("openai_api_key", "new-secret"));
         Map<String, Object> data = (Map<String, Object>) response.get("data");

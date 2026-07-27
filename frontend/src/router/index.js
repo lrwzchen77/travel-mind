@@ -72,6 +72,7 @@ const adminResources = [
     admin: true,
     requiresAuth: true,
     canToggleStatus: resourceKey !== 'ai-records',
+    canDelete: resourceKey !== 'users',
   },
 }));
 

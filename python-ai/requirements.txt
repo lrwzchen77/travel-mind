@@ -1,11 +1,2 @@
-fastapi>=0.115,<1.0
-uvicorn[standard]>=0.30,<1.0
-python-multipart>=0.0.9,<1.0
-python-dotenv>=1.0,<2.0
-httpx>=0.27,<1.0
-pytest>=8.0,<10.0
-# optional for TRAVEL_MIND_YOLO_MODEL classify path (use torch 2.5.x on Win if 2.13 DLL fails)
-ultralytics>=8.3,<9
-Pillow>=10,<12
-sentence-transformers==5.1.2
-scikit-learn==1.9.0
+# Compatibility entry point. pyproject.toml is the single dependency source.
+-e .[test]

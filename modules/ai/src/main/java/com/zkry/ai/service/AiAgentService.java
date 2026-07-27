@@ -104,7 +104,7 @@ public class AiAgentService {
                 .name(agentName)
                 .model(chatModel.get())
                 .instruction(instruction)
-                .enableLogging(true)
+                .enableLogging(false)
                 .methodTools(methodTools == null ? new Object[0] : methodTools)
                 .build();
             String safeThreadId = threadId == null || threadId.isBlank() ? agentName : threadId;

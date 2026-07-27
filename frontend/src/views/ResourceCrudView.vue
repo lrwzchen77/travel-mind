@@ -48,6 +48,7 @@ const title = computed(() => route.meta.title);
 const fields = computed(() => route.meta.fields || []);
 const fieldLabels = computed(() => route.meta.fieldLabels || {});
 const canToggleStatus = computed(() => route.meta.canToggleStatus !== false);
+const canDelete = computed(() => route.meta.canDelete !== false);
 const isTravelNotes = computed(() => resourceKey.value === 'travel-notes');
 const isAdmin = computed(() => route.meta.admin === true);
 const isPoiResource = computed(() => ['attractions', 'hotels', 'restaurants', 'map-pois'].includes(resourceKey.value));
@@ -152,6 +153,10 @@ function resetForm() {
     };
     if (resourceKey.value === 'map-pois') payload.kind = 'attraction';
     formText.value = JSON.stringify(payload, null, 2);
+    return;
+  }
+  if (resourceKey.value === 'users') {
+    formText.value = JSON.stringify({ username: '', nickname: '', phone: '', email: '', password: '', role: 'user' }, null, 2);
     return;
   }
   formText.value = '{\n  "name": ""\n}';
@@ -286,7 +291,7 @@ onMounted(load);
                 :title="Number(record.status) === 1 ? '下线' : '上线'"
                 @click="toggleStatus(record)"
               ><Power :size="16" aria-hidden="true" /></button>
-              <button type="button" class="table-icon-button is-danger" aria-label="删除" title="删除" @click="remove(record)"><Trash2 :size="16" aria-hidden="true" /></button>
+              <button v-if="canDelete" type="button" class="table-icon-button is-danger" aria-label="删除" title="删除" @click="remove(record)"><Trash2 :size="16" aria-hidden="true" /></button>
             </td>
           </tr>
         </tbody>

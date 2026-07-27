@@ -47,8 +47,12 @@ public class UserLibraryController {
     @PostMapping("/{resourceKey}")
     public R<Map<String, Object>> create(@PathVariable String resourceKey, @RequestBody Map<String, Object> payload) {
         requireWritable(resourceKey);
-        Map<String, Object> ownedPayload = new LinkedHashMap<>(payload == null ? Map.of() : payload);
+        Map<String, Object> ownedPayload = writablePayload(resourceKey, payload);
         ownedPayload.put("user_id", LoginHelper.getUserId());
+        if ("travel-notes".equals(resourceKey)) {
+            ownedPayload.put("visibility", "private");
+            ownedPayload.put("status", 1);
+        }
         return R.ok(crudResourceService.create(resourceKey, ownedPayload));
     }
 
@@ -60,10 +64,7 @@ public class UserLibraryController {
     ) {
         requireWritable(resourceKey);
         requireOwner(resourceKey, id);
-        Map<String, Object> ownedPayload = new LinkedHashMap<>(payload == null ? Map.of() : payload);
-        ownedPayload.remove("user_id");
-        ownedPayload.remove("userId");
-        return R.ok(crudResourceService.update(resourceKey, id, ownedPayload));
+        return R.ok(crudResourceService.update(resourceKey, id, writablePayload(resourceKey, payload)));
     }
 
     @DeleteMapping("/{resourceKey}/{id}")
@@ -94,5 +95,16 @@ public class UserLibraryController {
         if (!USER_RESOURCES.contains(resourceKey)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Resource not found");
         }
+    }
+
+    private Map<String, Object> writablePayload(String resourceKey, Map<String, Object> payload) {
+        Set<String> allowed = "favorites".equals(resourceKey)
+            ? Set.of("target_type", "target_id", "note")
+            : Set.of("city_id", "attraction_id", "title", "content");
+        Map<String, Object> result = new LinkedHashMap<>();
+        if (payload != null) payload.forEach((key, value) -> {
+            if (allowed.contains(key)) result.put(key, value);
+        });
+        return result;
     }
 }

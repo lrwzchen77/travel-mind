@@ -50,7 +50,7 @@ beforeEach(() => {
   mocks.isLoggedIn.mockReturnValue(false);
   mocks.posts.mockResolvedValue({ records: [firstPost], total: 1 });
   mocks.createPost.mockResolvedValue({});
-  mocks.upload.mockResolvedValue({ url: '/uploads/cover.png' });
+  mocks.upload.mockResolvedValue({ url: '/private-uploads/1001/cover.png' });
 });
 
 describe('旅行社区页', () => {
@@ -137,14 +137,14 @@ describe('旅行社区页', () => {
     await flushPromises();
 
     expect(mocks.upload).toHaveBeenCalledWith(file);
-    expect(composer.find('img[alt="已上传图片预览"]').attributes('src')).toBe('/uploads/cover.png');
+    expect(composer.find('img[alt="已上传图片预览"]').attributes('src')).toMatch(/^blob:/);
 
     await composer.trigger('submit');
     await flushPromises();
 
     expect(submitted).toEqual({
       title: '雨天的杭州', city: '绍兴', topic: 'tip', tags: '雨天,老街',
-      cover_image: '/uploads/cover.png', content: '安排室内展馆，晚上再逛老街。', visibility: 'private',
+      cover_image: '/private-uploads/1001/cover.png', content: '安排室内展馆，晚上再逛老街。', visibility: 'private',
     });
     expect(mocks.posts).toHaveBeenCalledTimes(2);
     expect(wrapper.find('.community-compose').exists()).toBe(false);

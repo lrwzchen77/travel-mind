@@ -34,6 +34,10 @@ public class CommunityService {
         Pattern.CASE_INSENSITIVE);
     private static final int MAX_PUBLIC_COVER_EDGE = 16_384;
     private static final long MAX_PUBLIC_COVER_PIXELS = 40_000_000L;
+    private static final Pattern PRIVATE_UPLOAD = Pattern.compile(
+        "^/private-uploads/(?<user>[0-9]+)/(?<name>[0-9a-fA-F-]{36}\\.(?:jpg|png|webp))$");
+    private static final Pattern PUBLIC_UPLOAD = Pattern.compile(
+        "^/public-uploads/[0-9a-fA-F-]{36}\\.png$");
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
     public CommunityService(NamedParameterJdbcTemplate jdbcTemplate) {
@@ -107,16 +111,27 @@ public class CommunityService {
         Long cityId = findCityId(city);
         long id = nextId();
         int status = "public".equals(visibility) ? 0 : 1;
-        jdbcTemplate.update("""
+        String cover = text(payload, "cover_image", 500);
+        Path generatedCover = null;
+        if ("public".equals(visibility) && !cover.isBlank() && !PUBLIC_UPLOAD.matcher(cover).matches()) {
+            generatedCover = sanitizedUserCover(userId, cover);
+            cover = "/public-uploads/" + generatedCover.getFileName();
+        }
+        try {
+            jdbcTemplate.update("""
                 INSERT INTO tm_travel_note
                   (id, user_id, city_id, title, content, visibility, status, topic, cover_image, tags)
                 VALUES (:id, :userId, :cityId, :title, :content, :visibility, :status, :topic, :coverImage, :tags)
                 """, new MapSqlParameterSource()
             .addValue("id", id).addValue("userId", userId).addValue("cityId", cityId)
             .addValue("title", title).addValue("content", content).addValue("visibility", visibility)
-            .addValue("status", status).addValue("topic", topic)
-            .addValue("coverImage", text(payload, "cover_image", 500)).addValue("tags", text(payload, "tags", 255)));
-        return Map.of("id", id, "title", title, "visibility", visibility, "status", status);
+                .addValue("status", status).addValue("topic", topic)
+                .addValue("coverImage", cover).addValue("tags", text(payload, "tags", 255)));
+            return Map.of("id", id, "title", title, "visibility", visibility, "status", status, "cover_image", cover);
+        } catch (RuntimeException ex) {
+            if (generatedCover != null) try { Files.deleteIfExists(generatedCover); } catch (IOException ignored) { }
+            throw ex;
+        }
     }
 
     /** 从本人私有记忆生成脱敏公开副本；公开帖子不保留 memory/item/evidence 关联。 */
@@ -149,10 +164,10 @@ public class CommunityService {
                 "topic", "route",
                 "city", String.valueOf(memory.get("destination_city")),
                 "visibility", "public",
-                "cover_image", sanitizedCover == null ? "" : "/uploads/" + sanitizedCover.getFileName(),
+                "cover_image", sanitizedCover == null ? "" : "/public-uploads/" + sanitizedCover.getFileName(),
                 "tags", joinTags(tags, "真实行程")
             )));
-            post.put("cover_image", sanitizedCover == null ? "" : "/uploads/" + sanitizedCover.getFileName());
+            post.put("cover_image", sanitizedCover == null ? "" : "/public-uploads/" + sanitizedCover.getFileName());
             return post;
         } catch (RuntimeException ex) {
             if (sanitizedCover != null) try { Files.deleteIfExists(sanitizedCover); } catch (IOException ignored) { }
@@ -371,12 +386,34 @@ public class CommunityService {
                 LIMIT 1
                 """, Map.of("userId", userId, "memoryId", memoryId, "photoId", photoId)).stream().findFirst()
             .orElseThrow(() -> new BizException("公开封面不属于当前记忆册。"));
-        String sourceUrl = String.valueOf(photo.get("source_url"));
-        String name = Path.of(sourceUrl).getFileName().toString();
-        Path directory = Path.of(System.getProperty("user.dir"), "uploads").toAbsolutePath().normalize();
-        Path source = directory.resolve(name).normalize();
-        Path target = directory.resolve(UUID.randomUUID() + ".png");
+        Path source = privateFile(userId, String.valueOf(photo.get("source_url")));
+        return writeSanitizedCover(source);
+    }
+
+    private Path sanitizedUserCover(long userId, String sourceUrl) {
+        return writeSanitizedCover(privateFile(userId, sourceUrl));
+    }
+
+    private Path privateFile(long userId, String sourceUrl) {
+        var matcher = PRIVATE_UPLOAD.matcher(sourceUrl == null ? "" : sourceUrl);
+        if (!matcher.matches() || !String.valueOf(userId).equals(matcher.group("user"))) {
+            throw new BizException("公开封面必须来自当前用户的受控上传。");
+        }
+        Path directory = Path.of(System.getProperty("user.dir"), "uploads", "private", String.valueOf(userId))
+            .toAbsolutePath().normalize();
+        Path source = directory.resolve(matcher.group("name")).normalize();
         if (!source.startsWith(directory) || !Files.isRegularFile(source)) throw new BizException("公开封面文件不存在。");
+        return source;
+    }
+
+    private Path writeSanitizedCover(Path source) {
+        Path directory = Path.of(System.getProperty("user.dir"), "uploads", "public").toAbsolutePath().normalize();
+        try {
+            Files.createDirectories(directory);
+        } catch (IOException ex) {
+            throw new BizException("公开封面目录不可用。");
+        }
+        Path target = directory.resolve(UUID.randomUUID() + ".png");
         BufferedImage image = readPublicCover(source);
         try {
             if (!ImageIO.write(image, "png", target.toFile())) throw new IOException("PNG writer unavailable");

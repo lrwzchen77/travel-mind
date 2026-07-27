@@ -8,12 +8,25 @@ dependencies = [
   "uvicorn[standard]>=0.30,<1.0",
   "python-multipart>=0.0.9,<1.0",
   "python-dotenv>=1.0,<2.0",
+  "httpx>=0.27,<1.0",
+  "Pillow>=10,<12",
+  "joblib>=1.4,<2.0",
+  "scikit-learn>=1.6,<2.0",
 ]
 
 [project.optional-dependencies]
 test = [
-  "httpx>=0.27,<1.0",
   "pytest>=8.0,<10.0",
+  "matplotlib>=3.9,<4",
+]
+vision = [
+  "ultralytics>=8.3,<9",
+]
+memory = [
+  "sentence-transformers>=5.1,<6",
+]
+training = [
+  "matplotlib>=3.9,<4",
 ]
 
 [tool.pytest.ini_options]

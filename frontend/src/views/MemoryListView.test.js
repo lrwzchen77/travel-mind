@@ -20,7 +20,7 @@ describe('旅行记录列表', () => {
   it('shows only trip-facing card information and one actionable reminder', async () => {
     mocks.list.mockResolvedValue({ records: [{
       id: '996889308694955191', destination_city: '杭州', title: '杭州两日游', summary: '慢游西湖',
-      cover_image: '/uploads/cover.jpg', update_time: '2026-08-03T10:00:00', item_count: 8,
+      cover_image: '/private-uploads/1001/cover.jpg', update_time: '2026-08-03T10:00:00', item_count: 8,
       generation_status: 'ready', index_status: 'pending',
     }] });
     const wrapper = mount(MemoryListView);
