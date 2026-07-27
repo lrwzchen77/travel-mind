@@ -25,6 +25,13 @@ from app.memory_knowledge import (
     index_memory,
     query_memory,
 )
+from app.recommendation import (
+    DestinationsIndexRequest,
+    RecommendRequest,
+    destination_store_ready,
+    index_destinations,
+    recommend,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(PROJECT_ROOT / ".env", override=False)
@@ -75,6 +82,7 @@ def ai_readiness() -> dict[str, str]:
         "travel_comfort": "ready" if comfort_model_ready() else "rule_fallback",
         "memory_embedding": "ready" if embedding_model_ready() else "unavailable",
         "qdrant": "ready" if QdrantMemoryStore().ready() else "unavailable",
+        "destination_embedding": "ready" if destination_store_ready() else "unavailable",
     }
 
 
@@ -367,6 +375,26 @@ def memory_delete(payload: MemoryDeleteRequest):
         return ok(delete_memory(payload))
     except httpx.HTTPError as ex:
         raise HTTPException(status_code=503, detail="memory vector service unavailable") from ex
+
+
+@app.post("/api/recommend")
+def recommend_destinations(payload: RecommendRequest):
+    try:
+        return ok(recommend(payload))
+    except EmbeddingUnavailable as ex:
+        raise HTTPException(status_code=503, detail=str(ex)) from ex
+    except httpx.HTTPError as ex:
+        raise HTTPException(status_code=503, detail="recommendation vector service unavailable") from ex
+
+
+@app.post("/api/recommend/index", dependencies=[Depends(_require_memory_service)])
+def recommend_index(payload: DestinationsIndexRequest):
+    try:
+        return ok(index_destinations(payload))
+    except EmbeddingUnavailable as ex:
+        raise HTTPException(status_code=503, detail=str(ex)) from ex
+    except httpx.HTTPError as ex:
+        raise HTTPException(status_code=503, detail="recommendation vector service unavailable") from ex
 
 
 def _data_url_to_temp_path(value: str) -> str | None:

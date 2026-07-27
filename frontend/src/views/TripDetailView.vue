@@ -4,6 +4,7 @@ import { useRoute, useRouter, RouterLink } from 'vue-router';
 import { tripApi } from '../api/trip.js';
 import { aiApi } from '../api/ai.js';
 import { memoryApi } from '../api/memory.js';
+import { journalApi } from '../api/journal.js';
 import TravelMap3D from '../components/map/AsyncTravelMap3D.vue';
 import PublicTravelDataPanel from '../components/PublicTravelDataPanel.vue';
 import { consumerText } from '../data/consumerText.js';
@@ -258,6 +259,19 @@ async function createMemory() {
   }
 }
 
+async function createJournal() {
+  busy.value = 'journal';
+  error.value = '';
+  try {
+    const created = await journalApi.createFromTrip(route.params.id);
+    router.push(`/journals/${created.journal_id}`);
+  } catch (err) {
+    error.value = err?.message || '生成游记失败，请稍后重试。';
+  } finally {
+    busy.value = '';
+  }
+}
+
 async function deletePlan() {
   if (!window.confirm('确定丢掉这趟行程吗？删了就找不回来了。')) return;
   busy.value = 'delete';
@@ -309,6 +323,9 @@ onMounted(load);
     <div v-if="detail" class="trip-hero-actions">
       <button type="button" class="btn-coral" :disabled="busy === 'memory' || !tripEnded" @click="createMemory">
         {{ busy === 'memory' ? '正在记录…' : (tripEnded ? '记录这趟旅行' : '行程结束后可记录') }}
+      </button>
+      <button type="button" class="btn-coral" :disabled="busy === 'journal'" @click="createJournal">
+        {{ busy === 'journal' ? '生成中…' : '生成游记' }}
       </button>
       <button type="button" class="btn-ghost" @click="departureMode = !departureMode">
         {{ departureMode ? '收起出发模式' : '进入出发模式' }}
@@ -588,12 +605,18 @@ onMounted(load);
       <div class="chapter-bridge-copy">
         <p class="chapter-bridge-eyebrow">下一章 · 07 记录</p>
         <h2 class="chapter-bridge-title">这趟走完，写成回忆</h2>
-        <p class="chapter-bridge-lead">行程落幕，回忆开始。把照片、感受、意外收进旅行记录，给未来留一份可翻阅的注脚。</p>
+        <p class="chapter-bridge-lead">行程落幕，回忆开始。把照片、感受、意外收进旅行记录或写成游记，给未来留一份可翻阅的注脚。</p>
       </div>
-      <RouterLink class="chapter-bridge-cta" to="/memories">
-        <span>去写旅行记录</span>
-        <ArrowRight :size="18" :stroke-width="2.2" />
-      </RouterLink>
+      <div style="display:flex; gap:12px; flex-wrap:wrap;">
+        <RouterLink class="chapter-bridge-cta" to="/memories">
+          <span>去写旅行记录</span>
+          <ArrowRight :size="18" :stroke-width="2.2" />
+        </RouterLink>
+        <RouterLink class="chapter-bridge-cta btn-ghost" to="/journals">
+          <span>去写旅行游记</span>
+          <ArrowRight :size="18" :stroke-width="2.2" />
+        </RouterLink>
+      </div>
     </section>
   </div>
 </template>

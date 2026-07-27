@@ -21,10 +21,15 @@ app/runtime_settings.json
 !**/src/test/**/target/
 logs/
 *.log
+logs-backend.txt
+logs-pyai.txt
 .codegraph
 .cursor
 .browser-pilot/
 .github
+.trae/
+storage/
+.qdrant-initialized
 
 # Local failed image-download artifact (contains HTML, not JPEG data).
 python-ai/west-lake-night-food.jpg

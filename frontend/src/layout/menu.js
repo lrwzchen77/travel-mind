@@ -10,6 +10,8 @@ export const primaryNav = [
 /** 账户菜单只承载当前用户拥有的内容与设置。 */
 export const accountNav = [
   { path: '/memories', label: '旅行记录' },
+  { path: '/journals', label: '旅行游记' },
+  { path: '/recommendations', label: '智能推荐' },
   { path: '/inspiration-bag', label: '我的灵感包' },
   { path: '/my-posts', label: '我的分享' },
   { path: '/favorites', label: '我的收藏' },

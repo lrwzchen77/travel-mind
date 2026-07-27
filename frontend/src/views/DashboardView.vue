@@ -1,7 +1,8 @@
 <script setup>
 import { onMounted, onUnmounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import { ArrowRight, ArrowUpRight, MapPin, Clock, Compass, Map as MapIcon, Sparkles } from 'lucide-vue-next';
+import { ArrowRight, ArrowUpRight, MapPin, Clock, Compass, Map as MapIcon, Sparkles, Star } from 'lucide-vue-next';
+import { recommendationApi } from '../api/recommendation.js';
 import {
   featuredDestinations,
   rotatingCities,
@@ -17,9 +18,23 @@ const cityIndex = ref(0);
 const hoverCity = ref(null);
 const mapCity = ref('杭州');
 const scrollY = ref(0);
+const recItems = ref([]);
+const recLoading = ref(false);
 let timer;
 
 useReveal(root);
+
+async function loadRecommendations() {
+  recLoading.value = true;
+  try {
+    const data = await recommendationApi.list('city', undefined, 4);
+    recItems.value = data || [];
+  } catch (err) {
+    recItems.value = [];
+  } finally {
+    recLoading.value = false;
+  }
+}
 
 function onMapCity(city) {
   mapCity.value = city;
@@ -34,6 +49,7 @@ onMounted(() => {
     cityIndex.value = (cityIndex.value + 1) % rotatingCities.length;
   }, 4200);
   window.addEventListener('scroll', onScroll, { passive: true });
+  loadRecommendations();
 });
 
 onUnmounted(() => {
@@ -134,6 +150,38 @@ onUnmounted(() => {
             </span>
           </div>
           <div class="dest-hint"><MapPin :size="12" :stroke-width="2" /> {{ item.hint }}</div>
+        </div>
+      </RouterLink>
+    </div>
+
+    <!-- Recommendations for you -->
+    <div v-if="recItems.length" class="section-head" data-reveal>
+      <div>
+        <p class="eyebrow">为你推荐</p>
+        <h2>猜你喜欢</h2>
+      </div>
+      <RouterLink class="text-link" to="/recommendations">
+        查看更多 <span aria-hidden="true"><ArrowRight :size="15" :stroke-width="2.2" /></span>
+      </RouterLink>
+    </div>
+
+    <div v-if="recItems.length" class="rec-dashboard-row" data-reveal>
+      <RouterLink
+        v-for="item in recItems"
+        :key="`${item.itemType}-${item.itemId}`"
+        class="rec-dashboard-card"
+        :to="{ path: '/map', query: { city: item.name } }"
+      >
+        <div class="rec-dashboard-cover">
+          <img v-if="cityImageByName[item.name] || cityImageByName[item.city]" :src="cityImageByName[item.name] || cityImageByName[item.city]" :alt="item.name" loading="lazy" />
+          <span v-else class="rec-dashboard-fallback"><MapPin :size="18" /></span>
+        </div>
+        <div class="rec-dashboard-body">
+          <p class="rec-dashboard-name">{{ item.name }}</p>
+          <p class="rec-dashboard-meta">
+            <Star v-for="s in 5" :key="s" :size="10" :class="{ filled: s <= Math.round((item.rating || 0) / 5 * 5) }" />
+            <small>{{ item.rating ? item.rating.toFixed(1) : '暂无评分' }}</small>
+          </p>
         </div>
       </RouterLink>
     </div>
@@ -297,4 +345,71 @@ onUnmounted(() => {
   color: var(--tm-ink);
 }
 .home-manifesto span { color: var(--tm-accent); }
+
+.rec-dashboard-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.75rem;
+  padding: 0 1.25rem;
+  margin-bottom: 1.5rem;
+}
+.rec-dashboard-card {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 12px;
+  padding: 0.5rem;
+  text-decoration: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.rec-dashboard-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+}
+.rec-dashboard-cover {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0ea5e9;
+}
+.rec-dashboard-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.rec-dashboard-body {
+  min-width: 0;
+}
+.rec-dashboard-name {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rec-dashboard-meta {
+  margin: 0.2rem 0 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+  color: #cbd5e1;
+}
+.rec-dashboard-meta .filled {
+  color: #f59e0b;
+}
+.rec-dashboard-meta small {
+  margin-left: 0.2rem;
+  font-size: 0.7rem;
+  color: #64748b;
+}
 </style>

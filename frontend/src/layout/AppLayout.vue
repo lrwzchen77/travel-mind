@@ -10,6 +10,7 @@ import { authSession } from '../auth/session.js';
 
 const accountIcon = {
   '/memories': BookMarked,
+  '/journals': BookOpen,
   '/inspiration-bag': Sparkles,
   '/my-posts': BookOpen,
   '/favorites': Heart,
@@ -44,6 +45,8 @@ const chapterMap = {
   'trip-detail': '06 · 行程',
   memories: '07 · 记录',
   'memory-detail': '07 · 记录',
+  journals: '07 · 游记',
+  'journal-detail': '07 · 游记',
   'my-posts': '08 · 我的',
   'inspiration-bag': '08 · 灵感包',
   assistant: '09 · 助手',
