@@ -11,6 +11,8 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
+import org.springframework.web.server.ResponseStatusException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class UserLibraryControllerTest {
 
@@ -44,5 +46,13 @@ class UserLibraryControllerTest {
         verify(service).update(org.mockito.ArgumentMatchers.eq("travel-notes"), org.mockito.ArgumentMatchers.eq(7L), payload.capture());
         assertThat(payload.getValue()).containsEntry("status", 0).containsKey("review_reason");
         assertThat(payload.getValue().get("review_reason")).isNull();
+    }
+
+    @Test
+    void favoriteMetadataIsNotEditableThroughTheGenericEndpoint() {
+        UserLibraryController controller = new UserLibraryController(org.mockito.Mockito.mock(CrudResourceService.class));
+        assertThatThrownBy(() -> controller.update("favorites", 7L, Map.of("note", "changed")))
+            .isInstanceOf(ResponseStatusException.class)
+            .hasMessageContaining("405");
     }
 }

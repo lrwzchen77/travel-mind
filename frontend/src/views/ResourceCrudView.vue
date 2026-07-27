@@ -27,6 +27,8 @@ const loading = ref(false);
 const error = ref('');
 const records = ref([]);
 const total = ref(0);
+const page = ref(1);
+const pageSize = 20;
 const editingId = ref(null);
 const formText = ref('{\n  "name": ""\n}');
 const analysisResult = ref(null);
@@ -52,6 +54,7 @@ const fields = computed(() => route.meta.fields || []);
 const fieldLabels = computed(() => route.meta.fieldLabels || {});
 const canToggleStatus = computed(() => route.meta.canToggleStatus !== false);
 const canDelete = computed(() => route.meta.canDelete !== false);
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize)));
 const isTravelNotes = computed(() => resourceKey.value === 'travel-notes');
 const isAdmin = computed(() => route.meta.admin === true);
 const isPoiResource = computed(() => ['attractions', 'hotels', 'restaurants', 'map-pois'].includes(resourceKey.value));
@@ -99,13 +102,14 @@ function cellValue(record, field) {
   return value ?? '—';
 }
 
-async function load() {
+async function load(pageNum = 1) {
   loading.value = true;
   error.value = '';
   try {
-    const data = await resourceApi.list(resourceKey.value, cleanFilters());
+    const data = await resourceApi.list(resourceKey.value, { ...cleanFilters(), pageNum, pageSize });
     records.value = data.records || [];
     total.value = data.total || 0;
+    page.value = pageNum;
   } catch (err) {
     error.value = err?.message || '加载失败，稍后再试';
   } finally {
@@ -176,7 +180,7 @@ function resetForm() {
   editingId.value = null;
   if (isPoiResource.value) {
     const payload = {
-      city: '', name: '', longitude: 0, latitude: 0, category: '', rating: null, cost: null, tags: '', imageUrl: '',
+      city: '', name: '', longitude: 0, latitude: 0, category: '', rating: null, cost: null, tags: '', image_url: '',
     };
     if (resourceKey.value === 'map-pois') payload.kind = 'attraction';
     formText.value = JSON.stringify(payload, null, 2);
@@ -204,7 +208,7 @@ watch(() => route.fullPath, () => {
   resetForm();
   analysisResult.value = null;
   showEditor.value = false;
-  load();
+  load(1);
 });
 
 onMounted(load);
@@ -243,12 +247,12 @@ onMounted(load);
     </div>
   </div>
   <section class="toolbar" aria-label="搜索筛选" data-reveal>
-    <input v-model="filters.keyword" placeholder="搜名称或关键词" @keyup.enter="load" />
-    <input v-model="filters.cityId" placeholder="城市编号" @keyup.enter="load" />
-    <input v-model="filters.category" placeholder="分类" @keyup.enter="load" />
-    <input v-model="filters.tag" placeholder="标签" @keyup.enter="load" />
-    <input v-model="filters.status" placeholder="状态" @keyup.enter="load" />
-    <button type="button" class="btn-coral" @click="load">搜索</button>
+    <input v-model="filters.keyword" placeholder="搜名称或关键词" @keyup.enter="load(1)" />
+    <input v-model="filters.cityId" placeholder="城市编号" @keyup.enter="load(1)" />
+    <input v-model="filters.category" placeholder="分类" @keyup.enter="load(1)" />
+    <input v-model="filters.tag" placeholder="标签" @keyup.enter="load(1)" />
+    <input v-model="filters.status" placeholder="状态" @keyup.enter="load(1)" />
+    <button type="button" class="btn-coral" @click="load(1)">搜索</button>
     <button type="button" class="btn-ghost" @click="showEditor = true; resetForm()">{{ isPoiResource ? '手动导入' : '添加' }}</button>
   </section>
 
@@ -327,6 +331,11 @@ onMounted(load);
           </tr>
         </tbody>
       </table>
+      <div v-if="totalPages > 1" class="admin-pagination" aria-label="分页">
+        <button type="button" class="btn-ghost" :disabled="loading || page <= 1" @click="load(page - 1)">上一页</button>
+        <span>第 {{ page }} / {{ totalPages }} 页</span>
+        <button type="button" class="btn-ghost" :disabled="loading || page >= totalPages" @click="load(page + 1)">下一页</button>
+      </div>
     </div>
 
     <form v-if="showEditor" class="editor-panel field-stack" @submit.prevent="save">
@@ -357,3 +366,7 @@ onMounted(load);
   </section>
   </div>
 </template>
+
+<style scoped>
+.admin-pagination { display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 14px 16px; border-top: 1px solid var(--tm-line); color: var(--tm-muted); font-size: 12px; }
+</style>

@@ -14,7 +14,6 @@ import com.zkry.trip.dto.ai.VisionDetectResult;
 import com.zkry.trip.service.TravelAiApplicationService;
 import com.zkry.trip.service.TripPlanPersistenceService;
 import com.zkry.resources.service.CrudResourceService;
-import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -63,8 +62,6 @@ class TravelAiControllerTest {
         TravelAiApplicationService service = org.mockito.Mockito.mock(TravelAiApplicationService.class);
         TripPlanPersistenceService persistence = org.mockito.Mockito.mock(TripPlanPersistenceService.class);
         TravelAiController controller = new TravelAiController(service, persistence, org.mockito.Mockito.mock(CrudResourceService.class));
-        HttpServletRequest httpRequest = org.mockito.Mockito.mock(HttpServletRequest.class);
-        when(httpRequest.getRequestURI()).thenReturn("/api/user/ai/trip/evaluate");
         TripEvaluateRequest request = new TripEvaluateRequest(List.of(), "公共交通", 0, List.of("轻松"), 2000D);
         when(service.evaluateTrip(1001L, "trip_plan", 99L, request)).thenReturn(PythonAiCallResult.ok("success",
             new TripEvaluateResult("trained_travel_comfort", "travel-comfort-v1", "relaxed", 0.9,
@@ -74,7 +71,7 @@ class TravelAiControllerTest {
         R<PythonAiCallResult<TripEvaluateResult>> response;
         try (MockedStatic<LoginHelper> login = mockStatic(LoginHelper.class)) {
             login.when(LoginHelper::getUserId).thenReturn(1001L);
-            response = controller.evaluateTrip(request, "trip_plan", 99L, httpRequest);
+            response = controller.evaluateTrip(request, "trip_plan", 99L);
         }
 
         assertThat(response.getData().data().comfort_score()).isEqualTo(88);

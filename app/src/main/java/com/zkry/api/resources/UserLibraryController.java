@@ -62,6 +62,9 @@ public class UserLibraryController {
         @PathVariable long id,
         @RequestBody Map<String, Object> payload
     ) {
+        if (!"travel-notes".equals(resourceKey)) {
+            throw new ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED, "Resource is not editable");
+        }
         requireWritable(resourceKey);
         Map<String, Object> existing = requireOwner(resourceKey, id);
         Map<String, Object> values = writablePayload(resourceKey, payload);

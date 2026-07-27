@@ -63,7 +63,6 @@ public class SaTokenConfig implements WebMvcConfigurer {
                 "/api/user/auth/register",
                 "/api/admin/auth/login",
                 "/api/public/**",
-                "/api/poi/**",
                 "/health",
                 "/ready"
             );

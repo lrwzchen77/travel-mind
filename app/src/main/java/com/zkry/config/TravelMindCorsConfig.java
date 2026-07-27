@@ -39,7 +39,7 @@ public class TravelMindCorsConfig implements WebMvcConfigurer {
             .addPathPatterns("/api/**")
             .excludePathPatterns(
                 "/api/user/auth/login", "/api/user/auth/register", "/api/admin/auth/login",
-                "/api/public/**", "/api/poi/**");
+                "/api/public/**");
     }
 
     @Override

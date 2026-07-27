@@ -8,6 +8,7 @@ import AiInspirationView from '../views/AiInspirationView.vue';
 import PlanningView from '../views/PlanningView.vue';
 import ExploreMapView from '../views/ExploreMapView.vue';
 import DiscoveryListView from '../views/DiscoveryListView.vue';
+import DiscoveryDetailView from '../views/DiscoveryDetailView.vue';
 import CityDetailView from '../views/CityDetailView.vue';
 import ResourceCrudView from '../views/ResourceCrudView.vue';
 import TripDetailView from '../views/TripDetailView.vue';
@@ -92,6 +93,7 @@ export const routes = [
       { path: 'inspiration-bag', name: 'inspiration-bag', component: InspirationBagView, meta: { requiresAuth: true } },
       { path: 'assistant', name: 'assistant', component: AssistantView, meta: { requiresAuth: true } },
       ...discoveryRoutes,
+      { path: 'discover/:resourceKey/:id', name: 'discovery-detail', component: DiscoveryDetailView, meta: { public: true } },
       { path: 'city/:city', name: 'city-detail', component: CityDetailView, meta: { public: true } },
       { path: 'trip-history', name: 'trip-history', component: TripHistoryView, meta: { requiresAuth: true } },
       { path: 'trip/:id', name: 'trip-detail', component: TripDetailView, meta: { requiresAuth: true } },
@@ -133,6 +135,7 @@ const pageTitles = {
   dashboard: '旅行灵感', planning: '规划行程', 'explore-map': '地图情报', inspirations: '旅行社区',
   'inspiration-detail': '旅行分享', 'my-posts': '我的分享', 'inspiration-bag': '我的灵感包', assistant: '旅行助手',
   attractions: '去哪玩', hotels: '住哪里', restaurants: '吃什么', cities: '发现城市',
+  'discovery-detail': '旅行详情',
   'trip-history': '我的行程', 'trip-detail': '行程详情', memories: '旅行记录', 'memory-detail': '旅行回忆',
   'ai-lab': 'AI 内容解读', favorites: '我的收藏', 'travel-notes': '旅行笔记', 'ai-records': '灵感足迹', profile: '旅行偏好', notifications: '消息中心',
   'user-login': '旅行账号登录', 'admin-login': '运营登录',

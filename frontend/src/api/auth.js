@@ -15,8 +15,10 @@ export function createAuthApi(client = http) {
       const session = await client.post('/user/auth/register', profile).then(unwrap);
       return authSession.save(session);
     },
-    me(portal) {
-      return client.get(`/${portal}/auth/me`).then(unwrap);
+    async me(portal) {
+      const user = await client.get(`/${portal}/auth/me`).then(unwrap);
+      authSession.updateUser(user);
+      return user;
     },
     async logout(portal) {
       try {
@@ -29,3 +31,15 @@ export function createAuthApi(client = http) {
 }
 
 export const authApi = createAuthApi();
+
+export async function refreshAuthSession(api = authApi) {
+  if (!authSession.isLoggedIn()) return false;
+  const portal = authSession.hasRole('admin') ? 'admin' : 'user';
+  try {
+    await api.me(portal);
+    return true;
+  } catch (error) {
+    if ([401, 403].includes(error?.response?.status)) authSession.clear();
+    return false;
+  }
+}

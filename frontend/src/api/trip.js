@@ -25,6 +25,9 @@ export function createTripApi(client = http) {
     publicMap(city, longitude, latitude) {
       return client.get('/public/travel-map', { params: { city, longitude, latitude }, timeout: 20000 }).then(unwrap);
     },
+    poiPhoto(name, city) {
+      return client.get('/poi/photo', { params: { name, city } }).then(unwrap);
+    },
     detail(id) {
       return client.get(`/user/trip/${id}`).then(unwrap);
     },

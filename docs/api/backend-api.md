@@ -39,7 +39,9 @@ Public resource keys are `cities`, `attractions`, `hotels`, `restaurants`, and `
 - `GET /api/user/profile`: current user's profile and preferences.
 - `PUT /api/user/profile`: update the current user's profile and preferences.
 - `GET /api/user/library/{resourceKey}`: current user's favorites, notes, or AI records.
-- `POST|PUT|DELETE /api/user/library/{resourceKey}`: current user's favorites and notes only.
+- `POST /api/user/library/{resourceKey}`: create a favorite or private note.
+- `PUT /api/user/library/travel-notes/{id}`: edit an owned note.
+- `DELETE /api/user/library/{resourceKey}/{id}`: delete an owned favorite or note.
 - `POST /api/user/trip/plan`: submit an asynchronous trip task.
 - `GET /api/user/trip/status/{taskId}`: current user's task progress.
 - `GET /api/user/trip/history?limit=8`: current user's saved trips.
@@ -58,7 +60,6 @@ Public resource keys are `cities`, `attractions`, `hotels`, `restaurants`, and `
 - `PUT /api/user/inspirations/posts/{id}`: edit a post; public posts return to pending review.
 - `POST /api/user/inspirations/posts/{id}/submit`: submit a private or rejected post for review.
 - `POST /api/user/ai/vision/detect`
-- `POST /api/user/ai/trip/evaluate`
 - `POST /api/user/ai/content/analyze`
 - `GET /api/user/ai/trip/{id}/comfort`
 - `GET /api/user/ai/trip/{id}/comfort/feedback`
@@ -70,16 +71,16 @@ User IDs are taken only from the authenticated session. Client-supplied `userId`
 ## Admin APIs
 
 - `GET|POST /api/admin/resources/{resourceKey}`
-- `GET|PUT|DELETE /api/admin/resources/{resourceKey}/{id}`
+- `PUT|DELETE /api/admin/resources/{resourceKey}/{id}`
 - `PUT /api/admin/resources/{resourceKey}/{id}/status?status=1`
 - `PUT /api/admin/users/{id}/password`: reset a password and invalidate existing tokens.
 - `PUT /api/admin/users/{id}/role`: set `user` or `admin` and invalidate existing tokens.
 - `POST /api/admin/inspirations/{id}/review`: approve (`status=1`) or reject (`status=2`, reason required) community content.
 - `GET /api/admin/settings`: redacted runtime configuration status.
 - `PUT /api/admin/settings`: update runtime configuration in the Java process.
-- `POST /api/admin/ai/**`: administrator AI validation endpoints matching the user AI contract.
+- `POST /api/admin/ai/vision/detect`, `/trip/evaluate`, and `/content/analyze`: administrator AI validation endpoints.
 
-Supported admin resource keys include users, preferences, cities, attractions, hotels, restaurants, tags, favorites, notes, trip plans, and AI records.
+Supported admin resource keys include users, preferences, cities, attractions, hotels, restaurants, tags, notes, trip plans, and AI records. Personal favorites stay inside the user library boundary.
 
 ## Status Rules
 

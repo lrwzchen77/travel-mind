@@ -10,17 +10,27 @@ function params(options = {}) {
   };
 }
 
-export function createAiApi(client = http, prefix = '/user/ai') {
-  return {
+export function createAiApi(client = http, portal = 'user') {
+  const prefix = `/${portal}/ai`;
+  const shared = {
     detectVision(payload) {
       return client.post(`${prefix}/vision/detect`, payload).then(unwrap);
-    },
-    evaluateTrip(payload, options = {}) {
-      return client.post(`${prefix}/trip/evaluate`, payload, params(options)).then(unwrap);
     },
     analyzeContent(payload, options = {}) {
       return client.post(`${prefix}/content/analyze`, payload, params(options)).then(unwrap);
     },
+  };
+  if (portal === 'admin') return {
+    ...shared,
+    evaluateTrip(payload, options = {}) {
+      return client.post(`${prefix}/trip/evaluate`, payload, params(options)).then(unwrap);
+    },
+    comfortFeedbackStats() {
+      return client.get(`${prefix}/travel-comfort/feedback/stats`).then(unwrap);
+    },
+  };
+  return {
+    ...shared,
     tripComfort(id) {
       return client.get(`${prefix}/trip/${id}/comfort`).then(unwrap);
     },
@@ -30,11 +40,8 @@ export function createAiApi(client = http, prefix = '/user/ai') {
     saveTripComfortFeedback(id, payload) {
       return client.post(`${prefix}/trip/${id}/comfort/feedback`, payload).then(unwrap);
     },
-    comfortFeedbackStats() {
-      return client.get(`${prefix}/travel-comfort/feedback/stats`).then(unwrap);
-    },
   };
 }
 
 export const aiApi = createAiApi();
-export const adminAiApi = createAiApi(http, '/admin/ai');
+export const adminAiApi = createAiApi(http, 'admin');

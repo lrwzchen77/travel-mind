@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createAuthApi } from './auth.js';
+import { createAuthApi, refreshAuthSession } from './auth.js';
 import { authSession } from '../auth/session.js';
 
 describe('authentication API', () => {
@@ -33,6 +33,17 @@ describe('authentication API', () => {
 
     await expect(createAuthApi(http).logout('user')).rejects.toThrow('offline');
 
+    expect(authSession.isLoggedIn()).toBe(false);
+  });
+
+  it('refreshes the stored user and clears an invalid session', async () => {
+    authSession.save({ tokenValue: 'jwt', user: { roles: ['admin'], username: 'old' } });
+    const http = { get: vi.fn().mockResolvedValue({ data: { data: { roles: ['admin'], username: 'fresh' } } }) };
+    await createAuthApi(http).me('admin');
+    expect(authSession.user().username).toBe('fresh');
+
+    const invalid = { me: vi.fn().mockRejectedValue({ response: { status: 403 } }) };
+    await expect(refreshAuthSession(invalid)).resolves.toBe(false);
     expect(authSession.isLoggedIn()).toBe(false);
   });
 });

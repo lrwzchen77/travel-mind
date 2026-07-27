@@ -32,6 +32,7 @@ const expenseForm = reactive({ category: 'food', title: '', amount: '', spent_on
 const expenseError = ref('');
 const mapRef = ref(null);
 const editDraft = ref(null);
+const poiPhotos = ref({});
 
 const plan = computed(() => detail.value?.data || {});
 const days = computed(() => plan.value.days || []);
@@ -133,6 +134,7 @@ async function load() {
   error.value = '';
   try {
     detail.value = await tripApi.detail(route.params.id);
+    void loadPoiPhotos();
     try {
       checklist.value = JSON.parse(localStorage.getItem(`travel-mind-trip-checks-${route.params.id}`) || '{}');
     } catch {
@@ -151,6 +153,29 @@ async function load() {
   } catch (err) {
     error.value = err?.response?.data?.msg || err?.message || '打不开这趟行程';
   }
+}
+
+function poiPhotoKey(day, attraction) {
+  return `${day.city || plan.value.city || ''}:${attraction?.name || ''}`;
+}
+
+function dayPhoto(day) {
+  return poiPhotos.value[poiPhotoKey(day, day.attractions?.[0])] || '';
+}
+
+async function loadPoiPhotos() {
+  // ponytail: one cover per day avoids an XHS request per attraction; expand only if the UI adds attraction cards.
+  const targets = days.value
+    .filter((day) => day.attractions?.[0]?.name)
+    .map((day) => ({ day, attraction: day.attractions[0] }))
+    .filter(({ day, attraction }, index, all) => all.findIndex((item) => poiPhotoKey(item.day, item.attraction) === poiPhotoKey(day, attraction)) === index)
+    .slice(0, 8);
+  const results = await Promise.allSettled(targets.map(({ day, attraction }) =>
+    tripApi.poiPhoto(attraction.name, day.city || plan.value.city)));
+  poiPhotos.value = Object.fromEntries(results.flatMap((result, index) => {
+    const url = result.status === 'fulfilled' ? result.value?.data?.photo_url : '';
+    return url ? [[poiPhotoKey(targets[index].day, targets[index].attraction), url]] : [];
+  }));
 }
 
 async function saveComfortFeedback(actualLabel) {
@@ -388,6 +413,10 @@ onMounted(load);
       <article v-for="(day, idx) in days" :key="day.day_index ?? idx" class="route-day">
         <div class="route-axis"><span class="route-node" /></div>
         <div class="route-card">
+          <figure v-if="dayPhoto(day)" class="route-day-cover">
+            <img :src="dayPhoto(day)" :alt="`${day.attractions[0].name}小红书旅行参考图`" loading="lazy" referrerpolicy="no-referrer" />
+            <figcaption>小红书旅行参考 · {{ day.attractions[0].name }}</figcaption>
+          </figure>
           <h3>Day {{ day.day_index != null ? Number(day.day_index) + 1 : idx + 1 }} · {{ day.date || '日期待定' }}</h3>
           <p class="day-meta">
             {{ day.description || day.city || '今天的安排' }}
@@ -672,4 +701,7 @@ onMounted(load);
 .saved-route-strip button:hover,
 .saved-route-strip button:focus-visible { border-color: var(--tm-accent); outline: 2px solid var(--tm-accent-soft); outline-offset: 2px; }
 .saved-route-strip b { display: grid; width: 25px; height: 25px; place-items: center; border-radius: 50%; background: var(--tm-accent); color: #160d05; font: 900 10px/1 var(--font-mono, monospace); }
+.route-day-cover { position: relative; margin: 0 0 16px; overflow: hidden; border-radius: var(--tm-radius-control); }
+.route-day-cover img { display: block; width: 100%; height: clamp(150px, 22vw, 230px); object-fit: cover; }
+.route-day-cover figcaption { position: absolute; right: 10px; bottom: 9px; padding: 5px 8px; border-radius: var(--tm-radius-pill); background: rgba(10, 12, 16, .74); color: #fff; font-size: 11px; font-weight: 700; }
 </style>

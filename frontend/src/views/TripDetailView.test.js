@@ -3,14 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import TripDetailView from './TripDetailView.vue';
 
 const mocks = vi.hoisted(() => ({
-  addExpense: vi.fn(), chat: vi.fn(), copy: vi.fn(), detail: vi.fn(), expenses: vi.fn(), remove: vi.fn(), removeExpense: vi.fn(),
+  addExpense: vi.fn(), chat: vi.fn(), copy: vi.fn(), detail: vi.fn(), expenses: vi.fn(), poiPhoto: vi.fn(), remove: vi.fn(), removeExpense: vi.fn(),
   createMemory: vi.fn(), tripComfort: vi.fn(), tripComfortFeedback: vi.fn(), saveTripComfortFeedback: vi.fn(),
   push: vi.fn(), route: { params: { id: '9001' } },
 }));
 
 vi.mock('../api/trip.js', () => ({ tripApi: {
   addExpense: mocks.addExpense, chat: mocks.chat, copy: mocks.copy, detail: mocks.detail, expenses: mocks.expenses,
-  remove: mocks.remove, removeExpense: mocks.removeExpense,
+  poiPhoto: mocks.poiPhoto, remove: mocks.remove, removeExpense: mocks.removeExpense,
 } }));
 vi.mock('../api/ai.js', () => ({ aiApi: {
   tripComfort: mocks.tripComfort,
@@ -57,11 +57,21 @@ beforeEach(() => {
   mocks.tripComfortFeedback.mockResolvedValue({ submitted: false });
   mocks.saveTripComfortFeedback.mockResolvedValue({ submitted: true, actual_label: 'balanced' });
   mocks.expenses.mockResolvedValue(expenseSummary);
+  mocks.poiPhoto.mockResolvedValue({ data: { name: '西湖', photo_url: 'https://example.com/xhs-west-lake.jpg' } });
   mocks.addExpense.mockResolvedValue(expenseSummary);
   mocks.createMemory.mockResolvedValue({ id: 3001 });
 });
 
 describe('行程详情新增能力', () => {
+  it('loads one XHS cover for the first attraction of each day', async () => {
+    const wrapper = mountPage();
+    await flushPromises();
+
+    expect(mocks.poiPhoto).toHaveBeenCalledWith('西湖', '杭州');
+    expect(wrapper.get('.route-day-cover img').attributes('src')).toBe('https://example.com/xhs-west-lake.jpg');
+    expect(wrapper.get('.route-day-cover figcaption').text()).toContain('小红书旅行参考');
+  });
+
   it('从计划快照恢复原始编号路线并交给地图展示', async () => {
     mocks.detail.mockResolvedValueOnce({
       ...plan,

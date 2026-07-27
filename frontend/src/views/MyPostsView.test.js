@@ -2,13 +2,14 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import MyPostsView from './MyPostsView.vue';
 
-const myPosts = vi.hoisted(() => vi.fn());
-vi.mock('../api/community.js', () => ({ communityApi: { myPosts } }));
+const mocks = vi.hoisted(() => ({ myPosts: vi.fn(), updatePost: vi.fn() }));
+vi.mock('../api/community.js', () => ({ communityApi: { myPosts: mocks.myPosts, updatePost: mocks.updatePost } }));
 vi.mock('vue-router', () => ({ RouterLink: { props: ['to'], template: '<a :data-to="to"><slot /></a>' } }));
 
 describe('我的分享页', () => {
   beforeEach(() => {
-    myPosts.mockResolvedValue({ records: [
+    vi.clearAllMocks();
+    mocks.myPosts.mockResolvedValue({ records: [
       { id: 1, title: '西湖慢游', visibility: 'public', status: 1, topic: 'route', content: '一路慢慢走。' },
       { id: 2, title: '雨天避坑', visibility: 'public', status: 0, topic: 'tip', content: '雨伞别忘。' },
       { id: 3, title: '私藏早餐', visibility: 'private', status: 1, topic: 'food', content: '只留给自己。' },
@@ -18,7 +19,7 @@ describe('我的分享页', () => {
   it('shows owned posts and their publish states', async () => {
     const wrapper = mount(MyPostsView);
     await flushPromises();
-    expect(myPosts).toHaveBeenCalledWith({ pageNum: 1, pageSize: 30 });
+    expect(mocks.myPosts).toHaveBeenCalledWith({ pageNum: 1, pageSize: 30 });
     expect(wrapper.text()).toContain('1篇已发布');
     expect(wrapper.text()).toContain('1篇审核中');
     expect(wrapper.text()).toContain('仅自己可见');
@@ -28,7 +29,7 @@ describe('我的分享页', () => {
   });
 
   it('keeps an actionable error state when owned posts cannot load', async () => {
-    myPosts.mockRejectedValueOnce(new Error('网络断开'));
+    mocks.myPosts.mockRejectedValueOnce(new Error('网络断开'));
     const wrapper = mount(MyPostsView);
     await flushPromises();
     expect(wrapper.find('.error-line').text()).toBe('网络断开');
@@ -36,10 +37,24 @@ describe('我的分享页', () => {
   });
 
   it('offers a clear first-publish action for an empty account', async () => {
-    myPosts.mockResolvedValueOnce({ records: [] });
+    mocks.myPosts.mockResolvedValueOnce({ records: [] });
     const wrapper = mount(MyPostsView);
     await flushPromises();
     expect(wrapper.text()).toContain('还没有公开或私藏的旅行分享');
     expect(wrapper.find('[data-to="/inspirations"]').exists()).toBe(true);
+  });
+
+  it('edits an owned post and reloads its review state', async () => {
+    mocks.updatePost.mockResolvedValue({ id: 1, status: 0 });
+    const wrapper = mount(MyPostsView);
+    await flushPromises();
+
+    await wrapper.find('.my-post-card .btn-ghost').trigger('click');
+    await wrapper.get('input[aria-label="标题"]').setValue('西湖慢游更新版');
+    await wrapper.get('.my-post-card form').trigger('submit');
+    await flushPromises();
+
+    expect(mocks.updatePost).toHaveBeenCalledWith(1, expect.objectContaining({ title: '西湖慢游更新版' }));
+    expect(mocks.myPosts).toHaveBeenCalledTimes(2);
   });
 });

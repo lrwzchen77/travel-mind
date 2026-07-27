@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
-@RequestMapping({"/api/user/ai", "/api/admin/ai"})
+@RequestMapping("/api")
 public class TravelAiController {
 
     private final TravelAiApplicationService travelAiApplicationService;
@@ -41,25 +41,23 @@ public class TravelAiController {
         this.resources = resources;
     }
 
-    @PostMapping("/vision/detect")
+    @PostMapping({"/user/ai/vision/detect", "/admin/ai/vision/detect"})
     public R<PythonAiCallResult<VisionDetectResult>> detectVision(
         @RequestBody VisionDetectRequest request
     ) {
         return R.ok(travelAiApplicationService.detectVision(LoginHelper.getUserId(), request));
     }
 
-    @PostMapping("/trip/evaluate")
+    @PostMapping("/admin/ai/trip/evaluate")
     public R<PythonAiCallResult<TripEvaluateResult>> evaluateTrip(
         @RequestBody TripEvaluateRequest request,
         @RequestParam(defaultValue = "trip_plan") String targetType,
-        @RequestParam(required = false) Long targetId,
-        HttpServletRequest httpRequest
+        @RequestParam(required = false) Long targetId
     ) {
-        requireOwnedTarget(httpRequest, targetType, targetId);
         return R.ok(travelAiApplicationService.evaluateTrip(LoginHelper.getUserId(), targetType, targetId, request));
     }
 
-    @PostMapping("/content/analyze")
+    @PostMapping({"/user/ai/content/analyze", "/admin/ai/content/analyze"})
     public R<PythonAiCallResult<ContentAnalyzeResult>> analyzeContent(
         @RequestBody ContentAnalyzeRequest request,
         @RequestParam(defaultValue = "travel_note") String targetType,
@@ -70,7 +68,7 @@ public class TravelAiController {
         return R.ok(travelAiApplicationService.analyzeContent(LoginHelper.getUserId(), targetType, targetId, request));
     }
 
-    @GetMapping("/trip/{id}/comfort")
+    @GetMapping("/user/ai/trip/{id}/comfort")
     public R<Map<String, Object>> tripComfort(@PathVariable long id) {
         tripPlanPersistenceService.detail(id, LoginHelper.getUserId());
         return R.ok(travelAiApplicationService.latestTripComfort(id, LoginHelper.getUserId()));

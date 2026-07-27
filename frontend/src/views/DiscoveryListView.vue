@@ -14,7 +14,12 @@ const route = useRoute();
 const router = useRouter();
 const items = ref([]);
 const total = ref(0);
+const page = ref(1);
 const keyword = ref('');
+const category = ref('');
+const tag = ref('');
+const ratingMin = ref('');
+const availableTags = ref([]);
 const loading = ref(false);
 const error = ref('');
 const { busyKey, isFavorite, loadFavorites, toggleFavorite } = useFavorites();
@@ -22,6 +27,7 @@ const { busyKey, isFavorite, loadFavorites, toggleFavorite } = useFavorites();
 const resourceKey = computed(() => route.meta.resourceKey);
 const title = computed(() => route.meta.title);
 const isCityDiscovery = computed(() => resourceKey.value === 'cities');
+const hasMore = computed(() => items.value.length < total.value);
 
 const resourceMeta = computed(() => {
   const map = {
@@ -109,8 +115,10 @@ function planLink(item) {
   return { path: '/map', query };
 }
 
-function cityDetailLink(item) {
-  return isCityDiscovery.value ? `/city/${encodeURIComponent(item.name)}` : undefined;
+function detailLink(item) {
+  return isCityDiscovery.value
+    ? `/city/${encodeURIComponent(item.name)}`
+    : `/discover/${resourceKey.value}/${item.id}`;
 }
 
 function targetType() {
@@ -123,7 +131,7 @@ function targetType() {
   return targetTypes[resourceKey.value];
 }
 
-async function load() {
+async function load(pageNum = 1) {
   loading.value = true;
   error.value = '';
   try {
@@ -131,6 +139,10 @@ async function load() {
       resourceApi.discover(resourceKey.value, {
         keyword: keyword.value,
         cityId: route.query.cityId || undefined,
+        category: category.value || undefined,
+        tag: tag.value || undefined,
+        ratingMin: ratingMin.value || undefined,
+        pageNum,
         pageSize: resourceKey.value === 'cities' ? 50 : 30,
       }),
       resourceKey.value === 'cities'
@@ -138,15 +150,26 @@ async function load() {
         : resourceApi.discover('cities', { pageSize: 100 }).catch(() => ({ records: [] })),
     ]);
     const cityNames = new Map((cityData.records || []).map((city) => [String(city.id), city.name]));
-    items.value = (data.records || []).map((item) => ({
+    const records = (data.records || []).map((item) => ({
       ...item,
       city_name: item.city_name || cityNames.get(String(item.city_id)) || '',
     }));
+    items.value = pageNum === 1 ? records : [...items.value, ...records];
+    page.value = pageNum;
     total.value = data.total || items.value.length;
   } catch (err) {
     error.value = err?.message || '暂时打不开这份清单，稍后再试';
   } finally {
     loading.value = false;
+  }
+}
+
+async function loadTags() {
+  try {
+    const data = await resourceApi.discover('travel-tags', { pageSize: 100 });
+    availableTags.value = data.records || [];
+  } catch {
+    availableTags.value = [];
   }
 }
 
@@ -177,11 +200,15 @@ async function favorite(item) {
 
 watch(resourceKey, () => {
   keyword.value = '';
-  load();
+  category.value = '';
+  tag.value = '';
+  ratingMin.value = '';
+  load(1);
   loadFavoriteState();
 });
 onMounted(() => {
-  load();
+  load(1);
+  loadTags();
   loadFavoriteState();
 });
 </script>
@@ -189,7 +216,7 @@ onMounted(() => {
 <template>
   <PagePrologue index="04" eyebrow="发现" :title="title" lead="挑一座城，把它拆成玩、住、吃三个清单。" next-label="回到地图" next-to="/map" />
 
-  <form class="discovery-search glass-panel" @submit.prevent="load">
+  <form class="discovery-search glass-panel" @submit.prevent="load(1)">
     <div class="discovery-search-field">
       <label class="field-label" for="discover-q">想找什么</label>
       <input
@@ -202,6 +229,11 @@ onMounted(() => {
     <button type="submit" class="btn-coral" :disabled="loading">
       {{ loading ? '正在找…' : '搜索' }}
     </button>
+    <div v-if="!isCityDiscovery" class="discovery-filter-row">
+      <label><span class="field-label">分类</span><input v-model="category" placeholder="例如自然风光、精品住宿" /></label>
+      <label><span class="field-label">标签</span><select v-model="tag"><option value="">全部标签</option><option v-for="item in availableTags" :key="item.id" :value="item.name">{{ item.name }}</option></select></label>
+      <label><span class="field-label">最低评分</span><select v-model="ratingMin"><option value="">不限评分</option><option value="4">4.0 分以上</option><option value="4.5">4.5 分以上</option></select></label>
+    </div>
   </form>
 
   <p v-if="error" class="error-line">{{ error }}</p>
@@ -211,6 +243,7 @@ onMounted(() => {
       <h2>{{ loading ? '正在翻找灵感…' : resourceMeta.countLabel(total) }}</h2>
     </div>
   </div>
+  <div v-if="hasMore" class="load-more"><button type="button" class="btn-ghost" :disabled="loading" @click="load(page + 1)">{{ loading ? '正在加载…' : `加载更多（还有 ${total - items.length} 项）` }}</button></div>
 
   <div v-if="!loading && !items.length" class="empty-state empty-state--card">
     <strong>{{ resourceMeta.emptyTitle }}</strong>
@@ -229,11 +262,11 @@ onMounted(() => {
       :style="{ '--item-index': index }"
     >
       <component
-        :is="isCityDiscovery ? RouterLink : 'div'"
+        :is="RouterLink"
         class="discovery-cover"
         :class="moodClass(item, index)"
-        :to="cityDetailLink(item)"
-        :aria-label="isCityDiscovery ? `查看${item.name}旅行详情` : undefined"
+        :to="detailLink(item)"
+        :aria-label="`查看${item.name}${isCityDiscovery ? '旅行' : ''}详情`"
       >
         <img
           v-if="coverUrl(item)"
@@ -294,3 +327,8 @@ onMounted(() => {
     </RouterLink>
   </section>
 </template>
+
+<style scoped>
+.discovery-filter-row { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 720px) { .discovery-filter-row { grid-template-columns: 1fr; } }
+</style>

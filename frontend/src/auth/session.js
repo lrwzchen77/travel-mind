@@ -27,6 +27,10 @@ export const authSession = {
     storage()?.setItem(STORAGE_KEY, JSON.stringify(session));
     return session;
   },
+  updateUser(user) {
+    const session = read();
+    return session ? this.save({ ...session, user }) : null;
+  },
   clear() {
     memorySession = null;
     storage()?.removeItem(STORAGE_KEY);
