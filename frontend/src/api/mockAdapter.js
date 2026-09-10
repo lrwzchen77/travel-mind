@@ -66,13 +66,21 @@ async function mockAdapter(config) {
   if (method === 'get' && segments[0] === 'public' && segments[1] === 'inspirations') {
     if (segments[2] && segments[3] === 'comments') {
       const id = Number(segments[2]);
-      return ok(mockData.communityComments[id] || []);
+      const allComments = mockData.communityComments[id] || [];
+      return ok({ records: allComments, total: allComments.length });
     }
     if (segments[2]) {
       const id = Number(segments[2]);
       return ok(mockData.communityPosts.find((p) => p.id === id) || null);
     }
-    return ok(mockData.communityPosts);
+    let posts = mockData.communityPosts;
+    if (params.keyword) {
+      const kw = params.keyword.toLowerCase();
+      posts = posts.filter((p) => p.title.toLowerCase().includes(kw) || String(p.content || '').toLowerCase().includes(kw) || String(p.tags || '').toLowerCase().includes(kw));
+    }
+    if (params.city) posts = posts.filter((p) => p.city === params.city);
+    if (params.topic) posts = posts.filter((p) => p.topic === params.topic);
+    return ok({ records: posts, total: posts.length });
   }
 
   if (method === 'get' && segments[0] === 'public' && segments[1] === 'travel-map') {

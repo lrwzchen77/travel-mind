@@ -141,19 +141,48 @@ const journals = [
 ];
 
 const communityPosts = [
-  { id: 1, title: '杭州两日精华路线，第一次去就收藏', author: '旅行者', city: '杭州', created_at: '2026-08-13T09:00:00', likes: 128, comments_count: 15, status: 'APPROVED', cover_image: '', excerpt: '白堤日出 → 楼外楼 → 灵隐寺 → 河坊街，第二天龙井 + 西溪。', tags: '杭州,周末,慢游' },
-  { id: 2, title: '成都美食地图：跟着本地人吃了三天', author: '美食家小王', city: '成都', created_at: '2026-08-10T14:00:00', likes: 256, comments_count: 32, status: 'APPROVED', cover_image: '', excerpt: '从蜀大侠到陈麻婆，从甜水面到钵钵鸡，成都的辣是分层的。', tags: '成都,美食,火锅' },
-  { id: 3, title: '厦门鼓浪屿：最全拍照机位指南', author: '文艺旅人', city: '厦门', created_at: '2026-08-05T10:00:00', likes: 189, comments_count: 21, status: 'APPROVED', cover_image: '', excerpt: '日光岩、菽庄花园、八卦楼……鼓浪屿每个转角都是风景。', tags: '厦门,鼓浪屿,拍照' },
-  { id: 4, title: '西安城墙骑行 + 回民街宵夜攻略', author: '历史迷小李', city: '西安', created_at: '2026-07-28T18:00:00', likes: 142, comments_count: 18, status: 'APPROVED', cover_image: '', excerpt: '城墙一圈14公里刚好1小时，下来直奔回民街。', tags: '西安,骑行,美食' },
+  { id: 1, title: '杭州两日精华路线，第一次去就收藏', author: '旅行者', city: '杭州', topic: 'route', created_at: '2026-08-13T09:00:00', like_count: 128, comment_count: 15, liked_by_me: false, status: 'APPROVED', cover_image: '', excerpt: '白堤日出 → 楼外楼 → 灵隐寺 → 河坊街，第二天龙井 + 西溪。', tags: '杭州,周末,慢游', content: '第一天早上6点白堤看日出，7点前到断桥几乎没人，拍完照去楼外楼吃西湖醋鱼。上午灵隐寺飞来峰，下午河坊街买手伴。第二天龙井村采茶 + 知味观午餐，下午西溪湿地摇橹船。总花费约1600元，住西湖边民宿步行可达白堤。' },
+  { id: 2, title: '成都美食地图：跟着本地人吃了三天', author: '美食家小王', city: '成都', topic: 'food', created_at: '2026-08-10T14:00:00', like_count: 256, comment_count: 32, liked_by_me: false, status: 'APPROVED', cover_image: '', excerpt: '从蜀大侠到陈麻婆，从甜水面到钵钵鸡，成都的辣是分层的。', tags: '成都,美食,火锅', content: '第一天蜀大侠火锅（牛油锅底必点），第二天陈麻婆豆腐（真正的麻婆豆腐是麻在前辣在后），第三天去玉林路吃甜水面和钵钵鸡。人均80-120元，建议避开景区，宽窄巷子只逛不吃。' },
+  { id: 3, title: '厦门鼓浪屿：最全拍照机位指南', author: '文艺旅人', city: '厦门', topic: 'play', created_at: '2026-08-05T10:00:00', like_count: 189, comment_count: 21, liked_by_me: false, status: 'APPROVED', cover_image: '', excerpt: '日光岩、菽庄花园、八卦楼……鼓浪屿每个转角都是风景。', tags: '厦门,鼓浪屿,拍照', content: '日光岩最佳拍摄时间是早上7点，人少光好。菽庄花园的海边钢琴博物馆角度绝了。八卦楼的红砖墙配蓝天是必拍机位。岛上没有机动车，全程步行，穿舒服的鞋。轮渡35元往返，建议住一晚体验夜晚的鼓浪屿。' },
+  { id: 4, title: '西安城墙骑行 + 回民街宵夜攻略', author: '历史迷小李', city: '西安', topic: 'route', created_at: '2026-07-28T18:00:00', like_count: 142, comment_count: 18, liked_by_me: false, status: 'APPROVED', cover_image: '', excerpt: '城墙一圈14公里刚好1小时，下来直奔回民街。', tags: '西安,骑行,美食', content: '城墙骑行租自行车45元/2小时，一圈14公里慢慢骑约1小时。南门（永宁门）上下最方便。骑完刚好傍晚，从南门步行10分钟到回民街。老孙家泡馍要掰馍掰得细，配糖蒜和辣酱。宵夜推荐红柳烤肉，10元一串。' },
+  { id: 5, title: '大理环洱海骑行：风花雪月两日版', author: '环海骑手', city: '大理', topic: 'route', created_at: '2026-07-20T08:00:00', like_count: 98, comment_count: 12, liked_by_me: false, status: 'APPROVED', cover_image: '', excerpt: '才村码头 → 喜洲古镇 → 双廊，130公里最美的环湖路。', tags: '大理,洱海,骑行', content: '第一天从大理古城出发，沿西岸到喜洲古镇（约40公里），吃喜洲粑粑，住海景客栈。第二天从喜洲到双廊再到挖庄（约90公里），双廊看洱海日落绝美。电瓶车续航焦虑的话，沿途村子都有充电桩。建议秋季去，风不大光线暖。' },
+  { id: 6, title: '青岛啤酒节避坑指南：本地人教你省钱', author: '青岛老张', city: '青岛', topic: 'tip', created_at: '2026-08-01T16:00:00', like_count: 175, comment_count: 24, liked_by_me: false, status: 'APPROVED', cover_image: '', excerpt: '门票、酒券、吃饭全套攻略，别在会场里买全价票。', tags: '青岛,啤酒节,避坑', content: '啤酒节门票提前在官方小程序买能省30%，现场买全价。进去了别直接点大杯，先买试饮券尝4种再决定。吃东西别在会场里吃，出来走5分钟到台东步行街，海鲜烧烤便宜一半。住宿住市南区地铁沿线，别住会场旁边贵3倍。' },
+  { id: 7, title: '杭州西溪湿地摇橹船：比西湖安静十倍', author: '慢游日记', city: '杭州', topic: 'play', created_at: '2026-08-08T11:00:00', like_count: 67, comment_count: 8, liked_by_me: false, status: 'APPROVED', cover_image: '', excerpt: '摇橹船100元/人，60分钟，全程只有船桨声和鸟叫。', tags: '杭州,西溪,慢游', content: '西湖人太多的时候，来西溪就对了。摇橹船在深潭口坐，100元每人60分钟。船工会讲西溪的故事，比电动船安静太多。建议下午3点坐，光线最好。下了船走绿堤到高庄出口，全程约3小时。门票80元，杭州公园卡免费。' },
+  { id: 8, title: '成都太古里博舍酒店住后感：设计感拉满', author: '酒店控', city: '成都', topic: 'stay', created_at: '2026-07-25T20:00:00', like_count: 112, comment_count: 16, liked_by_me: false, status: 'APPROVED', cover_image: '', excerpt: '博舍把川西民居和现代设计融合，中庭的竹林太绝了。', tags: '成都,博舍,酒店', content: '博舍在太古里中心，出门就是逛吃。大堂在二楼，中庭竹林设计非常出片。房间面积不大但用色和材质高级，浴缸靠窗。服务细节到位，欢迎点心是熊猫造型马卡龙。价格800-1800元，性价比看个人。隔壁大慈寺值得顺路逛。' },
+  { id: 9, title: '厦门沙坡尾：文艺青年的秘密基地', author: '文艺旅人', city: '厦门', topic: 'play', created_at: '2026-07-30T13:00:00', like_count: 84, comment_count: 10, liked_by_me: false, status: 'APPROVED', cover_image: '', excerpt: '老渔港改造的文艺街区，比鼓浪屿人少，比曾厝垵干净。', tags: '厦门,沙坡尾,文艺', content: '沙坡尾在大学路附近，原来是老渔港，改造成文艺街区。有独立书店、手冲咖啡、 vintage古着店。推荐的店：不辍旧物空间（复古杂货）、SAICAT（咖啡），傍晚看渔船回港很有味道。离厦门大学和南普陀寺步行10分钟，可以串在一起逛。' },
+  { id: 10, title: '西安回民街踩雷+推荐：本地人带你避坑', author: '西安吃货', city: '西安', topic: 'tip', created_at: '2026-08-02T17:00:00', like_count: 203, comment_count: 28, liked_by_me: false, status: 'APPROVED', cover_image: '', excerpt: '老孙家泡馍别在主街吃，红柳烤肉认准老马家。', tags: '西安,回民街,避坑', content: '回民街主街的店有一半是游客店。泡馍推荐西羊市的老孙家（不在主街上），掰馍掰得越细越好。红柳烤肉认准老马家，10元一串肉大。镜糕和甑糕别在第一家买，往里走第三家便宜。酸梅汤自己冲的比鲜榨好喝。避开节假日中午人最多。' },
+  { id: 11, title: '青岛建筑漫步：八大关的红瓦绿树', author: '建筑爱好者', city: '青岛', topic: 'route', created_at: '2026-07-18T09:00:00', like_count: 76, comment_count: 7, liked_by_me: false, status: 'APPROVED', cover_image: '', excerpt: '花石楼 → 公主楼 → 蝴蝶楼，八大关一条路看遍万国建筑。', tags: '青岛,八大关,建筑', content: '八大关是青岛最美的一条散步路线。从花石楼开始（门票8.5元），顺时针走公主楼（丹麦风格）、蝴蝶楼（日本风格），全程约2公里。最佳季节是10月，银杏和枫叶都黄了。花石楼三楼阳台看海角度最好。走完去第二海水浴场坐坐，免费。' },
+  { id: 12, title: '大理古城夜市：洋人街的饼和酒', author: '环海骑手', city: '大理', topic: 'food', created_at: '2026-07-22T21:00:00', like_count: 54, comment_count: 9, liked_by_me: false, status: 'APPROVED', cover_image: '', excerpt: '烤乳扇、鲜花饼、木瓜水，洋人街的夜市便宜又好吃。', tags: '大理,夜市,美食', content: '大理古城洋人街夜市从晚上7点开始。必吃：烤乳扇（5元/个，玫瑰酱夹心）、鲜花饼（现烤的3元/个）、木瓜水（3元/碗，解辣解腻）。杨记烤饵块也推荐，5元/份。如果想喝酒，坏猴子酒吧的精酿不错，38元/杯。夜市到晚上11点左右收摊，建议9点去最热闹。' },
 ];
 
 const communityComments = {
   1: [
     { id: 1, author: '小张', content: '白堤日出真的绝美！几点去的？', created_at: '2026-08-13T10:00:00' },
     { id: 2, author: '旅途中', content: '楼外楼价格小贵但风景无价', created_at: '2026-08-13T11:00:00' },
+    { id: 3, author: '慢游日记', content: '第二天龙井村采茶需要提前预约吗？', created_at: '2026-08-13T14:00:00' },
   ],
   2: [
-    { id: 3, author: '吃货阿May', content: '甜水面是成都最被低估的小吃！', created_at: '2026-08-10T15:00:00' },
+    { id: 4, author: '吃货阿May', content: '甜水面是成都最被低估的小吃！', created_at: '2026-08-10T15:00:00' },
+    { id: 5, author: '川味控', content: '蜀大侠牛油锅确实顶，但微辣就够', created_at: '2026-08-10T16:00:00' },
+  ],
+  3: [
+    { id: 6, author: '摄影小白', content: '日光岩早上几点去最好？', created_at: '2026-08-05T11:00:00' },
+  ],
+  4: [
+    { id: 7, author: '骑行爱好者', content: '城墙自行车可以自带吗？', created_at: '2026-07-28T19:00:00' },
+    { id: 8, author: '西安吃货', content: '老孙家泡馍确实正宗，掰馍是灵魂', created_at: '2026-07-28T20:00:00' },
+  ],
+  5: [
+    { id: 9, author: '洱海常客', content: '双廊看日落真的绝，推荐住一晚', created_at: '2026-07-20T09:00:00' },
+  ],
+  6: [
+    { id: 10, author: '啤酒达人', content: '试饮券这个信息太有用了！', created_at: '2026-08-01T17:00:00' },
+  ],
+  7: [
+    { id: 11, author: '杭州土著', content: '西溪确实比西湖安静多了，推荐秋天去', created_at: '2026-08-08T12:00:00' },
+  ],
+  8: [
+    { id: 12, author: '设计控', content: '博舍中庭竹林确实出片', created_at: '2026-07-25T21:00:00' },
   ],
 };
 
