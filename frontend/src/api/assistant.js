@@ -2,6 +2,7 @@ import { http } from './http.js';
 import { authSession } from '../auth/session.js';
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
+const isPages = import.meta.env.BASE_URL !== '/';
 
 function unwrap(response) {
   return response.data?.data ?? response.data;
@@ -26,7 +27,23 @@ export async function readSse(response, onEvent) {
   }
 }
 
+async function mockAskStream(payload, onEvent) {
+  const replies = [
+    '你好！我是 TravelMind 旅行助手。在演示模式下，我可以为你提供基本的旅行建议。',
+    '根据你的问题，我建议你先看看杭州和成都的行程路线，这两个城市非常适合周末短途旅行。',
+    '如果你喜欢美食，成都的宽窄巷子和西安的回民街都是不错的选择。',
+    '规划行程时，建议先确定城市和天数，再根据偏好选择景点和餐厅。',
+  ];
+  const reply = replies[Math.floor(Math.random() * replies.length)];
+  for (const chunk of reply.match(/.{1,4}/g) || [reply]) {
+    await new Promise((r) => setTimeout(r, 50));
+    onEvent('token', { token: chunk });
+  }
+  onEvent('done', { conversation_id: 1 });
+}
+
 async function askStream(payload, onEvent) {
+  if (isPages) return mockAskStream(payload, onEvent);
   const token = authSession.token();
   const response = await fetch(`${apiBaseUrl}/user/assistant/ask/stream`, {
     method: 'POST',
